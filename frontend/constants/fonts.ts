@@ -43,4 +43,12 @@ export const Fonts = {
     xxxl: 36,
     title: 42,
   },
+  // Shorthand weight values for convenience (backward-compatible alias)
+  weights: {
+    regular: '400' as const,
+    medium: '500' as const,
+    semiBold: '600' as const,
+    bold: '700' as const,
+    extraBold: '800' as const,
+  },
 };

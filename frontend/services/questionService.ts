@@ -1,0 +1,129 @@
+import api from './api';
+import { Config } from '../constants/config';
+import type {
+  QuestionResponse,
+  PageResponse,
+  CreateQuestionRequest,
+  EditQuestionRequest,
+  ForwardQuestionRequest,
+  QuestionQueryParams,
+} from '../types';
+
+/**
+ * Question service - handles CRUD operations for questions within whiteboards,
+ * including pinning, closing, and forwarding.
+ */
+export const questionService = {
+  /**
+   * Get questions for a whiteboard with optional filtering, sorting, and pagination.
+   * GET /whiteboards/{wbId}/questions
+   */
+  getQuestions: async (
+    wbId: string,
+    params?: QuestionQueryParams
+  ): Promise<PageResponse<QuestionResponse>> => {
+    const response = await api.get<PageResponse<QuestionResponse>>(
+      `/whiteboards/${wbId}/questions`,
+      {
+        params: {
+          page: params?.page ?? 0,
+          size: params?.size ?? Config.PAGE_SIZE,
+          topicId: params?.topicId,
+          status: params?.status,
+          sort: params?.sort,
+          search: params?.search,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get a single question by ID.
+   * GET /whiteboards/{wbId}/questions/{id}
+   */
+  getQuestion: async (
+    wbId: string,
+    id: string
+  ): Promise<QuestionResponse> => {
+    const response = await api.get<QuestionResponse>(
+      `/whiteboards/${wbId}/questions/${id}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Create a new question in a whiteboard.
+   * POST /whiteboards/{wbId}/questions
+   */
+  createQuestion: async (
+    wbId: string,
+    data: CreateQuestionRequest
+  ): Promise<QuestionResponse> => {
+    const response = await api.post<QuestionResponse>(
+      `/whiteboards/${wbId}/questions`,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Edit an existing question (only if OPEN and author, before verified answer).
+   * PUT /whiteboards/{wbId}/questions/{id}
+   */
+  editQuestion: async (
+    wbId: string,
+    id: string,
+    data: EditQuestionRequest
+  ): Promise<QuestionResponse> => {
+    const response = await api.put<QuestionResponse>(
+      `/whiteboards/${wbId}/questions/${id}`,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete a question (author or faculty).
+   * DELETE /whiteboards/{wbId}/questions/{id}
+   */
+  deleteQuestion: async (wbId: string, id: string): Promise<void> => {
+    await api.delete(`/whiteboards/${wbId}/questions/${id}`);
+  },
+
+  /**
+   * Close a question (faculty only, marks as resolved).
+   * POST /whiteboards/{wbId}/questions/{id}/close
+   */
+  closeQuestion: async (wbId: string, id: string): Promise<void> => {
+    await api.post(`/whiteboards/${wbId}/questions/${id}/close`);
+  },
+
+  /**
+   * Pin a question to the top of the whiteboard (faculty only, max 3 pinned).
+   * POST /whiteboards/{wbId}/questions/{id}/pin
+   */
+  pinQuestion: async (wbId: string, id: string): Promise<void> => {
+    await api.post(`/whiteboards/${wbId}/questions/${id}/pin`);
+  },
+
+  /**
+   * Unpin a question (faculty only).
+   * DELETE /whiteboards/{wbId}/questions/{id}/pin
+   */
+  unpinQuestion: async (wbId: string, id: string): Promise<void> => {
+    await api.delete(`/whiteboards/${wbId}/questions/${id}/pin`);
+  },
+
+  /**
+   * Forward a question to another faculty member (cross-class).
+   * POST /whiteboards/{wbId}/questions/{id}/forward
+   */
+  forwardQuestion: async (
+    wbId: string,
+    id: string,
+    data: ForwardQuestionRequest
+  ): Promise<void> => {
+    await api.post(`/whiteboards/${wbId}/questions/${id}/forward`, data);
+  },
+};
