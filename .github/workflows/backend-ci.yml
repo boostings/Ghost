@@ -1,0 +1,57 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ghost_db
+          POSTGRES_USER: ghost_user
+          POSTGRES_PASSWORD: ghost_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ghost_user -d ghost_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and test
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ghost_db
+          SPRING_DATASOURCE_USERNAME: ghost_user
+          SPRING_DATASOURCE_PASSWORD: ghost_pass
+          SPRING_PROFILES_ACTIVE: dev
+        run: mvn clean verify
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/target/surefire-reports/

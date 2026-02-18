@@ -2,6 +2,7 @@ package com.ghost.controller;
 
 import com.ghost.dto.request.UpdateUserRequest;
 import com.ghost.dto.response.UserResponse;
+import com.ghost.model.User;
 import com.ghost.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +23,8 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getMe(@AuthenticationPrincipal String userIdStr) {
         UUID userId = UUID.fromString(userIdStr);
-        UserResponse response = userService.getCurrentUser(userId);
-        return ResponseEntity.ok(response);
+        User user = userService.getUserById(userId);
+        return ResponseEntity.ok(mapToUserResponse(user));
     }
 
     @PutMapping("/me")
@@ -31,8 +32,8 @@ public class UserController {
             @AuthenticationPrincipal String userIdStr,
             @Valid @RequestBody UpdateUserRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        UserResponse response = userService.updateUser(userId, request);
-        return ResponseEntity.ok(response);
+        User user = userService.updateUser(userId, request);
+        return ResponseEntity.ok(mapToUserResponse(user));
     }
 
     @PutMapping("/me/push-token")
@@ -42,5 +43,18 @@ public class UserController {
         UUID userId = UUID.fromString(userIdStr);
         userService.updatePushToken(userId, body.get("token"));
         return ResponseEntity.ok().build();
+    }
+
+    private UserResponse mapToUserResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .role(user.getRole())
+                .karmaScore(user.getKarmaScore())
+                .emailVerified(user.isEmailVerified())
+                .createdAt(user.getCreatedAt())
+                .build();
     }
 }
