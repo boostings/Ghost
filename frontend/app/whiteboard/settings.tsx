@@ -125,7 +125,7 @@ export default function WhiteboardSettingsScreen() {
 
   if (loading) {
     return (
-      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+      <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -134,7 +134,7 @@ export default function WhiteboardSettingsScreen() {
   }
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -437,10 +437,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   inviteCodeBox: {
-    backgroundColor: 'rgba(108,99,255,0.15)',
+    backgroundColor: 'rgba(187,39,68,0.15)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.3)',
+    borderColor: 'rgba(187,39,68,0.3)',
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,

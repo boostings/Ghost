@@ -9,9 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  useColorScheme,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 
 interface GlassModalProps {
@@ -24,6 +25,9 @@ interface GlassModalProps {
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, children }) => {
+  const colors = useThemeColors();
+  const colorScheme = useColorScheme();
+
   return (
     <Modal
       visible={visible}
@@ -36,7 +40,7 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.overlay}>
+        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <TouchableOpacity
             style={styles.overlayTouchable}
             activeOpacity={1}
@@ -45,22 +49,26 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
             accessibilityLabel="Close modal"
           />
           <View style={styles.modalContainer}>
-            <View style={styles.cardWrapper}>
-              <BlurView intensity={80} tint="dark" style={styles.blur}>
-                <View style={styles.cardInner}>
+            <View style={[styles.cardWrapper, { borderColor: colors.cardBorder }]}>
+              <BlurView
+                intensity={80}
+                tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                style={styles.blur}
+              >
+                <View style={[styles.cardInner, { backgroundColor: colors.cardBg }]}>
                   {/* Title Bar */}
-                  <View style={styles.titleBar}>
-                    <Text style={styles.title} numberOfLines={1}>
+                  <View style={[styles.titleBar, { borderBottomColor: colors.surfaceBorder }]}>
+                    <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
                       {title}
                     </Text>
                     <TouchableOpacity
                       onPress={onClose}
-                      style={styles.closeButton}
+                      style={[styles.closeButton, { backgroundColor: colors.surfaceLight }]}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       accessibilityRole="button"
                       accessibilityLabel="Close modal"
                     >
-                      <Text style={styles.closeIcon}>✕</Text>
+                      <Text style={[styles.closeIcon, { color: colors.textSecondary }]}>✕</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -89,7 +97,6 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -104,13 +111,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
   blur: {
     overflow: 'hidden',
   },
   cardInner: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   titleBar: {
     flexDirection: 'row',
@@ -119,10 +124,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
   },
   title: {
-    color: Colors.text,
     fontSize: Fonts.sizes.xl,
     fontWeight: Fonts.bold.fontWeight,
     flex: 1,
@@ -132,12 +135,10 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeIcon: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.lg,
     fontWeight: Fonts.bold.fontWeight,
   },

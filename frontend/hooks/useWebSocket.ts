@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Config } from '../constants/config';
 import { useAuthStore } from '../stores/authStore';
+import { authService } from '../services/authService';
 
 // ============================================================
 // Lightweight STOMP-over-WebSocket implementation.
@@ -22,6 +23,45 @@ interface StompFrame {
   command: string;
   headers: Record<string, string>;
   body: string;
+}
+
+function decodeBase64Url(value: string): string | null {
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+    if (typeof globalThis.atob !== 'function') {
+      return null;
+    }
+    return globalThis.atob(normalized + padding);
+  } catch {
+    return null;
+  }
+}
+
+function getTokenExpiryEpochSeconds(token: string): number | null {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+  const decoded = decodeBase64Url(parts[1]);
+  if (!decoded) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(decoded) as { exp?: unknown };
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token: string, skewSeconds = 10): boolean {
+  const exp = getTokenExpiryEpochSeconds(token);
+  if (!exp) {
+    return false;
+  }
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return nowSeconds >= exp - skewSeconds;
 }
 
 /**
@@ -109,9 +149,41 @@ export function useWebSocket() {
   const pendingSubscriptionsRef = useRef<
     Array<{ id: string; destination: string; callback: (frame: StompFrame) => void }>
   >([]);
+  const tokenRefreshPromiseRef = useRef<Promise<boolean> | null>(null);
+  const hasLoggedExpiredWarningRef = useRef(false);
 
   const accessToken = useAuthStore((state) => state.accessToken);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const setTokens = useAuthStore((state) => state.setTokens);
+  const logout = useAuthStore((state) => state.logout);
+
+  const refreshAccessToken = useCallback(async (): Promise<boolean> => {
+    if (tokenRefreshPromiseRef.current) {
+      return tokenRefreshPromiseRef.current;
+    }
+
+    tokenRefreshPromiseRef.current = (async () => {
+      const currentRefreshToken = useAuthStore.getState().refreshToken ?? refreshToken;
+      if (!currentRefreshToken) {
+        logout();
+        return false;
+      }
+
+      try {
+        const response = await authService.refreshToken(currentRefreshToken);
+        setTokens(response.accessToken, response.refreshToken);
+        return true;
+      } catch {
+        logout();
+        return false;
+      } finally {
+        tokenRefreshPromiseRef.current = null;
+      }
+    })();
+
+    return tokenRefreshPromiseRef.current;
+  }, [logout, refreshToken, setTokens]);
 
   /**
    * Send a raw STOMP frame over the WebSocket connection.
@@ -202,6 +274,16 @@ export function useWebSocket() {
       return;
     }
 
+    if (isTokenExpired(accessToken)) {
+      if (!hasLoggedExpiredWarningRef.current) {
+        console.warn('[WebSocket] Access token expired. Refreshing token before reconnect.');
+        hasLoggedExpiredWarningRef.current = true;
+      }
+      void refreshAccessToken();
+      return;
+    }
+    hasLoggedExpiredWarningRef.current = false;
+
     try {
       const separator = Config.WS_URL.includes('?') ? '&' : '?';
       const wsUrl = `${Config.WS_URL}${separator}access_token=${encodeURIComponent(accessToken)}`;
@@ -223,6 +305,12 @@ export function useWebSocket() {
         isConnectedRef.current = false;
         setIsConnected(false);
 
+        const latestAccessToken = useAuthStore.getState().accessToken;
+        if (latestAccessToken && isTokenExpired(latestAccessToken)) {
+          void refreshAccessToken();
+          return;
+        }
+
         // Attempt reconnection with exponential backoff
         if (
           reconnectAttemptRef.current < maxReconnectAttempts &&
@@ -239,13 +327,13 @@ export function useWebSocket() {
         }
       };
 
-      ws.onerror = (error) => {
-        console.warn('[WebSocket] Connection error:', error);
+      ws.onerror = () => {
+        console.warn('[WebSocket] Connection error. Will retry if session is valid.');
       };
     } catch (error) {
       console.warn('[WebSocket] Failed to create connection:', error);
     }
-  }, [accessToken, handleMessage, sendFrame]);
+  }, [accessToken, handleMessage, refreshAccessToken, sendFrame]);
 
   /**
    * Subscribe to a STOMP destination (topic).
@@ -303,6 +391,7 @@ export function useWebSocket() {
 
     isConnectedRef.current = false;
     setIsConnected(false);
+    hasLoggedExpiredWarningRef.current = false;
     subscriptionsRef.current.clear();
     pendingSubscriptionsRef.current = [];
   }, [sendFrame]);

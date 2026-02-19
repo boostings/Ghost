@@ -23,9 +23,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
     @Query("""
             SELECT log
             FROM AuditLog log
+            LEFT JOIN log.actor actor
             WHERE log.whiteboard.id = :whiteboardId
               AND (:action IS NULL OR log.action = :action)
-              AND (:actorId IS NULL OR log.actor.id = :actorId)
+              AND (:actorId IS NULL OR actor.id = :actorId)
               AND (:startAt IS NULL OR log.createdAt >= :startAt)
               AND (:endAt IS NULL OR log.createdAt <= :endAt)
             ORDER BY log.createdAt DESC

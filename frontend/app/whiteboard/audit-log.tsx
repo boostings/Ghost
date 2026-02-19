@@ -248,7 +248,7 @@ export default function AuditLogScreen() {
   );
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -413,12 +413,12 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   exportButton: {
-    backgroundColor: 'rgba(108,99,255,0.2)',
+    backgroundColor: 'rgba(187,39,68,0.2)',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.4)',
+    borderColor: 'rgba(187,39,68,0.4)',
   },
   exportText: {
     fontSize: Fonts.sizes.sm,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(108,99,255,0.25)',
+    backgroundColor: 'rgba(187,39,68,0.25)',
     borderColor: Colors.primary,
   },
   filterChipText: {

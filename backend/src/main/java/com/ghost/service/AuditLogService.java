@@ -34,7 +34,7 @@ public class AuditLogService {
                           String targetType, UUID targetId, String oldValue, String newValue) {
         AuditLog auditLog = AuditLog.builder()
                 .whiteboard(whiteboardId == null ? null : Whiteboard.builder().id(whiteboardId).build())
-                .actor(User.builder().id(actorId).build())
+                .actor(actorId == null ? null : User.builder().id(actorId).build())
                 .action(action)
                 .targetType(AuditTargetType.from(targetType))
                 .targetId(targetId)

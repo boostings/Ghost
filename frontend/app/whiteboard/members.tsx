@@ -144,7 +144,7 @@ export default function MembersScreen() {
 
   if (loading) {
     return (
-      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+      <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -153,7 +153,7 @@ export default function MembersScreen() {
   }
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   },
   studentRole: {
     color: Colors.primary,
-    backgroundColor: 'rgba(108,99,255,0.15)',
+    backgroundColor: 'rgba(187,39,68,0.15)',
   },
   removeButton: {
     width: 44,

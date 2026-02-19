@@ -463,7 +463,7 @@ export default function QuestionDetailScreen() {
 
   if (loading) {
     return (
-      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+      <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -472,7 +472,7 @@ export default function QuestionDetailScreen() {
   }
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
   commentInputContainer: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(26,26,46,0.95)',
+    backgroundColor: Colors.backgroundLight,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
@@ -1041,9 +1041,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: 'rgba(108,99,255,0.14)',
+    backgroundColor: 'rgba(187,39,68,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.3)',
+    borderColor: 'rgba(187,39,68,0.3)',
   },
   editingText: {
     color: Colors.textSecondary,
@@ -1109,7 +1109,7 @@ const styles = StyleSheet.create({
   },
   reportReasonOptionActive: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(108,99,255,0.22)',
+    backgroundColor: 'rgba(187,39,68,0.22)',
   },
   reportReasonLabel: {
     fontSize: Fonts.sizes.md,

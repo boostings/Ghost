@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View, ViewStyle, StyleProp } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, ViewStyle, StyleProp, useColorScheme } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useThemeColors } from '../../constants/colors';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -17,10 +18,13 @@ const GlassCard: React.FC<GlassCardProps> = ({
   onPress,
   accessibilityLabel,
 }) => {
+  const colorScheme = useColorScheme();
+  const colors = useThemeColors();
+
   const content = (
-    <View style={[styles.container, style]}>
-      <BlurView intensity={blurIntensity} tint="dark" style={styles.blur}>
-        <View style={styles.inner}>{children}</View>
+    <View style={[styles.container, { borderColor: colors.cardBorder }, style]}>
+      <BlurView intensity={blurIntensity} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={styles.blur}>
+        <View style={[styles.inner, { backgroundColor: colors.cardBg }]}>{children}</View>
       </BlurView>
     </View>
   );
@@ -46,13 +50,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
   blur: {
     overflow: 'hidden',
   },
   inner: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
     padding: 16,
   },
 });

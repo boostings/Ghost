@@ -31,7 +31,7 @@ public class AuditLog {
     private Whiteboard whiteboard;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "actor_id", nullable = false)
+    @JoinColumn(name = "actor_id")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private User actor;

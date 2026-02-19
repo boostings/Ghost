@@ -40,6 +40,7 @@ Notifications.setNotificationHandler({
  */
 export function useNotifications() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
   const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
   const addNotification = useNotificationStore((state) => state.addNotification);
@@ -47,6 +48,7 @@ export function useNotifications() {
 
   const notificationListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
+  const expoGoWarnedRef = useRef(false);
 
   /**
    * Register for push notifications and return the Expo push token.
@@ -59,9 +61,12 @@ export function useNotifications() {
 
     // Expo Go does not support remote push token registration on SDK 53+.
     if (Constants.default.appOwnership === 'expo') {
-      console.warn(
-        '[Notifications] Expo Go detected. Remote push notifications require a development build.'
-      );
+      if (!expoGoWarnedRef.current) {
+        console.warn(
+          '[Notifications] Expo Go detected. Remote push notifications require a development build.'
+        );
+        expoGoWarnedRef.current = true;
+      }
       return null;
     }
 
@@ -102,7 +107,7 @@ export function useNotifications() {
           name: 'Ghost Notifications',
           importance: Notifications.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#6C63FF',
+          lightColor: '#BB2744',
         });
       }
 
@@ -218,7 +223,7 @@ export function useNotifications() {
 
   // Main effect: register for push notifications and set up listeners
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user || !accessToken) {
       return;
     }
 
@@ -253,6 +258,7 @@ export function useNotifications() {
       }
     };
   }, [
+    accessToken,
     isAuthenticated,
     user,
     registerForPushNotifications,
@@ -263,7 +269,7 @@ export function useNotifications() {
 
   // Subscribe to personal WebSocket notifications for real-time updates.
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated || !accessToken || !user?.id) {
       return;
     }
 
@@ -297,7 +303,7 @@ export function useNotifications() {
     return () => {
       subscription?.unsubscribe();
     };
-  }, [addNotification, isAuthenticated, subscribe, user?.id]);
+  }, [accessToken, addNotification, isAuthenticated, subscribe, user?.id]);
 
   return {
     registerForPushNotifications,

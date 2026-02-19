@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   notificationUnread: {
-    borderColor: 'rgba(108,99,255,0.3)',
+    borderColor: 'rgba(187,39,68,0.3)',
   },
   notificationRow: {
     flexDirection: 'row',

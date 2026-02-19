@@ -104,7 +104,7 @@ export default function EditQuestionScreen() {
 
   if (loading) {
     return (
-      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+      <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -113,7 +113,7 @@ export default function EditQuestionScreen() {
   }
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   topicChipActive: {
-    backgroundColor: 'rgba(108,99,255,0.25)',
+    backgroundColor: 'rgba(187,39,68,0.25)',
     borderColor: Colors.primary,
   },
   topicChipText: {

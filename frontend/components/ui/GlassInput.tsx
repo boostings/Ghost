@@ -8,7 +8,7 @@ import {
   StyleProp,
   TextInputProps,
 } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 
 interface GlassInputProps {
@@ -49,18 +49,28 @@ const GlassInput: React.FC<GlassInputProps> = ({
   style,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const colors = useThemeColors();
 
   const inputHeight = multiline ? Math.max(48, numberOfLines * 24 + 24) : 48;
 
   return (
     <View style={[styles.wrapper, style]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
       <View
         style={[
           styles.container,
-          { minHeight: inputHeight },
-          isFocused && styles.containerFocused,
-          error ? styles.containerError : null,
+          {
+            minHeight: inputHeight,
+            backgroundColor: colors.inputBg,
+            borderColor: colors.inputBorder,
+          },
+          isFocused
+            ? {
+                borderColor: colors.primary,
+                backgroundColor: colors.surfaceLight,
+              }
+            : null,
+          error ? { borderColor: colors.error } : null,
           !editable && styles.containerDisabled,
         ]}
       >
@@ -68,11 +78,12 @@ const GlassInput: React.FC<GlassInputProps> = ({
         <TextInput
           style={[
             styles.input,
+            { color: colors.text },
             multiline && styles.multilineInput,
             icon ? styles.inputWithIcon : null,
           ]}
           placeholder={placeholder}
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry}
@@ -87,10 +98,10 @@ const GlassInput: React.FC<GlassInputProps> = ({
           editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          selectionColor={Colors.primary}
+          selectionColor={colors.primary}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -100,26 +111,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.md,
     fontWeight: Fonts.medium.fontWeight,
     marginBottom: 8,
   },
   container: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.30)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-  },
-  containerFocused: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  containerError: {
-    borderColor: '#FF4444',
   },
   containerDisabled: {
     opacity: 0.5,
@@ -129,7 +130,6 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: Colors.text,
     fontSize: Fonts.sizes.lg,
     fontWeight: Fonts.regular.fontWeight,
     paddingVertical: 12,
@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
   },
   errorText: {
-    color: '#FF4444',
     fontSize: Fonts.sizes.sm,
     marginTop: 6,
     marginLeft: 4,

@@ -15,6 +15,7 @@ import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
+import com.ghost.repository.WhiteboardRepository;
 import com.ghost.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
+    private final WhiteboardRepository whiteboardRepository;
     private final WhiteboardMembershipService whiteboardMembershipService;
     private final AuditLogService auditLogService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -181,7 +183,11 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        logUserAction(userId, AuditAction.USER_REMOVED, userId, "account_status=active", "account_status=deleted");
+        if (!whiteboardRepository.findByOwnerId(userId).isEmpty()) {
+            throw new BadRequestException("Transfer ownership of your whiteboards before deleting your account");
+        }
+
+        logUserDeletion(userId, "account_status=active", "account_status=deleted");
         userRepository.delete(user);
         log.info("Account deleted for user: {}", userId);
     }
@@ -240,6 +246,34 @@ public class AuthService {
                 null,
                 actorId,
                 action,
+                "User",
+                targetId,
+                oldValue,
+                newValue
+        );
+    }
+
+    private void logUserDeletion(UUID targetId, String oldValue, String newValue) {
+        List<WhiteboardMembership> memberships = whiteboardMembershipRepository.findByUserId(targetId);
+        if (!memberships.isEmpty()) {
+            for (WhiteboardMembership membership : memberships) {
+                auditLogService.logAction(
+                        membership.getWhiteboard().getId(),
+                        null,
+                        AuditAction.USER_REMOVED,
+                        "User",
+                        targetId,
+                        oldValue,
+                        newValue
+                );
+            }
+            return;
+        }
+
+        auditLogService.logAction(
+                null,
+                null,
+                AuditAction.USER_REMOVED,
                 "User",
                 targetId,
                 oldValue,

@@ -12,6 +12,7 @@ import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
+import com.ghost.repository.WhiteboardRepository;
 import com.ghost.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class AuthServiceTest {
     private WhiteboardMembershipRepository whiteboardMembershipRepository;
 
     @Mock
+    private WhiteboardRepository whiteboardRepository;
+
+    @Mock
     private WhiteboardMembershipService whiteboardMembershipService;
 
     @Mock
@@ -63,6 +67,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(whiteboardMembershipRepository.findByUserId(any(UUID.class))).thenReturn(List.of());
+        lenient().when(whiteboardRepository.findByOwnerId(any(UUID.class))).thenReturn(List.of());
     }
 
     @Test
@@ -242,7 +247,7 @@ class AuthServiceTest {
 
         verify(auditLogService).logAction(
                 whiteboardId,
-                userId,
+                null,
                 AuditAction.USER_REMOVED,
                 "User",
                 userId,
@@ -250,5 +255,24 @@ class AuthServiceTest {
                 "account_status=deleted"
         );
         verify(userRepository).delete(user);
+    }
+
+    @Test
+    void deleteAccountShouldRejectIfUserOwnsWhiteboards() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("faculty@ilstu.edu")
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(whiteboardRepository.findByOwnerId(userId))
+                .thenReturn(List.of(Whiteboard.builder().id(UUID.randomUUID()).build()));
+
+        assertThatThrownBy(() -> authService.deleteAccount(userId))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Transfer ownership");
+
+        verify(userRepository, never()).delete(any(User.class));
     }
 }

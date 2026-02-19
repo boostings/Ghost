@@ -6,7 +6,7 @@ import type { AuthResponse, RefreshTokenRequest } from '../types';
 /**
  * Axios instance configured with the Ghost API base URL.
  * Includes request interceptor for JWT token attachment
- * and response interceptor for automatic token refresh on 401.
+ * and response interceptor for automatic token refresh on auth expiry.
  */
 const api = axios.create({
   baseURL: Config.API_URL,
@@ -106,7 +106,7 @@ api.interceptors.request.use(
 );
 
 /**
- * Response interceptor: On 401 Unauthorized, attempt to refresh the access token.
+ * Response interceptor: On 401/403 auth errors, attempt to refresh the access token.
  * If the refresh succeeds, retry the original request with the new token.
  * If the refresh fails, log the user out.
  */
@@ -138,8 +138,11 @@ api.interceptors.response.use(
       });
     }
 
-    // Only attempt refresh for 401 errors that haven't already been retried
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    const status = error.response?.status;
+    const isAuthError = status === 401 || status === 403;
+
+    // Only attempt refresh for auth errors that haven't already been retried
+    if (!isAuthError || originalRequest._retry) {
       return Promise.reject(error);
     }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Fonts } from '../../constants/fonts';
+import { useThemeColors } from '../../constants/colors';
 import { QuestionStatus } from '../../types';
 
 interface StatusBadgeProps {
@@ -8,12 +9,20 @@ interface StatusBadgeProps {
 }
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+  const colors = useThemeColors();
   const isOpen = status === 'OPEN';
 
   return (
-    <View style={[styles.badge, isOpen ? styles.openBadge : styles.closedBadge]}>
-      <View style={[styles.dot, { backgroundColor: isOpen ? '#00C851' : '#FF6584' }]} />
-      <Text style={[styles.text, { color: isOpen ? '#00C851' : '#FF6584' }]}>{status}</Text>
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: isOpen ? `${colors.openStatus}26` : `${colors.closedStatus}26` },
+      ]}
+    >
+      <View style={[styles.dot, { backgroundColor: isOpen ? colors.openStatus : colors.closedStatus }]} />
+      <Text style={[styles.text, { color: isOpen ? colors.openStatus : colors.closedStatus }]}>
+        {status}
+      </Text>
     </View>
   );
 };
@@ -26,12 +35,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     alignSelf: 'flex-start',
-  },
-  openBadge: {
-    backgroundColor: 'rgba(0,200,81,0.15)',
-  },
-  closedBadge: {
-    backgroundColor: 'rgba(255,101,132,0.15)',
   },
   dot: {
     width: 6,

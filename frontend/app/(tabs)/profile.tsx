@@ -118,7 +118,7 @@ export default function ProfileScreen() {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(108,99,255,0.5)' }}
+              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(187,39,68,0.5)' }}
               thumbColor={notificationsEnabled ? Colors.primary : Colors.textMuted}
             />
           </View>
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
             <Switch
               value={emailNotifications}
               onValueChange={setEmailNotifications}
-              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(108,99,255,0.5)' }}
+              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(187,39,68,0.5)' }}
               thumbColor={emailNotifications ? Colors.primary : Colors.textMuted}
             />
           </View>
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   roleBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(108,99,255,0.25)',
+    backgroundColor: 'rgba(187,39,68,0.25)',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 3,

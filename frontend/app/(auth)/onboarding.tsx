@@ -185,7 +185,7 @@ export default function OnboardingScreen() {
   const demoJoined = joinedClasses.some((whiteboard) => whiteboard.isDemo);
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -504,8 +504,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.45)',
-    backgroundColor: 'rgba(108,99,255,0.18)',
+    borderColor: 'rgba(187,39,68,0.45)',
+    backgroundColor: 'rgba(187,39,68,0.18)',
     paddingHorizontal: 10,
     paddingVertical: 5,
   },

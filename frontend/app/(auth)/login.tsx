@@ -66,7 +66,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -168,12 +168,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(108,99,255,0.2)',
+    backgroundColor: 'rgba(187,39,68,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.4)',
+    borderColor: 'rgba(187,39,68,0.4)',
   },
   logoIcon: {
     fontSize: 40,

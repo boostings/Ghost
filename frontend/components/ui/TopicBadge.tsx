@@ -30,12 +30,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   defaultBadge: {
-    backgroundColor: 'rgba(108,99,255,0.3)',
+    backgroundColor: 'rgba(187,39,68,0.3)',
   },
   customBadge: {
-    backgroundColor: 'rgba(108,99,255,0.2)',
+    backgroundColor: 'rgba(187,39,68,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.4)',
+    borderColor: 'rgba(187,39,68,0.4)',
   },
   text: {
     fontSize: Fonts.sizes.sm,

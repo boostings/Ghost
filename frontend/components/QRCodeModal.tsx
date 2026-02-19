@@ -63,7 +63,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
         {/* QR Code */}
         <View style={styles.qrContainer}>
           <View style={styles.qrBackground}>
-            <QRCode value={deepLink} size={200} backgroundColor="#FFFFFF" color="#1A1A2E" />
+            <QRCode value={deepLink} size={200} backgroundColor="#FFFFFF" color="#111827" />
           </View>
         </View>
 

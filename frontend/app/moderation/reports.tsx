@@ -274,7 +274,7 @@ export default function ReportsScreen() {
   );
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: 'rgba(108,99,255,0.25)',
+    backgroundColor: 'rgba(187,39,68,0.25)',
     borderColor: Colors.primary,
   },
   filterChipText: {

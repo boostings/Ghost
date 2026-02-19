@@ -10,8 +10,8 @@ interface AvatarProps {
 }
 
 const AVATAR_PALETTE = [
-  '#6C63FF', // Indigo
-  '#FF6584', // Rose
+  '#BB2744', // Crimson
+  '#D4556D', // Rose
   '#00C9A7', // Teal
   '#FF9A56', // Orange
   '#845EC2', // Purple

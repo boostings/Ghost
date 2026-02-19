@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-native';
 import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
-import { Colors } from '../constants/colors';
+import { useThemeColors } from '../constants/colors';
 import { ErrorBoundary, NetworkStatusBanner } from '../components';
 import { useNotifications } from '../hooks/useNotifications';
 import { whiteboardService } from '../services/whiteboardService';
 
 function RootLayoutNav() {
+  const colors = useThemeColors();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const isLoading = useAuthStore((state) => state.isLoading);
   const segments = useSegments();
   const router = useRouter();
@@ -22,6 +24,7 @@ function RootLayoutNav() {
   const segmentPath = segments.join('/');
   const inAuthGroup = segments[0] === '(auth)';
   const inOnboarding = segmentPath === '(auth)/onboarding';
+  const hasValidSession = isAuthenticated && !!accessToken;
 
   useEffect(() => {
     setIsLayoutMounted(true);
@@ -32,7 +35,7 @@ function RootLayoutNav() {
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!hasValidSession) {
       setHasJoinedWhiteboard(null);
       setIsMembershipLoading(false);
       return;
@@ -66,7 +69,7 @@ function RootLayoutNav() {
     return () => {
       cancelled = true;
     };
-  }, [hasJoinedWhiteboard, inAuthGroup, isAuthenticated, isLoading, segmentPath]);
+  }, [accessToken, hasJoinedWhiteboard, hasValidSession, inAuthGroup, isLoading, segmentPath]);
 
   useEffect(() => {
     if (!isLayoutMounted || !isRouterReady || isLoading || isMembershipLoading) {
@@ -74,7 +77,7 @@ function RootLayoutNav() {
     }
 
     const redirectTimer = setTimeout(() => {
-      if (!isAuthenticated) {
+      if (!hasValidSession) {
         if (!inAuthGroup) {
           router.replace('/(auth)/login');
         }
@@ -98,9 +101,9 @@ function RootLayoutNav() {
     };
   }, [
     hasJoinedWhiteboard,
+    hasValidSession,
     inAuthGroup,
     inOnboarding,
-    isAuthenticated,
     isLayoutMounted,
     isLoading,
     isMembershipLoading,
@@ -115,7 +118,7 @@ function RootLayoutNav() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
+          contentStyle: { backgroundColor: colors.background },
           animation: 'slide_from_right',
         }}
       >
@@ -164,8 +167,8 @@ function RootLayoutNav() {
       </Stack>
 
       {showBlockingLoader ? (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={[styles.loadingOverlay, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : null}
     </>
@@ -173,11 +176,12 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
   useNotifications();
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <ErrorBoundary>
         <NetworkStatusBanner />
         <RootLayoutNav />
@@ -192,6 +196,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
 });

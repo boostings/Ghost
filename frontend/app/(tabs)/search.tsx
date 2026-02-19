@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,7 +8,10 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Animated,
   type GestureResponderEvent,
+  type StyleProp,
+  type TextStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import GlassInput from '../../components/ui/GlassInput';
@@ -31,6 +34,7 @@ import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../..
 type FilterStatus = 'ALL' | QuestionStatus;
 type WhiteboardFilter = 'ALL' | string;
 type TopicFilter = 'ALL' | string;
+const PAGE_SIZE = 20;
 
 const STATUS_FILTERS: { label: string; value: FilterStatus }[] = [
   { label: 'All', value: 'ALL' },
@@ -41,8 +45,8 @@ const STATUS_FILTERS: { label: string; value: FilterStatus }[] = [
 function renderHighlightedText(
   text: string,
   searchQuery: string,
-  textStyle: object,
-  highlightStyle: object,
+  textStyle: StyleProp<TextStyle>,
+  highlightStyle: StyleProp<TextStyle>,
   numberOfLines?: number
 ) {
   const normalizedQuery = searchQuery.trim();
@@ -94,19 +98,48 @@ export default function SearchScreen() {
     questionId?: string;
     commentId?: string;
   } | null>(null);
+  const cardEntry = useRef(new Animated.Value(0)).current;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const PAGE_SIZE = 20;
 
   const availableWhiteboards = storeWhiteboards.length > 0 ? storeWhiteboards : fallbackWhiteboards;
 
-  const availableTopics = Array.from(
-    new Map(
-      results
-        .filter((item) => item.topicId && item.topicName)
-        .map((item) => [item.topicId as string, item.topicName as string])
-    ),
-    ([id, name]) => ({ id, name })
+  const whiteboardLookup = useMemo(
+    () => new Map(availableWhiteboards.map((whiteboard) => [whiteboard.id, whiteboard])),
+    [availableWhiteboards]
   );
+
+  const availableTopics = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          results
+            .filter((item) => item.topicId && item.topicName)
+            .map((item) => [item.topicId as string, item.topicName as string])
+        ),
+        ([id, name]) => ({ id, name })
+      ).sort((a, b) => a.name.localeCompare(b.name)),
+    [results]
+  );
+
+  const activeFilters = useMemo(() => {
+    const filters: string[] = [];
+    if (statusFilter !== 'ALL') {
+      filters.push(statusFilter === 'OPEN' ? 'Open only' : 'Closed only');
+    }
+    if (whiteboardFilter !== 'ALL') {
+      const whiteboard = whiteboardLookup.get(whiteboardFilter);
+      filters.push(whiteboard ? whiteboard.courseCode : 'Class selected');
+    }
+    if (topicFilter !== 'ALL') {
+      const topic = availableTopics.find((item) => item.id === topicFilter);
+      filters.push(topic ? topic.name : 'Topic selected');
+    }
+    return filters;
+  }, [availableTopics, statusFilter, topicFilter, whiteboardFilter, whiteboardLookup]);
+
+  const resultSummary = hasSearched
+    ? `${results.length} matching question${results.length === 1 ? '' : 's'}`
+    : 'Search by keyword, then narrow with filters.';
 
   useEffect(() => {
     let active = true;
@@ -130,7 +163,23 @@ export default function SearchScreen() {
     return () => {
       active = false;
     };
-  }, [PAGE_SIZE, storeWhiteboards.length]);
+  }, [storeWhiteboards.length]);
+
+  useEffect(() => {
+    if (results.length === 0) {
+      cardEntry.setValue(0);
+      return;
+    }
+    if (page !== 0) {
+      return;
+    }
+    cardEntry.setValue(0);
+    Animated.timing(cardEntry, {
+      toValue: 1,
+      duration: 520,
+      useNativeDriver: true,
+    }).start();
+  }, [cardEntry, page, results.length]);
 
   const performSearch = useCallback(
     async (
@@ -227,6 +276,14 @@ export default function SearchScreen() {
     }
   };
 
+  const handleClearQuery = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    setQuery('');
+    performSearch('', statusFilter, whiteboardFilter, topicFilter, 0, true);
+  };
+
   const handleLoadMore = async () => {
     if (!query.trim() || !hasMore || loading || loadingMore) {
       return;
@@ -277,206 +334,275 @@ export default function SearchScreen() {
   }, []);
 
   const renderQuestionItem = useCallback(
-    ({ item }: { item: QuestionResponse }) => (
-      <GlassCard
-        style={styles.questionCard}
-        accessibilityLabel={`Open question: ${item.title}`}
-        onPress={() =>
-          router.push({
-            pathname: '/question/[id]',
-            params: { id: item.id, whiteboardId: item.whiteboardId },
-          })
-        }
-      >
-        <View style={styles.questionHeader}>
-          {item.topicName && <TopicBadge name={item.topicName} style={styles.topicBadge} />}
-          <StatusBadge status={item.status} />
-        </View>
+    ({ item, index }: { item: QuestionResponse; index: number }) => {
+      const classCode = whiteboardLookup.get(item.whiteboardId)?.courseCode ?? 'CLASS';
+      const animationStart = Math.min(index * 0.08, 0.72);
+      const animationEnd = Math.min(animationStart + 0.24, 1);
+      const opacity = cardEntry.interpolate({
+        inputRange: [animationStart, animationEnd],
+        outputRange: [0, 1],
+        extrapolate: 'clamp',
+      });
+      const translateY = cardEntry.interpolate({
+        inputRange: [animationStart, animationEnd],
+        outputRange: [18, 0],
+        extrapolate: 'clamp',
+      });
 
-        {renderHighlightedText(item.title, query, styles.questionTitle, styles.highlightText, 2)}
+      return (
+        <Animated.View style={[styles.questionCardEntry, { opacity, transform: [{ translateY }] }]}>
+          <GlassCard
+            style={styles.questionCard}
+            accessibilityLabel={`Open question: ${item.title}`}
+            onPress={() =>
+              router.push({
+                pathname: '/question/[id]',
+                params: { id: item.id, whiteboardId: item.whiteboardId },
+              })
+            }
+          >
+            <View style={styles.questionTopRow}>
+              <View style={styles.badgeRow}>
+                <View style={styles.classBadge}>
+                  <Text style={styles.classBadgeText}>{classCode}</Text>
+                </View>
+                {item.topicName && <TopicBadge name={item.topicName} style={styles.topicBadge} />}
+              </View>
+              <StatusBadge status={item.status} />
+            </View>
 
-        {renderHighlightedText(
-          item.isHidden ? '[hidden]' : item.body,
-          query,
-          styles.questionBody,
-          styles.highlightText,
-          2
-        )}
+            {renderHighlightedText(item.title, query, styles.questionTitle, styles.highlightText, 2)}
 
-        <View style={styles.questionFooter}>
-          <Text style={styles.authorText}>{item.authorName}</Text>
-          <Text style={styles.dotSeparator}>{' \u00B7 '}</Text>
-          <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
-          <View style={styles.footerRight}>
-            <TouchableOpacity
-              onPress={(event) => {
-                stopCardPress(event);
-                handleToggleBookmark(item.id);
-              }}
-              style={styles.footerActionButton}
-              accessibilityRole="button"
-              accessibilityLabel={item.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
-            >
-              <Text style={styles.footerActionIcon}>{item.isBookmarked ? '\u2605' : '\u2606'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={(event) => {
-                stopCardPress(event);
-                setReportTarget({ questionId: item.id });
-                setReportModalVisible(true);
-              }}
-              style={styles.footerActionButton}
-              accessibilityRole="button"
-              accessibilityLabel="Report question"
-            >
-              <Text style={styles.footerActionIcon}>{'\u{1F6A9}'}</Text>
-            </TouchableOpacity>
-            <Text style={styles.statText}>
-              {'\u25B2'} {item.karmaScore}
-            </Text>
-            <Text style={styles.statText}>
-              {'\u{1F4AC}'} {item.commentCount}
-            </Text>
-          </View>
-        </View>
-      </GlassCard>
-    ),
-    [handleToggleBookmark, query, router]
+            {renderHighlightedText(
+              item.isHidden ? '[hidden]' : item.body,
+              query,
+              styles.questionBody,
+              styles.highlightText,
+              2
+            )}
+
+            <View style={styles.questionMetaRow}>
+              <Text style={styles.authorText}>{item.authorName}</Text>
+              <Text style={styles.dotSeparator}>{' \u00B7 '}</Text>
+              <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+            </View>
+
+            <View style={styles.questionFooter}>
+              <View style={styles.statPill}>
+                <Text style={styles.statText}>
+                  {'\u25B2'} {item.karmaScore}
+                </Text>
+              </View>
+              <View style={styles.statPill}>
+                <Text style={styles.statText}>
+                  {'\u{1F4AC}'} {item.commentCount}
+                </Text>
+              </View>
+              <View style={styles.footerRight}>
+                <TouchableOpacity
+                  onPress={(event) => {
+                    stopCardPress(event);
+                    handleToggleBookmark(item.id);
+                  }}
+                  style={styles.footerActionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+                >
+                  <Text style={styles.footerActionIcon}>
+                    {item.isBookmarked ? '\u2605' : '\u2606'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={(event) => {
+                    stopCardPress(event);
+                    setReportTarget({ questionId: item.id });
+                    setReportModalVisible(true);
+                  }}
+                  style={styles.footerActionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report question"
+                >
+                  <Text style={styles.footerActionIcon}>{'\u{1F6A9}'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </GlassCard>
+        </Animated.View>
+      );
+    },
+    [cardEntry, handleToggleBookmark, query, router, whiteboardLookup]
   );
 
   return (
     <ScreenWrapper edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Search</Text>
+      <View style={styles.headerSection}>
+        <Text style={styles.eyebrowText}>Search</Text>
+        <Text style={styles.headerTitle}>Discover Answers Faster</Text>
+        <Text style={styles.headerSubtitle}>{resultSummary}</Text>
       </View>
 
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <GlassInput
-          placeholder="Search across all your classes..."
-          value={query}
-          onChangeText={handleQueryChange}
-          returnKeyType="search"
-          onSubmitEditing={() =>
-            performSearch(query, statusFilter, whiteboardFilter, topicFilter, 0, true)
-          }
-          style={styles.searchInput}
-        />
-      </View>
-
-      {/* Filter Chips */}
-      <View style={styles.filterSection}>
-        <Text style={styles.filterTitle}>Status</Text>
-        <View style={styles.filterContainer}>
-          {STATUS_FILTERS.map((filter) => (
+      <GlassCard style={styles.searchHeroCard} blurIntensity={72}>
+        <View style={styles.searchInputRow}>
+          <GlassInput
+            placeholder="Search by question title or body..."
+            value={query}
+            onChangeText={handleQueryChange}
+            returnKeyType="search"
+            onSubmitEditing={() =>
+              performSearch(query, statusFilter, whiteboardFilter, topicFilter, 0, true)
+            }
+            style={styles.searchInput}
+            icon={<Text style={styles.searchInputIcon}>{'\u{1F50D}'}</Text>}
+          />
+          {query.trim() ? (
             <TouchableOpacity
-              key={filter.value}
-              style={[styles.filterChip, statusFilter === filter.value && styles.filterChipActive]}
-              onPress={() => handleStatusFilter(filter.value)}
+              style={styles.clearButton}
+              onPress={handleClearQuery}
               accessibilityRole="button"
-              accessibilityLabel={`Filter by ${filter.label}`}
+              accessibilityLabel="Clear search query"
             >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  statusFilter === filter.value && styles.filterChipTextActive,
-                ]}
-              >
-                {filter.label}
-              </Text>
+              <Text style={styles.clearButtonText}>Clear</Text>
             </TouchableOpacity>
-          ))}
+          ) : null}
         </View>
-      </View>
+        <Text style={styles.searchHintText}>
+          Live search runs after you pause typing for a moment.
+        </Text>
+      </GlassCard>
 
-      <View style={styles.filterSection}>
-        <Text style={styles.filterTitle}>Class</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          <TouchableOpacity
-            style={[styles.filterChip, whiteboardFilter === 'ALL' && styles.filterChipActive]}
-            onPress={() => handleWhiteboardFilter('ALL')}
-            accessibilityRole="button"
-            accessibilityLabel="Filter by all classes"
+      <GlassCard style={styles.filterPanelCard} blurIntensity={62}>
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Status</Text>
+          <View style={styles.filterWrap}>
+            {STATUS_FILTERS.map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[styles.filterChip, statusFilter === filter.value && styles.filterChipActive]}
+                onPress={() => handleStatusFilter(filter.value)}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by ${filter.label}`}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    statusFilter === filter.value && styles.filterChipTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Class</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
           >
-            <Text
-              style={[
-                styles.filterChipText,
-                whiteboardFilter === 'ALL' && styles.filterChipTextActive,
-              ]}
-            >
-              All Classes
-            </Text>
-          </TouchableOpacity>
-          {availableWhiteboards.map((whiteboard) => (
             <TouchableOpacity
-              key={whiteboard.id}
-              style={[
-                styles.filterChip,
-                whiteboardFilter === whiteboard.id && styles.filterChipActive,
-              ]}
-              onPress={() => handleWhiteboardFilter(whiteboard.id)}
+              style={[styles.filterChip, whiteboardFilter === 'ALL' && styles.filterChipActive]}
+              onPress={() => handleWhiteboardFilter('ALL')}
               accessibilityRole="button"
-              accessibilityLabel={`Filter by ${whiteboard.courseCode}`}
+              accessibilityLabel="Filter by all classes"
             >
               <Text
                 style={[
                   styles.filterChipText,
-                  whiteboardFilter === whiteboard.id && styles.filterChipTextActive,
+                  whiteboardFilter === 'ALL' && styles.filterChipTextActive,
                 ]}
               >
-                {whiteboard.courseCode}
+                All Classes
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+            {availableWhiteboards.map((whiteboard) => (
+              <TouchableOpacity
+                key={whiteboard.id}
+                style={[
+                  styles.filterChip,
+                  whiteboardFilter === whiteboard.id && styles.filterChipActive,
+                ]}
+                onPress={() => handleWhiteboardFilter(whiteboard.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by ${whiteboard.courseCode}`}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    whiteboardFilter === whiteboard.id && styles.filterChipTextActive,
+                  ]}
+                >
+                  {whiteboard.courseCode}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
-      <View style={styles.filterSection}>
-        <Text style={styles.filterTitle}>Topic</Text>
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Topic</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            <TouchableOpacity
+              style={[styles.filterChip, topicFilter === 'ALL' && styles.filterChipActive]}
+              onPress={() => handleTopicFilter('ALL')}
+              accessibilityRole="button"
+              accessibilityLabel="Filter by all topics"
+            >
+              <Text
+                style={[styles.filterChipText, topicFilter === 'ALL' && styles.filterChipTextActive]}
+              >
+                All Topics
+              </Text>
+            </TouchableOpacity>
+            {availableTopics.map((topic) => (
+              <TouchableOpacity
+                key={topic.id}
+                style={[styles.filterChip, topicFilter === topic.id && styles.filterChipActive]}
+                onPress={() => handleTopicFilter(topic.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by topic ${topic.name}`}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    topicFilter === topic.id && styles.filterChipTextActive,
+                  ]}
+                >
+                  {topic.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </GlassCard>
+
+      {activeFilters.length > 0 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
+          contentContainerStyle={styles.activeFiltersRow}
         >
-          <TouchableOpacity
-            style={[styles.filterChip, topicFilter === 'ALL' && styles.filterChipActive]}
-            onPress={() => handleTopicFilter('ALL')}
-            accessibilityRole="button"
-            accessibilityLabel="Filter by all topics"
-          >
-            <Text
-              style={[styles.filterChipText, topicFilter === 'ALL' && styles.filterChipTextActive]}
-            >
-              All Topics
-            </Text>
-          </TouchableOpacity>
-          {availableTopics.map((topic) => (
-            <TouchableOpacity
-              key={topic.id}
-              style={[styles.filterChip, topicFilter === topic.id && styles.filterChipActive]}
-              onPress={() => handleTopicFilter(topic.id)}
-              accessibilityRole="button"
-              accessibilityLabel={`Filter by topic ${topic.name}`}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  topicFilter === topic.id && styles.filterChipTextActive,
-                ]}
-              >
-                {topic.name}
-              </Text>
-            </TouchableOpacity>
+          {activeFilters.map((filterLabel) => (
+            <View key={filterLabel} style={styles.activeFilterPill}>
+              <Text style={styles.activeFilterText}>{filterLabel}</Text>
+            </View>
           ))}
         </ScrollView>
-      </View>
+      )}
 
-      {/* Results */}
+      {hasSearched && (
+        <View style={styles.resultsSummaryRow}>
+          <Text style={styles.resultsSummaryText}>{resultSummary}</Text>
+          <Text style={styles.resultsSummarySubtext}>Sorted by relevance</Text>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <LoadingSkeleton type="question" count={4} />
@@ -488,18 +614,19 @@ export default function SearchScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.listContent, results.length === 0 && styles.emptyList]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             hasSearched ? (
               <EmptyState
                 icon={'\u{1F50D}'}
-                title="No Results"
-                subtitle={loadError || 'Try different keywords or adjust your filters'}
+                title="No matching questions"
+                subtitle={loadError || 'Try broader keywords or clear one filter at a time.'}
               />
             ) : (
               <EmptyState
                 icon={'\u{1F50E}'}
-                title="Search Across All Classes"
-                subtitle="Find questions, answers, and discussions from any of your enrolled classes"
+                title="Search across your whiteboards"
+                subtitle="Look up any question and use filters to narrow by class, topic, or status."
               />
             )
           }
@@ -514,6 +641,7 @@ export default function SearchScreen() {
           }
         />
       )}
+
       <ReportModal
         visible={reportModalVisible}
         onClose={() => setReportModalVisible(false)}
@@ -525,63 +653,110 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  header: {
+  headerSection: {
     paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 12,
+  },
+  eyebrowText: {
+    fontSize: Fonts.sizes.xs,
+    color: Colors.primaryLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   headerTitle: {
     fontSize: Fonts.sizes.xxxl,
     fontWeight: '800',
     color: Colors.text,
   },
-  searchContainer: {
-    paddingHorizontal: 24,
+  headerSubtitle: {
+    marginTop: 6,
+    color: Colors.textSecondary,
+    fontSize: Fonts.sizes.md,
+    lineHeight: Fonts.lineHeights.md,
+  },
+  searchHeroCard: {
+    marginHorizontal: 24,
+    marginBottom: 12,
+    borderColor: 'rgba(255,255,255,0.35)',
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+  searchInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   searchInput: {
-    marginBottom: 4,
+    flex: 1,
+    marginBottom: 0,
+  },
+  searchInputIcon: {
+    fontSize: 16,
+    color: Colors.primaryLight,
+  },
+  clearButton: {
+    minHeight: 46,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  clearButtonText: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+  },
+  searchHintText: {
+    marginTop: 10,
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.sm,
+  },
+  filterPanelCard: {
+    marginHorizontal: 24,
+    marginBottom: 10,
+    borderColor: 'rgba(255,255,255,0.24)',
   },
   filterSection: {
-    marginTop: 6,
+    marginBottom: 10,
   },
   filterTitle: {
     fontSize: Fonts.sizes.xs,
     fontWeight: '700',
     color: Colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     marginBottom: 8,
-    paddingHorizontal: 24,
   },
-  filterContainer: {
+  filterWrap: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
     gap: 8,
   },
   filterRow: {
-    paddingHorizontal: 24,
     gap: 8,
-    paddingBottom: 4,
+    paddingRight: 10,
   },
   filterChip: {
     paddingHorizontal: 16,
-    minHeight: 44,
+    minHeight: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: 'rgba(108,99,255,0.25)',
-    borderColor: Colors.primary,
+    backgroundColor: 'rgba(187,39,68,0.28)',
+    borderColor: Colors.primaryLight,
   },
   filterChipText: {
     fontSize: Fonts.sizes.sm,
@@ -589,7 +764,42 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   filterChipTextActive: {
-    color: Colors.primary,
+    color: Colors.text,
+  },
+  activeFiltersRow: {
+    paddingHorizontal: 24,
+    gap: 8,
+    marginBottom: 8,
+  },
+  activeFilterPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    minHeight: 30,
+    backgroundColor: 'rgba(212,85,109,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,85,109,0.45)',
+    justifyContent: 'center',
+  },
+  activeFilterText: {
+    color: Colors.primaryLight,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
+  },
+  resultsSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  resultsSummaryText: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+  },
+  resultsSummarySubtext: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.sm,
   },
   loadingContainer: {
     flex: 1,
@@ -598,41 +808,69 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 24,
     paddingBottom: 120,
+    paddingTop: 4,
   },
   emptyList: {
     flexGrow: 1,
   },
-  questionCard: {
-    marginBottom: 12,
+  questionCardEntry: {
+    marginBottom: 14,
   },
-  questionHeader: {
+  questionCard: {
+    borderColor: 'rgba(255,255,255,0.32)',
+  },
+  questionTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
+    flexShrink: 1,
+  },
+  classBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  classBadgeText: {
+    color: Colors.textSecondary,
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   topicBadge: {
-    marginRight: 4,
+    marginRight: 2,
   },
   questionTitle: {
-    fontSize: Fonts.sizes.lg,
-    fontWeight: '600',
+    fontSize: Fonts.sizes.xl,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 6,
+    marginBottom: 8,
+    lineHeight: Fonts.lineHeights.xl,
   },
   questionBody: {
     fontSize: Fonts.sizes.md,
     color: Colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: Fonts.lineHeights.md,
     marginBottom: 12,
   },
   highlightText: {
-    color: Colors.warning,
+    color: '#FFE08A',
+    backgroundColor: 'rgba(255,224,138,0.18)',
     fontWeight: '700',
   },
-  questionFooter: {
+  questionMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
   authorText: {
     fontSize: Fonts.sizes.sm,
@@ -646,32 +884,52 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
   },
+  questionFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+    paddingTop: 12,
+  },
+  statPill: {
+    minHeight: 32,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginRight: 8,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  statText: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
   footerRight: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   footerActionButton: {
     minHeight: 36,
     minWidth: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
   footerActionIcon: {
-    fontSize: 14,
-    color: Colors.textMuted,
-  },
-  statText: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
+    fontSize: 15,
+    color: Colors.textSecondary,
   },
   footerLoader: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
 });

@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   reasonOptionActive: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(108,99,255,0.22)',
+    backgroundColor: 'rgba(187,39,68,0.22)',
   },
   reasonLabel: {
     fontSize: Fonts.sizes.md,

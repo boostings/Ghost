@@ -116,7 +116,7 @@ export default function VerifyEmailScreen() {
   };
 
   return (
-    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
+    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -209,12 +209,12 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(108,99,255,0.2)',
+    backgroundColor: 'rgba(187,39,68,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(108,99,255,0.4)',
+    borderColor: 'rgba(187,39,68,0.4)',
   },
   mailIcon: {
     fontSize: 32,
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   codeInputFilled: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(108,99,255,0.15)',
+    backgroundColor: 'rgba(187,39,68,0.15)',
   },
   resendContainer: {
     flexDirection: 'row',

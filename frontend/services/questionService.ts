@@ -24,18 +24,28 @@ export const questionService = {
     wbId: string,
     params?: QuestionQueryParams
   ): Promise<PageResponse<QuestionResponse>> => {
+    const queryParams: Record<string, string | number> = {
+      page: params?.page ?? 0,
+      size: params?.size ?? Config.PAGE_SIZE,
+    };
+
+    if (params?.topicId) {
+      queryParams.topic = params.topicId;
+    }
+    if (params?.status) {
+      queryParams.status = params.status;
+    }
+    if (params?.sort) {
+      queryParams.sort = params.sort;
+    }
+    if (params?.search && params.search.trim().length > 0) {
+      queryParams.search = params.search.trim();
+    }
+
     const response = await api.get<PageResponse<QuestionResponse>>(
       `/whiteboards/${wbId}/questions`,
       {
-        params: {
-          page: params?.page ?? 0,
-          size: params?.size ?? Config.PAGE_SIZE,
-          topic: params?.topicId,
-          topicId: params?.topicId,
-          status: params?.status,
-          sort: params?.sort,
-          search: params?.search,
-        },
+        params: queryParams,
       }
     );
     return response.data;

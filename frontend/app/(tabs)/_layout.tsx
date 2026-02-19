@@ -1,12 +1,20 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, useColorScheme } from 'react-native';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/colors';
+import { type AppColors, useThemeColors } from '../../constants/colors';
 import { useNotificationStore } from '../../stores/notificationStore';
 
-function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
+function TabBarIcon({
+  name,
+  focused,
+  colors,
+}: {
+  name: string;
+  focused: boolean;
+  colors: AppColors;
+}) {
   const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
     home: focused ? 'home' : 'home-outline',
     search: focused ? 'search' : 'search-outline',
@@ -25,14 +33,17 @@ function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
 
   return (
     <View style={tabIconStyles.container}>
-      <Text style={tabIconStyles.icon}>
-        <Ionicons
-          name={icons[name] || 'help-circle-outline'}
-          size={20}
-          color={focused ? Colors.primary : Colors.textMuted}
-        />
-      </Text>
-      <Text style={[tabIconStyles.label, { color: focused ? Colors.primary : Colors.textMuted }]}>
+      <Ionicons
+        name={icons[name] || 'help-circle-outline'}
+        size={20}
+        color={focused ? colors.primary : colors.textMuted}
+        style={tabIconStyles.icon}
+      />
+      <Text
+        style={[tabIconStyles.label, { color: focused ? colors.primary : colors.textMuted }]}
+        numberOfLines={1}
+        allowFontScaling={false}
+      >
         {labels[name] || name}
       </Text>
     </View>
@@ -43,27 +54,30 @@ const tabIconStyles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 64,
     paddingTop: 6,
   },
   icon: {
-    fontSize: 20,
-    fontWeight: '700',
     marginBottom: 2,
   },
   label: {
     fontSize: 10,
     fontWeight: '500',
+    lineHeight: 12,
+    textAlign: 'center',
   },
 });
 
-function NotificationBadge() {
+function NotificationBadge({ colors }: { colors: AppColors }) {
   const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   if (unreadCount === 0) return null;
 
   return (
-    <View style={badgeStyles.badge}>
-      <Text style={badgeStyles.text}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+    <View style={[badgeStyles.badge, { backgroundColor: colors.error }]}>
+      <Text style={[badgeStyles.text, { color: colors.text }]}>
+        {unreadCount > 99 ? '99+' : unreadCount}
+      </Text>
     </View>
   );
 }
@@ -73,7 +87,6 @@ const badgeStyles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: -8,
-    backgroundColor: Colors.error,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -82,45 +95,55 @@ const badgeStyles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   text: {
-    color: Colors.text,
     fontSize: 10,
     fontWeight: '700',
   },
 });
 
 export default function TabLayout() {
+  const colors = useThemeColors();
+  const colorScheme = useColorScheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: 'rgba(26,26,46,0.92)',
+          backgroundColor: colors.cardBg,
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255,255,255,0.10)',
+          borderTopColor: colors.surfaceBorder,
           height: 85,
           paddingBottom: 20,
           elevation: 0,
         },
         tabBarBackground: () => (
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={80}
+            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
         ),
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon name="home" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon name="home" focused={focused} colors={colors} />
+          ),
           tabBarAccessibilityLabel: 'Home tab',
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon name="search" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon name="search" focused={focused} colors={colors} />
+          ),
           tabBarAccessibilityLabel: 'Search tab',
         }}
       />
@@ -129,8 +152,8 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <View>
-              <TabBarIcon name="notifications" focused={focused} />
-              <NotificationBadge />
+              <TabBarIcon name="notifications" focused={focused} colors={colors} />
+              <NotificationBadge colors={colors} />
             </View>
           ),
           tabBarAccessibilityLabel: 'Notifications tab',
@@ -139,14 +162,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="bookmarks"
         options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon name="bookmarks" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon name="bookmarks" focused={focused} colors={colors} />
+          ),
           tabBarAccessibilityLabel: 'Bookmarks tab',
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon name="profile" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon name="profile" focused={focused} colors={colors} />
+          ),
           tabBarAccessibilityLabel: 'Profile tab',
         }}
       />
