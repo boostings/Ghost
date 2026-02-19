@@ -4,6 +4,7 @@ import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.AuditTargetType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -53,8 +54,10 @@ public class AuditLog {
     @Column(name = "new_value", columnDefinition = "TEXT")
     private String newValue;
 
-    @Column(name = "metadata_json", columnDefinition = "jsonb")
-    private String metadataJson;
+    @Column(name = "metadata_json", columnDefinition = "jsonb", nullable = false)
+    @ColumnTransformer(write = "?::jsonb")
+    @Builder.Default
+    private String metadataJson = "{}";
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

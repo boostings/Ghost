@@ -3,6 +3,7 @@ package com.ghost.model;
 import com.ghost.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -57,8 +58,10 @@ public class User {
     @Column(name = "expo_push_token")
     private String expoPushToken;
 
-    @Column(name = "settings_json", columnDefinition = "jsonb")
-    private String settingsJson;
+    @Column(name = "settings_json", columnDefinition = "jsonb", nullable = false)
+    @ColumnTransformer(write = "?::jsonb")
+    @Builder.Default
+    private String settingsJson = "{}";
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

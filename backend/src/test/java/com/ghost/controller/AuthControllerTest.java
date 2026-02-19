@@ -1,6 +1,8 @@
 package com.ghost.controller;
 
 import com.ghost.dto.request.RegisterRequest;
+import com.ghost.dto.request.VerifyEmailRequest;
+import com.ghost.dto.response.AuthResponse;
 import com.ghost.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +16,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
@@ -37,6 +40,26 @@ class AuthControllerTest {
 
         verify(authService).register(request);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    void verifyEmailShouldReturnAuthResponse() {
+        VerifyEmailRequest request = VerifyEmailRequest.builder()
+                .email("student@ilstu.edu")
+                .code("123456")
+                .build();
+        AuthResponse authResponse = AuthResponse.builder()
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
+                .build();
+
+        when(authService.verifyEmail(request)).thenReturn(authResponse);
+
+        ResponseEntity<AuthResponse> response = authController.verifyEmail(request);
+
+        verify(authService).verifyEmail(request);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(authResponse);
     }
 
     @Test

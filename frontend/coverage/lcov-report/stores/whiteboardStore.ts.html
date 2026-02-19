@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>15/15</span>
+                <span class='fraction'>0/15</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/6</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>13/13</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -151,50 +151,50 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { create } from 'zustand';
@@ -218,50 +218,50 @@ interface WhiteboardActions {
 &nbsp;
 type WhiteboardStore = WhiteboardState &amp; WhiteboardActions;
 &nbsp;
-const initialState: WhiteboardState = {
+const initialState: WhiteboardState = <span class="cstat-no" title="statement not covered" >{</span>
   whiteboards: [],
   currentWhiteboard: null,
   isLoading: false,
 };
 &nbsp;
-export const useWhiteboardStore = create&lt;WhiteboardStore&gt;()((set) =&gt; ({
+export const useWhiteboardStore = <span class="cstat-no" title="statement not covered" >create&lt;WhiteboardStore&gt;()(<span class="fstat-no" title="function not covered" >(s</span>et) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
   ...initialState,
 &nbsp;
-  setWhiteboards: (whiteboards: WhiteboardResponse[]) =&gt; {
-    set({ whiteboards, isLoading: false });
+  setWhiteboards: <span class="fstat-no" title="function not covered" >(w</span>hiteboards: WhiteboardResponse[]) =&gt; {
+<span class="cstat-no" title="statement not covered" >    set({ whiteboards, isLoading: false });</span>
   },
 &nbsp;
-  setCurrentWhiteboard: (whiteboard: WhiteboardResponse | null) =&gt; {
-    set({ currentWhiteboard: whiteboard });
+  setCurrentWhiteboard: <span class="fstat-no" title="function not covered" >(w</span>hiteboard: WhiteboardResponse | null) =&gt; {
+<span class="cstat-no" title="statement not covered" >    set({ currentWhiteboard: whiteboard });</span>
   },
 &nbsp;
-  addWhiteboard: (whiteboard: WhiteboardResponse) =&gt; {
-    set((state) =&gt; ({
+  addWhiteboard: <span class="fstat-no" title="function not covered" >(w</span>hiteboard: WhiteboardResponse) =&gt; {
+<span class="cstat-no" title="statement not covered" >    set(<span class="fstat-no" title="function not covered" >(s</span>tate) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
       whiteboards: [whiteboard, ...state.whiteboards],
     }));
   },
 &nbsp;
-  removeWhiteboard: (id: string) =&gt; {
-    set((state) =&gt; ({
-      whiteboards: state.whiteboards.filter((wb) =&gt; wb.id !== id),
-      currentWhiteboard: state.currentWhiteboard?.id === id ? null : <span class="branch-1 cbranch-no" title="branch not covered" >state.currentWhiteboard,</span>
+  removeWhiteboard: <span class="fstat-no" title="function not covered" >(i</span>d: string) =&gt; {
+<span class="cstat-no" title="statement not covered" >    set(<span class="fstat-no" title="function not covered" >(s</span>tate) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
+      whiteboards: state.whiteboards.filter(<span class="fstat-no" title="function not covered" >(w</span>b) =&gt; <span class="cstat-no" title="statement not covered" >wb.id !== id)</span>,
+      currentWhiteboard: state.currentWhiteboard?.id === id ? null : state.currentWhiteboard,
     }));
   },
 &nbsp;
-  updateWhiteboard: (whiteboard: WhiteboardResponse) =&gt; {
-    set((state) =&gt; ({
-      whiteboards: state.whiteboards.map((wb) =&gt; (wb.id === whiteboard.id ? whiteboard : <span class="branch-1 cbranch-no" title="branch not covered" >wb)</span>),
+  updateWhiteboard: <span class="fstat-no" title="function not covered" >(w</span>hiteboard: WhiteboardResponse) =&gt; {
+<span class="cstat-no" title="statement not covered" >    set(<span class="fstat-no" title="function not covered" >(s</span>tate) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
+      whiteboards: state.whiteboards.map(<span class="fstat-no" title="function not covered" >(w</span>b) =&gt; (<span class="cstat-no" title="statement not covered" >wb.id === whiteboard.id ? whiteboard : wb)</span>),
       currentWhiteboard:
-        state.currentWhiteboard?.id === whiteboard.id ? whiteboard : <span class="branch-1 cbranch-no" title="branch not covered" >state.currentWhiteboard,</span>
+        state.currentWhiteboard?.id === whiteboard.id ? whiteboard : state.currentWhiteboard,
     }));
   },
 &nbsp;
-  setLoading: (isLoading: boolean) =&gt; {
-    set({ isLoading });
+  setLoading: <span class="fstat-no" title="function not covered" >(i</span>sLoading: boolean) =&gt; {
+<span class="cstat-no" title="statement not covered" >    set({ isLoading });</span>
   },
 &nbsp;
-  reset: () =&gt; {
-    set(initialState);
+  reset: <span class="fstat-no" title="function not covered" >()</span> =&gt; {
+<span class="cstat-no" title="statement not covered" >    set(initialState);</span>
   },
 }));
 &nbsp;</pre></td></tr></table></pre>
@@ -271,7 +271,7 @@ export const useWhiteboardStore = create&lt;WhiteboardStore&gt;()((set) =&gt; ({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-19T01:39:06.026Z
+                at 2026-02-19T01:53:23.310Z
             </div>
         <script src="../prettify.js"></script>
         <script>

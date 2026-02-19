@@ -37,12 +37,14 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
+    private final WhiteboardMembershipService whiteboardMembershipService;
     private final AuditLogService auditLogService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public void register(RegisterRequest req) {
         String normalizedEmail = normalizeEmail(req.getEmail());
+        log.debug("Processing registration for normalizedEmail={}", normalizedEmail);
 
         // Validate email ends with @ilstu.edu
         if (!normalizedEmail.endsWith("@ilstu.edu")) {
@@ -70,6 +72,7 @@ public class AuthService {
                 .build();
 
         user = userRepository.save(user);
+        log.info("User account created userId={} email={}", user.getId(), user.getEmail());
 
         // Log verification code to console
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
@@ -80,6 +83,7 @@ public class AuthService {
     @Transactional
     public void resendVerificationCode(String email) {
         String normalizedEmail = normalizeEmail(email);
+        log.debug("Processing resend verification for normalizedEmail={}", normalizedEmail);
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
@@ -92,15 +96,17 @@ public class AuthService {
         user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
         logUserAction(user.getId(), AuditAction.USER_UPDATED, user.getId(), "verification_code=rotated", "verification_code=rotated");
+        log.info("Verification code rotated for userId={} email={}", user.getId(), user.getEmail());
 
         // Log verification code to console in development.
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
     }
 
     @Transactional
-    public void verifyEmail(VerifyEmailRequest req) {
+    public AuthResponse verifyEmail(VerifyEmailRequest req) {
         String normalizedEmail = normalizeEmail(req.getEmail());
         String submittedCode = req.getCode().trim();
+        log.debug("Processing verify-email for normalizedEmail={}", normalizedEmail);
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", req.getEmail()));
@@ -123,11 +129,17 @@ public class AuthService {
         user.setVerificationCodeExpiresAt(null);
         userRepository.save(user);
         logUserAction(user.getId(), AuditAction.USER_UPDATED, user.getId(), "email_verified=false", "email_verified=true");
+        if (whiteboardMembershipService.joinDemoWhiteboardIfAvailable(user.getId())) {
+            log.info("User auto-enrolled into demo class userId={}", user.getId());
+        }
+        log.info("Email verification and authentication completed for userId={} email={}", user.getId(), user.getEmail());
+        return createAuthResponse(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest req) {
         String normalizedEmail = normalizeEmail(req.getEmail());
+        log.debug("Processing login for normalizedEmail={}", normalizedEmail);
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
@@ -140,10 +152,15 @@ public class AuthService {
             throw new BadRequestException("Email is not verified. Please verify your email first.");
         }
 
+        if (whiteboardMembershipService.joinDemoWhiteboardIfAvailable(user.getId())) {
+            log.info("User auto-enrolled into demo class at login userId={}", user.getId());
+        }
+        log.info("Login successful for userId={} email={}", user.getId(), user.getEmail());
         return createAuthResponse(user);
     }
 
     public AuthResponse refreshToken(RefreshTokenRequest req) {
+        log.debug("Processing refresh token request");
         if (!jwtTokenProvider.validateToken(req.getRefreshToken())
                 || !jwtTokenProvider.validateTokenType(
                         req.getRefreshToken(), jwtTokenProvider.getRefreshTokenType())) {
@@ -155,6 +172,7 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
+        log.info("Refresh token successful for userId={}", userId);
         return createAuthResponse(user);
     }
 

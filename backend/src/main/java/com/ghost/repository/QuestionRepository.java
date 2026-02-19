@@ -44,19 +44,18 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             FROM questions q
             WHERE q.whiteboard_id IN (:whiteboardIds)
               AND q.is_hidden = false
-              AND (:topicId IS NULL OR q.topic_id = :topicId)
-              AND (:status IS NULL OR q.status = :status)
-              AND (:startAt IS NULL OR q.created_at >= :startAt)
-              AND (:endAt IS NULL OR q.created_at <= :endAt)
+              AND (CAST(:topicId AS uuid) IS NULL OR q.topic_id = CAST(:topicId AS uuid))
+              AND (CAST(:status AS text) IS NULL OR q.status = CAST(:status AS text))
+              AND (CAST(:startAt AS timestamp) IS NULL OR q.created_at >= CAST(:startAt AS timestamp))
+              AND (CAST(:endAt AS timestamp) IS NULL OR q.created_at <= CAST(:endAt AS timestamp))
               AND (
-                    :query IS NULL
-                    OR :query = ''
-                    OR q.search_vector @@ plainto_tsquery('english', :query)
+                    NULLIF(CAST(:query AS text), '') IS NULL
+                    OR q.search_vector @@ plainto_tsquery('english', CAST(:query AS text))
                   )
             ORDER BY
               CASE
-                WHEN :query IS NULL OR :query = '' THEN 0
-                ELSE ts_rank(q.search_vector, plainto_tsquery('english', :query))
+                WHEN NULLIF(CAST(:query AS text), '') IS NULL THEN 0
+                ELSE ts_rank(q.search_vector, plainto_tsquery('english', CAST(:query AS text)))
               END DESC,
               q.is_pinned DESC,
               q.created_at DESC
@@ -66,14 +65,13 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             FROM questions q
             WHERE q.whiteboard_id IN (:whiteboardIds)
               AND q.is_hidden = false
-              AND (:topicId IS NULL OR q.topic_id = :topicId)
-              AND (:status IS NULL OR q.status = :status)
-              AND (:startAt IS NULL OR q.created_at >= :startAt)
-              AND (:endAt IS NULL OR q.created_at <= :endAt)
+              AND (CAST(:topicId AS uuid) IS NULL OR q.topic_id = CAST(:topicId AS uuid))
+              AND (CAST(:status AS text) IS NULL OR q.status = CAST(:status AS text))
+              AND (CAST(:startAt AS timestamp) IS NULL OR q.created_at >= CAST(:startAt AS timestamp))
+              AND (CAST(:endAt AS timestamp) IS NULL OR q.created_at <= CAST(:endAt AS timestamp))
               AND (
-                    :query IS NULL
-                    OR :query = ''
-                    OR q.search_vector @@ plainto_tsquery('english', :query)
+                    NULLIF(CAST(:query AS text), '') IS NULL
+                    OR q.search_vector @@ plainto_tsquery('english', CAST(:query AS text))
                   )
             """,
             nativeQuery = true)

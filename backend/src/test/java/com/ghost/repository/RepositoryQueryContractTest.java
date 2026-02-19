@@ -31,9 +31,13 @@ class RepositoryQueryContractTest {
         );
 
         assertThat(searchByWhiteboardId.getAnnotation(Query.class)).isNotNull();
-        assertThat(searchWithFilters.getAnnotation(Query.class)).isNotNull();
+        Query searchWithFiltersQuery = searchWithFilters.getAnnotation(Query.class);
+        assertThat(searchWithFiltersQuery).isNotNull();
         assertThat(Page.class.isAssignableFrom(searchByWhiteboardId.getReturnType())).isTrue();
         assertThat(Page.class.isAssignableFrom(searchWithFilters.getReturnType())).isTrue();
+        assertThat(searchWithFiltersQuery.value())
+                .contains("CAST(:startAt AS timestamp)")
+                .contains("CAST(:endAt AS timestamp)");
     }
 
     @Test

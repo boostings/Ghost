@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.56% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>16/23</span>
+                <span class='fraction'>0/23</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>14/28</span>
+                <span class='fraction'>0/28</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>0/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.94% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>15/19</span>
+                <span class='fraction'>0/19</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -330,14 +330,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -349,13 +349,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -363,9 +363,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -452,7 +452,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -575,15 +575,15 @@ interface QuestionCardProps {
   onReport?: () =&gt; void;
 }
 &nbsp;
-function formatTimestamp(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHour = Math.floor(diffMs / 3600000);
-  const diffDay = Math.floor(diffMs / 86400000);
+function <span class="fstat-no" title="function not covered" >formatTimestamp(</span>dateString: string): string {
+  const date = <span class="cstat-no" title="statement not covered" >new Date(dateString);</span>
+  const now = <span class="cstat-no" title="statement not covered" >new Date();</span>
+  const diffMs = <span class="cstat-no" title="statement not covered" >now.getTime() - date.getTime();</span>
+  const diffMin = <span class="cstat-no" title="statement not covered" >Math.floor(diffMs / 60000);</span>
+  const diffHour = <span class="cstat-no" title="statement not covered" >Math.floor(diffMs / 3600000);</span>
+  const diffDay = <span class="cstat-no" title="statement not covered" >Math.floor(diffMs / 86400000);</span>
 &nbsp;
-  <span class="missing-if-branch" title="else path not taken" >E</span>if (diffMin &lt; 1) return 'just now';
+<span class="cstat-no" title="statement not covered" >  if (diffMin &lt; 1) <span class="cstat-no" title="statement not covered" >return 'just now';</span></span>
 <span class="cstat-no" title="statement not covered" >  if (diffMin &lt; 60) <span class="cstat-no" title="statement not covered" >return `${diffMin}m ago`;</span></span>
 <span class="cstat-no" title="statement not covered" >  if (diffHour &lt; 24) <span class="cstat-no" title="statement not covered" >return `${diffHour}h ago`;</span></span>
 <span class="cstat-no" title="statement not covered" >  if (diffDay &lt; 7) <span class="cstat-no" title="statement not covered" >return `${diffDay}d ago`;</span></span>
@@ -594,14 +594,14 @@ function formatTimestamp(dateString: string): string {
   });
 }
 &nbsp;
-function parseAuthorName(authorName: string): { firstName: string; lastName: string } {
-  const parts = authorName.trim().split(' ');
-  const firstName = parts[0] || <span class="branch-1 cbranch-no" title="branch not covered" >'';</span>
-  const lastName = parts.length &gt; 1 ? parts[parts.length - 1] : <span class="branch-1 cbranch-no" title="branch not covered" >'';</span>
-  return { firstName, lastName };
+function <span class="fstat-no" title="function not covered" >parseAuthorName(</span>authorName: string): { firstName: string; lastName: string } {
+  const parts = <span class="cstat-no" title="statement not covered" >authorName.trim().split(' ');</span>
+  const firstName = <span class="cstat-no" title="statement not covered" >parts[0] || '';</span>
+  const lastName = <span class="cstat-no" title="statement not covered" >parts.length &gt; 1 ? parts[parts.length - 1] : '';</span>
+<span class="cstat-no" title="statement not covered" >  return { firstName, lastName };</span>
 }
 &nbsp;
-const QuestionCard: React.FC&lt;QuestionCardProps&gt; = ({
+const QuestionCard: React.FC&lt;QuestionCardProps&gt; = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span></span>
   question,
   onPress,
   onUpvote,
@@ -609,13 +609,13 @@ const QuestionCard: React.FC&lt;QuestionCardProps&gt; = ({
   onBookmark,
   onReport,
 }) =&gt; {
-  const { firstName, lastName } = parseAuthorName(question.authorName);
+  const { firstName, lastName } = <span class="cstat-no" title="statement not covered" >parseAuthorName(question.authorName);</span>
 &nbsp;
-  return (
+<span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;GlassCard onPress={onPress} style={styles.card}&gt;
       {/* Hidden overlay */}
       {question.isHidden &amp;&amp; (
-<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;View style={styles.hiddenOverlay}&gt;</span>
+        &lt;View style={styles.hiddenOverlay}&gt;
           &lt;Text style={styles.hiddenText}&gt;[hidden]&lt;/Text&gt;
         &lt;/View&gt;
       )}
@@ -626,7 +626,7 @@ const QuestionCard: React.FC&lt;QuestionCardProps&gt; = ({
           {question.topicName &amp;&amp; &lt;TopicBadge name={question.topicName} style={styles.topicBadge} /&gt;}
           &lt;StatusBadge status={question.status} /&gt;
         &lt;/View&gt;
-        {question.isPinned &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >&lt;Text style={styles.pinIcon}&gt;📌&lt;/Text&gt;}</span>
+        {question.isPinned &amp;&amp; &lt;Text style={styles.pinIcon}&gt;📌&lt;/Text&gt;}
       &lt;/View&gt;
 &nbsp;
       {/* Title */}
@@ -636,7 +636,7 @@ const QuestionCard: React.FC&lt;QuestionCardProps&gt; = ({
 &nbsp;
       {/* Body Preview */}
       &lt;Text style={styles.body} numberOfLines={3}&gt;
-        {question.isHidden ? <span class="branch-0 cbranch-no" title="branch not covered" >'[hidden]' </span>: question.body}
+        {question.isHidden ? '[hidden]' : question.body}
       &lt;/Text&gt;
 &nbsp;
       {/* Bottom Row */}
@@ -672,9 +672,9 @@ const QuestionCard: React.FC&lt;QuestionCardProps&gt; = ({
               onPress={onBookmark}
               style={styles.bookmarkButton}
               accessibilityRole="button"
-              accessibilityLabel={question.isBookmarked ? <span class="branch-0 cbranch-no" title="branch not covered" >'Remove bookmark' </span>: 'Add bookmark'}
+              accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
             &gt;
-              &lt;Text style={styles.bookmarkIcon}&gt;{question.isBookmarked ? <span class="branch-0 cbranch-no" title="branch not covered" >'🔖' </span>: '🏷️'}&lt;/Text&gt;
+              &lt;Text style={styles.bookmarkIcon}&gt;{question.isBookmarked ? '🔖' : '🏷️'}&lt;/Text&gt;
             &lt;/TouchableOpacity&gt;
           )}
 &nbsp;
@@ -698,7 +698,7 @@ const QuestionCard: React.FC&lt;QuestionCardProps&gt; = ({
   );
 };
 &nbsp;
-const styles = StyleSheet.create({
+const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.create({</span>
   card: {
     marginBottom: 12,
   },
@@ -808,7 +808,7 @@ export default QuestionCard;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-19T01:39:06.026Z
+                at 2026-02-19T01:53:23.310Z
             </div>
         <script src="../prettify.js"></script>
         <script>

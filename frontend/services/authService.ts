@@ -26,8 +26,9 @@ export const authService = {
    * Verify email address with a 6-digit code.
    * POST /auth/verify-email
    */
-  verifyEmail: async (data: VerifyEmailRequest): Promise<void> => {
-    await api.post('/auth/verify-email', data);
+  verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/verify-email', data);
+    return response.data;
   },
 
   /**

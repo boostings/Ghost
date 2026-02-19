@@ -3,6 +3,7 @@ package com.ghost.service;
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RegisterRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
+import com.ghost.dto.response.AuthResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
@@ -49,6 +50,9 @@ class AuthServiceTest {
 
     @Mock
     private WhiteboardMembershipRepository whiteboardMembershipRepository;
+
+    @Mock
+    private WhiteboardMembershipService whiteboardMembershipService;
 
     @Mock
     private AuditLogService auditLogService;
@@ -107,7 +111,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void verifyEmailShouldMarkUserVerifiedAndClearCode() {
+    void verifyEmailShouldMarkUserVerifiedClearCodeAndIssueTokens() {
         User user = User.builder()
                 .id(UUID.randomUUID())
                 .email("student@ilstu.edu")
@@ -121,16 +125,25 @@ class AuthServiceTest {
                 .build();
 
         when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
+        when(jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name()))
+                .thenReturn("access-token");
+        when(jwtTokenProvider.generateRefreshToken(user.getId())).thenReturn("refresh-token");
 
-        authService.verifyEmail(VerifyEmailRequest.builder()
+        AuthResponse response = authService.verifyEmail(VerifyEmailRequest.builder()
                 .email("student@ilstu.edu")
                 .code("123456")
                 .build());
 
         verify(userRepository).save(user);
+        verify(whiteboardMembershipService).joinDemoWhiteboardIfAvailable(user.getId());
         assertThat(user.isEmailVerified()).isTrue();
         assertThat(user.getVerificationCode()).isNull();
         assertThat(user.getVerificationCodeExpiresAt()).isNull();
+        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
+        assertThat(response.getUser()).isNotNull();
+        assertThat(response.getUser().getId()).isEqualTo(user.getId());
+        assertThat(response.getUser().isEmailVerified()).isTrue();
     }
 
     @Test
@@ -177,6 +190,35 @@ class AuthServiceTest {
                 .build()))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Email is not verified");
+    }
+
+    @Test
+    void loginShouldAutoJoinDemoWhiteboardForVerifiedUser() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("student@ilstu.edu")
+                .passwordHash("hashed-password")
+                .firstName("Test")
+                .lastName("User")
+                .role(Role.STUDENT)
+                .emailVerified(true)
+                .build();
+
+        when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password1", "hashed-password")).thenReturn(true);
+        when(jwtTokenProvider.generateAccessToken(userId, "student@ilstu.edu", Role.STUDENT.name()))
+                .thenReturn("access-token");
+        when(jwtTokenProvider.generateRefreshToken(userId)).thenReturn("refresh-token");
+
+        AuthResponse response = authService.login(LoginRequest.builder()
+                .email("student@ilstu.edu")
+                .password("password1")
+                .build());
+
+        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
+        verify(whiteboardMembershipService).joinDemoWhiteboardIfAvailable(userId);
     }
 
     @Test

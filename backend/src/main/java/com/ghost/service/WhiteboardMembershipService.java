@@ -50,6 +50,38 @@ public class WhiteboardMembershipService {
     }
 
     @Transactional
+    public boolean joinDemoWhiteboardIfAvailable(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        return whiteboardRepository.findFirstByIsDemoTrueOrderByCreatedAtAsc()
+                .map(demoWhiteboard -> {
+                    if (whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(demoWhiteboard.getId(), userId)) {
+                        return false;
+                    }
+
+                    WhiteboardMembership membership = WhiteboardMembership.builder()
+                            .whiteboard(demoWhiteboard)
+                            .user(user)
+                            .role(Role.STUDENT)
+                            .build();
+                    whiteboardMembershipRepository.save(membership);
+
+                    auditLogService.logAction(
+                            demoWhiteboard.getId(),
+                            userId,
+                            AuditAction.USER_ENLISTED,
+                            "User",
+                            userId,
+                            null,
+                            "Auto-joined demo class"
+                    );
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    @Transactional
     public void enlistUser(UUID facultyId, UUID whiteboardId, String userEmail) {
         verifyFacultyRole(facultyId, whiteboardId);
 

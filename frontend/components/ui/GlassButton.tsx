@@ -114,9 +114,9 @@ function getIndicatorColor(variant: ButtonVariant): string {
 
 const styles = StyleSheet.create({
   base: {
+    width: '100%',
     borderRadius: 18,
     overflow: 'hidden',
-    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
@@ -125,10 +125,15 @@ const styles = StyleSheet.create({
   },
   blur: {
     width: '100%',
+    borderRadius: 18,
+    overflow: 'hidden',
   },
   overlay: {
+    width: '100%',
     paddingHorizontal: 24,
     paddingVertical: 14,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   content: {
     flexDirection: 'row',

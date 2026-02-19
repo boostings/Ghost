@@ -19,6 +19,7 @@ import GlassButton from '../../components/ui/GlassButton';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { authService } from '../../services/authService';
+import { useAuthStore } from '../../stores/authStore';
 import { extractErrorMessage } from '../../hooks/useApi';
 
 const CODE_LENGTH = 6;
@@ -27,6 +28,7 @@ export default function VerifyEmailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email: string }>();
   const email = params.email || '';
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -83,15 +85,12 @@ export default function VerifyEmailScreen() {
 
     setLoading(true);
     try {
-      await authService.verifyEmail({
+      const response = await authService.verifyEmail({
         email,
         code: fullCode,
       });
-      Alert.alert('Email Verified', 'Your email is verified. Please sign in to continue.');
-      router.replace({
-        pathname: '/(auth)/login',
-        params: { email },
-      });
+      setAuth(response.user, response.accessToken, response.refreshToken);
+      Alert.alert('Email Verified', "You're signed in and ready to continue.");
     } catch (error: unknown) {
       Alert.alert('Verification Failed', extractErrorMessage(error));
     } finally {

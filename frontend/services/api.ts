@@ -16,6 +16,44 @@ const api = axios.create({
   },
 });
 
+const REDACTED = '[REDACTED]';
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'token',
+  'accessToken',
+  'refreshToken',
+  'authorization',
+  'verificationCode',
+  'verification_code',
+]);
+
+function sanitizeForLog(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForLog(item));
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const sanitized: Record<string, unknown> = {};
+
+    Object.entries(record).forEach(([key, nestedValue]) => {
+      if (SENSITIVE_KEYS.has(key)) {
+        sanitized[key] = REDACTED;
+      } else {
+        sanitized[key] = sanitizeForLog(nestedValue);
+      }
+    });
+
+    return sanitized;
+  }
+
+  return value;
+}
+
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
 // Queue of requests that are waiting for the token to be refreshed
@@ -47,9 +85,22 @@ api.interceptors.request.use(
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
+    if (__DEV__) {
+      console.debug('[API REQUEST]', {
+        method: config.method?.toUpperCase(),
+        url: `${config.baseURL ?? ''}${config.url ?? ''}`,
+        params: sanitizeForLog(config.params),
+        data: sanitizeForLog(config.data),
+      });
+    }
+
     return config;
   },
   (error) => {
+    if (__DEV__) {
+      console.error('[API REQUEST ERROR]', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -60,11 +111,32 @@ api.interceptors.request.use(
  * If the refresh fails, log the user out.
  */
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (__DEV__) {
+      console.debug('[API RESPONSE]', {
+        method: response.config.method?.toUpperCase(),
+        url: `${response.config.baseURL ?? ''}${response.config.url ?? ''}`,
+        status: response.status,
+        data: sanitizeForLog(response.data),
+      });
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    if (__DEV__) {
+      console.error('[API RESPONSE ERROR]', {
+        method: originalRequest?.method?.toUpperCase(),
+        url: `${originalRequest?.baseURL ?? ''}${originalRequest?.url ?? ''}`,
+        status: error.response?.status,
+        code: error.code,
+        message: error.message,
+        data: sanitizeForLog(error.response?.data),
+      });
+    }
 
     // Only attempt refresh for 401 errors that haven't already been retried
     if (error.response?.status !== 401 || originalRequest._retry) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
@@ -14,11 +14,18 @@ function RootLayoutNav() {
   const isLoading = useAuthStore((state) => state.isLoading);
   const segments = useSegments();
   const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
+  const isRouterReady = rootNavigationState?.key != null;
+  const [isLayoutMounted, setIsLayoutMounted] = useState(false);
   const [hasJoinedWhiteboard, setHasJoinedWhiteboard] = useState<boolean | null>(null);
   const [isMembershipLoading, setIsMembershipLoading] = useState(false);
   const segmentPath = segments.join('/');
   const inAuthGroup = segments[0] === '(auth)';
   const inOnboarding = segmentPath === '(auth)/onboarding';
+
+  useEffect(() => {
+    setIsLayoutMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isLoading) {
@@ -62,96 +69,106 @@ function RootLayoutNav() {
   }, [hasJoinedWhiteboard, inAuthGroup, isAuthenticated, isLoading, segmentPath]);
 
   useEffect(() => {
-    if (isLoading || isMembershipLoading) {
+    if (!isLayoutMounted || !isRouterReady || isLoading || isMembershipLoading) {
       return;
     }
 
-    if (!isAuthenticated) {
-      if (!inAuthGroup) {
-        router.replace('/(auth)/login');
+    const redirectTimer = setTimeout(() => {
+      if (!isAuthenticated) {
+        if (!inAuthGroup) {
+          router.replace('/(auth)/login');
+        }
+        return;
       }
-      return;
-    }
 
-    if (hasJoinedWhiteboard === false) {
-      if (!inOnboarding) {
-        router.replace('/(auth)/onboarding');
+      if (hasJoinedWhiteboard === false) {
+        if (!inOnboarding) {
+          router.replace('/(auth)/onboarding');
+        }
+        return;
       }
-      return;
-    }
 
-    if (inAuthGroup) {
-      router.replace('/(tabs)/home');
-    }
+      if (inAuthGroup) {
+        router.replace('/(tabs)/home');
+      }
+    }, 0);
+
+    return () => {
+      clearTimeout(redirectTimer);
+    };
   }, [
     hasJoinedWhiteboard,
     inAuthGroup,
     inOnboarding,
     isAuthenticated,
+    isLayoutMounted,
     isLoading,
     isMembershipLoading,
+    isRouterReady,
     router,
   ]);
 
-  if (isLoading || (inAuthGroup && isMembershipLoading)) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
+  const showBlockingLoader = isLoading || (inAuthGroup && isMembershipLoading);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: Colors.background },
-        animation: 'slide_from_right',
-      }}
-    >
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="whiteboard/[id]"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="whiteboard/settings"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="whiteboard/create"
-        options={{ headerShown: false, animation: 'slide_from_bottom' }}
-      />
-      <Stack.Screen
-        name="whiteboard/members"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="whiteboard/audit-log"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="whiteboard/topics"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="question/[id]"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="question/create"
-        options={{ headerShown: false, animation: 'slide_from_bottom' }}
-      />
-      <Stack.Screen
-        name="question/edit"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="moderation/reports"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: Colors.background },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="whiteboard/[id]"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="whiteboard/settings"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="whiteboard/create"
+          options={{ headerShown: false, animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="whiteboard/members"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="whiteboard/audit-log"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="whiteboard/topics"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="question/[id]"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="question/create"
+          options={{ headerShown: false, animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="question/edit"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="moderation/reports"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+      </Stack>
+
+      {showBlockingLoader ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -170,7 +187,8 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',

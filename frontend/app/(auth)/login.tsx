@@ -83,7 +83,7 @@ export default function LoginScreen() {
                 <Text style={styles.logoIcon}>{'👻'}</Text>
               </View>
               <Text style={styles.title}>Ghost</Text>
-              <Text style={styles.subtitle}>Anonymous Q&A for ILSTU classes</Text>
+              <Text style={styles.subtitle}>Office hours, but better.</Text>
             </View>
 
             {/* Login Card */}

@@ -57,6 +57,14 @@ export function useNotifications() {
       return null;
     }
 
+    // Expo Go does not support remote push token registration on SDK 53+.
+    if (Constants.default.appOwnership === 'expo') {
+      console.warn(
+        '[Notifications] Expo Go detected. Remote push notifications require a development build.'
+      );
+      return null;
+    }
+
     try {
       // Check current permission status
       const { status: existingStatus } = await Notifications.getPermissionsAsync();

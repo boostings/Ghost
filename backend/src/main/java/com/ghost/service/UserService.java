@@ -1,7 +1,10 @@
 package com.ghost.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ghost.dto.request.UpdateUserRequest;
 import com.ghost.dto.response.UserResponse;
+import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.mapper.UserMapper;
 import com.ghost.model.User;
@@ -26,6 +29,7 @@ public class UserService {
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final AuditLogService auditLogService;
     private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public UserResponse getUserById(UUID id) {
@@ -60,7 +64,7 @@ public class UserService {
         }
 
         if (req.getSettingsJson() != null) {
-            user.setSettingsJson(req.getSettingsJson());
+            user.setSettingsJson(normalizeSettingsJson(req.getSettingsJson()));
         }
 
         User savedUser = userRepository.save(user);
@@ -94,6 +98,19 @@ public class UserService {
                     oldValue,
                     newValue
             );
+        }
+    }
+
+    private String normalizeSettingsJson(String rawSettingsJson) {
+        String trimmed = rawSettingsJson.trim();
+        if (trimmed.isBlank()) {
+            return "{}";
+        }
+
+        try {
+            return objectMapper.readTree(trimmed).toString();
+        } catch (JsonProcessingException ex) {
+            throw new BadRequestException("settingsJson must be valid JSON");
         }
     }
 }

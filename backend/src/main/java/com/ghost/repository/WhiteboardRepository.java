@@ -21,6 +21,8 @@ public interface WhiteboardRepository extends JpaRepository<Whiteboard, UUID> {
 
     Optional<Whiteboard> findByInviteCodeIgnoreCase(String inviteCode);
 
+    Optional<Whiteboard> findFirstByIsDemoTrueOrderByCreatedAtAsc();
+
     boolean existsByInviteCode(String inviteCode);
 
     boolean existsByInviteCodeIgnoreCase(String inviteCode);
