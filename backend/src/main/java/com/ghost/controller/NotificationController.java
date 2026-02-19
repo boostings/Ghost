@@ -2,6 +2,7 @@ package com.ghost.controller;
 
 import com.ghost.dto.response.NotificationResponse;
 import com.ghost.dto.response.PageResponse;
+import com.ghost.dto.response.UnreadCountResponse;
 import com.ghost.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -33,11 +33,11 @@ public class NotificationController {
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<Map<String, Long>> getUnreadCount(
+    public ResponseEntity<UnreadCountResponse> getUnreadCount(
             @AuthenticationPrincipal String userIdStr) {
         UUID userId = UUID.fromString(userIdStr);
         long count = notificationService.getUnreadCount(userId);
-        return ResponseEntity.ok(Map.of("count", count));
+        return ResponseEntity.ok(UnreadCountResponse.builder().count(count).build());
     }
 
     @PutMapping("/{id}/read")

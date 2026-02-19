@@ -200,7 +200,8 @@ export function useWebSocket() {
     }
 
     try {
-      const ws = new WebSocket(Config.WS_URL);
+      const wsUrl = `${Config.WS_URL}?access_token=${encodeURIComponent(accessToken)}`;
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {

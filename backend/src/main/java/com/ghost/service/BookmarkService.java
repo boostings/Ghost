@@ -12,11 +12,9 @@ import com.ghost.model.enums.Role;
 import com.ghost.repository.BookmarkRepository;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.UserRepository;
-import com.ghost.repository.WhiteboardMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +30,6 @@ public class BookmarkService {
     private final BookmarkRepository bookmarkRepository;
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
-    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final BookmarkMapper bookmarkMapper;
@@ -93,16 +90,7 @@ public class BookmarkService {
 
     @Transactional(readOnly = true)
     public Page<BookmarkResponse> getBookmarks(UUID userId, Pageable pageable) {
-        List<Bookmark> filtered = bookmarkRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .filter(bookmark -> whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(
-                        bookmark.getQuestion().getWhiteboard().getId(), userId))
-                .toList();
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), filtered.size());
-        if (start >= filtered.size()) {
-            return new PageImpl<>(List.of(), pageable, filtered.size());
-        }
-        List<BookmarkResponse> content = filtered.subList(start, end).stream()
+        return bookmarkRepository.findVisibleByUserId(userId, pageable)
                 .map(bookmark -> {
                     var membership = whiteboardService.verifyMembership(
                             userId,
@@ -110,13 +98,16 @@ public class BookmarkService {
                     );
                     boolean includeModerationData = membership.getRole() == Role.FACULTY;
                     return bookmarkMapper.toResponse(bookmark, userId, includeModerationData);
-                })
-                .toList();
-        return new PageImpl<>(content, pageable, filtered.size());
+                });
     }
 
     @Transactional(readOnly = true)
     public boolean isBookmarked(UUID userId, UUID questionId) {
         return bookmarkRepository.existsByUserIdAndQuestionId(userId, questionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Bookmark> getBookmarksByQuestionId(UUID questionId) {
+        return bookmarkRepository.findByQuestionId(questionId);
     }
 }

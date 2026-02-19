@@ -162,6 +162,14 @@ public class QuestionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
     }
 
+    @Transactional
+    public void markVerifiedAnswerAndClose(UUID questionId, UUID commentId) {
+        Question question = getQuestionById(questionId);
+        question.setVerifiedAnswerId(commentId);
+        question.setStatus(QuestionStatus.CLOSED);
+        questionRepository.save(question);
+    }
+
     @Transactional(readOnly = true)
     public QuestionResponse getQuestionByIdAndWhiteboard(UUID userId, UUID questionId, UUID whiteboardId) {
         var membership = whiteboardService.verifyMembership(userId, whiteboardId);

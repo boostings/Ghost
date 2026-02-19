@@ -14,9 +14,7 @@ import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.QuestionStatus;
-import com.ghost.repository.BookmarkRepository;
 import com.ghost.repository.CommentRepository;
-import com.ghost.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -34,8 +32,8 @@ import java.util.UUID;
 public class CommentService {
 
     private final CommentRepository commentRepository;
-    private final QuestionRepository questionRepository;
-    private final BookmarkRepository bookmarkRepository;
+    private final QuestionService questionService;
+    private final BookmarkService bookmarkService;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
@@ -43,8 +41,7 @@ public class CommentService {
 
     @Transactional
     public CommentResponse createComment(UUID userId, UUID questionId, CreateCommentRequest req) {
-        Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
+        Question question = questionService.getQuestionById(questionId);
 
         // Check question status
         if (question.getStatus() == QuestionStatus.CLOSED) {
@@ -167,9 +164,7 @@ public class CommentService {
         commentRepository.save(comment);
 
         // Set question verified answer and close it
-        question.setVerifiedAnswerId(commentId);
-        question.setStatus(QuestionStatus.CLOSED);
-        questionRepository.save(question);
+        questionService.markVerifiedAnswerAndClose(question.getId(), commentId);
 
         // Log audit
         auditLogService.logAction(
@@ -190,7 +185,7 @@ public class CommentService {
         }
 
         // Notify all bookmarkers
-        List<Bookmark> bookmarks = bookmarkRepository.findByQuestionId(question.getId());
+        List<Bookmark> bookmarks = bookmarkService.getBookmarksByQuestionId(question.getId());
         for (Bookmark bookmark : bookmarks) {
             UUID bookmarkUserId = bookmark.getUser().getId();
             // Don't notify the question author twice or the faculty who verified
@@ -210,8 +205,7 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public Page<CommentResponse> getCommentsByQuestion(UUID userId, UUID questionId, Pageable pageable) {
-        Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
+        Question question = questionService.getQuestionById(questionId);
         whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
         if (question.isHidden()) {
             throw new ResourceNotFoundException("Question", "id", questionId);

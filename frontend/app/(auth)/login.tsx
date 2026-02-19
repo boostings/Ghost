@@ -58,7 +58,6 @@ export default function LoginScreen() {
     try {
       const response = await authService.login({ email: email.trim().toLowerCase(), password });
       setAuth(response.user, response.accessToken, response.refreshToken);
-      router.replace('/(tabs)/home');
     } catch (error: unknown) {
       Alert.alert('Login Failed', extractErrorMessage(error));
     } finally {

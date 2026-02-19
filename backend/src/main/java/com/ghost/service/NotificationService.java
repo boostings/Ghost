@@ -58,6 +58,13 @@ public class NotificationService {
                 .build();
 
         notification = notificationRepository.save(notification);
+        logNotificationAction(
+                recipientId,
+                notification.getId(),
+                AuditAction.NOTIFICATION_CREATED,
+                null,
+                notification.getType().name()
+        );
 
         // Send via WebSocket
         try {
