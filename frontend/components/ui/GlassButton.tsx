@@ -8,6 +8,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 
@@ -33,7 +34,9 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   accessibilityLabel,
 }) => {
   const containerStyle = getContainerStyle(variant);
+  const overlayStyle = getOverlayStyle(variant);
   const textStyle = getTextStyle(variant);
+  const indicatorColor = getIndicatorColor(variant);
 
   return (
     <TouchableOpacity
@@ -44,17 +47,18 @@ const GlassButton: React.FC<GlassButtonProps> = ({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
     >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'secondary' || variant === 'ghost' ? Colors.primary : Colors.text}
-        />
-      ) : (
-        <View style={styles.content}>
-          {icon && <View style={styles.iconContainer}>{icon}</View>}
-          <Text style={[styles.text, textStyle]}>{title}</Text>
+      <BlurView intensity={60} tint="dark" style={styles.blur}>
+        <View style={[styles.overlay, overlayStyle]}>
+          {loading ? (
+            <ActivityIndicator size="small" color={indicatorColor} />
+          ) : (
+            <View style={styles.content}>
+              {icon && <View style={styles.iconContainer}>{icon}</View>}
+              <Text style={[styles.text, textStyle]}>{title}</Text>
+            </View>
+          )}
         </View>
-      )}
+      </BlurView>
     </TouchableOpacity>
   );
 };
@@ -72,6 +76,19 @@ function getContainerStyle(variant: ButtonVariant): ViewStyle {
   }
 }
 
+function getOverlayStyle(variant: ButtonVariant): ViewStyle {
+  switch (variant) {
+    case 'primary':
+      return styles.primaryOverlay;
+    case 'secondary':
+      return styles.secondaryOverlay;
+    case 'danger':
+      return styles.dangerOverlay;
+    case 'ghost':
+      return styles.ghostOverlay;
+  }
+}
+
 function getTextStyle(variant: ButtonVariant): TextStyle {
   switch (variant) {
     case 'primary':
@@ -85,14 +102,33 @@ function getTextStyle(variant: ButtonVariant): TextStyle {
   }
 }
 
+function getIndicatorColor(variant: ButtonVariant): string {
+  switch (variant) {
+    case 'secondary':
+    case 'ghost':
+      return Colors.primary;
+    default:
+      return Colors.text;
+  }
+}
+
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 12,
+    borderRadius: 18,
+    overflow: 'hidden',
     paddingHorizontal: 24,
-    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  blur: {
+    width: '100%',
+  },
+  overlay: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
   },
   content: {
     flexDirection: 'row',
@@ -111,7 +147,10 @@ const styles = StyleSheet.create({
   },
   // Primary
   primaryContainer: {
-    backgroundColor: Colors.primary,
+    backgroundColor: 'transparent',
+  },
+  primaryOverlay: {
+    backgroundColor: 'rgba(108,99,255,0.35)',
   },
   primaryText: {
     color: Colors.text,
@@ -119,15 +158,19 @@ const styles = StyleSheet.create({
   // Secondary
   secondaryContainer: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.surfaceBorder,
+  },
+  secondaryOverlay: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   secondaryText: {
     color: Colors.primary,
   },
   // Danger
   dangerContainer: {
-    backgroundColor: '#FF4444',
+    backgroundColor: 'transparent',
+  },
+  dangerOverlay: {
+    backgroundColor: 'rgba(255,68,68,0.35)',
   },
   dangerText: {
     color: Colors.text,
@@ -135,6 +178,9 @@ const styles = StyleSheet.create({
   // Ghost
   ghostContainer: {
     backgroundColor: 'transparent',
+  },
+  ghostOverlay: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   ghostText: {
     color: Colors.primary,

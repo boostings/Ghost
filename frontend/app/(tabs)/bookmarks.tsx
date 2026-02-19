@@ -6,6 +6,7 @@ import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
+import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -145,7 +146,7 @@ export default function BookmarksScreen() {
       {/* Bookmark List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <LoadingSkeleton type="question" count={4} />
         </View>
       ) : (
         <FlatList
@@ -212,8 +213,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 12,
   },
   listContent: {
     paddingHorizontal: 24,

@@ -5,9 +5,14 @@ import com.ghost.dto.request.RegisterRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.exception.BadRequestException;
 import com.ghost.model.User;
+import com.ghost.model.Whiteboard;
+import com.ghost.model.WhiteboardMembership;
+import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.security.JwtTokenProvider;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -17,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,8 +47,19 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private WhiteboardMembershipRepository whiteboardMembershipRepository;
+
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private AuthService authService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(whiteboardMembershipRepository.findByUserId(any(UUID.class))).thenReturn(List.of());
+    }
 
     @Test
     void registerShouldPersistUnverifiedUserAndNotIssueTokens() {
@@ -77,6 +95,15 @@ class AuthServiceTest {
         assertThat(savedUser.getVerificationCode()).matches("^\\d{6}$");
         assertThat(savedUser.getVerificationCodeExpiresAt())
                 .isAfter(LocalDateTime.now().minusSeconds(5));
+        verify(auditLogService).logAction(
+                org.mockito.ArgumentMatchers.isNull(),
+                any(UUID.class),
+                org.mockito.ArgumentMatchers.eq(AuditAction.USER_ENLISTED),
+                org.mockito.ArgumentMatchers.eq("User"),
+                any(UUID.class),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.eq("registered")
+        );
     }
 
     @Test
@@ -150,5 +177,36 @@ class AuthServiceTest {
                 .build()))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Email is not verified");
+    }
+
+    @Test
+    void deleteAccountShouldWriteAuditLogForMemberships() {
+        UUID userId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .email("student@ilstu.edu")
+                .build();
+        WhiteboardMembership membership = WhiteboardMembership.builder()
+                .user(user)
+                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(whiteboardMembershipRepository.findByUserId(userId)).thenReturn(List.of(membership));
+
+        authService.deleteAccount(userId);
+
+        verify(auditLogService).logAction(
+                whiteboardId,
+                userId,
+                AuditAction.USER_REMOVED,
+                "User",
+                userId,
+                "account_status=active",
+                "account_status=deleted"
+        );
+        verify(userRepository).delete(user);
     }
 }

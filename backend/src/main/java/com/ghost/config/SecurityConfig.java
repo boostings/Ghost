@@ -43,7 +43,7 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/ws/**").authenticated()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )

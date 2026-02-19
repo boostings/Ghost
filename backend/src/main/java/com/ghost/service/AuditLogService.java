@@ -33,7 +33,7 @@ public class AuditLogService {
     public void logAction(UUID whiteboardId, UUID actorId, AuditAction action,
                           String targetType, UUID targetId, String oldValue, String newValue) {
         AuditLog auditLog = AuditLog.builder()
-                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
+                .whiteboard(whiteboardId == null ? null : Whiteboard.builder().id(whiteboardId).build())
                 .actor(User.builder().id(actorId).build())
                 .action(action)
                 .targetType(AuditTargetType.from(targetType))

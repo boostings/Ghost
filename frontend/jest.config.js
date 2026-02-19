@@ -11,6 +11,11 @@ module.exports = {
     '<rootDir>/utils/formatDate.ts',
     '<rootDir>/utils/inviteCode.ts',
     '<rootDir>/utils/sanitize.ts',
+    '<rootDir>/components/QuestionCard.tsx',
+    '<rootDir>/components/ui/GlassButton.tsx',
+    '<rootDir>/components/ui/GlassCard.tsx',
+    '<rootDir>/components/ui/GlassInput.tsx',
+    '<rootDir>/components/ui/GlassModal.tsx',
   ],
   coverageThreshold: {
     global: {

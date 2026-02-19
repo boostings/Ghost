@@ -40,7 +40,16 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build and test
+      - name: Compile (static check)
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ghost_db
+          SPRING_DATASOURCE_USERNAME: ghost_user
+          SPRING_DATASOURCE_PASSWORD: ghost_pass
+          SPRING_PROFILES_ACTIVE: dev
+        run: mvn -q -DskipTests compile
+
+      - name: Unit + integration tests with coverage gate
         working-directory: backend
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ghost_db
@@ -49,9 +58,25 @@ jobs:
           SPRING_PROFILES_ACTIVE: dev
         run: mvn clean verify
 
+      - name: Smoke tests
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ghost_db
+          SPRING_DATASOURCE_USERNAME: ghost_user
+          SPRING_DATASOURCE_PASSWORD: ghost_pass
+          SPRING_PROFILES_ACTIVE: dev
+        run: mvn -q -Dtest=AuthControllerTest,AuditLogControllerTest test
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: backend/target/surefire-reports/
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/target/site/jacoco/

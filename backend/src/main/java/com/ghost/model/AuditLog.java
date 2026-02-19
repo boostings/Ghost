@@ -24,7 +24,7 @@ public class AuditLog {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "whiteboard_id", nullable = false)
+    @JoinColumn(name = "whiteboard_id")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Whiteboard whiteboard;

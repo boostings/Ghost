@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Alert,
+  type GestureResponderEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import GlassInput from '../../components/ui/GlassInput';
@@ -14,11 +16,14 @@ import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
+import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
+import ReportModal from '../../components/ReportModal';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { questionService } from '../../services/questionService';
 import { whiteboardService } from '../../services/whiteboardService';
+import { bookmarkService } from '../../services/bookmarkService';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { formatDate } from '../../utils/formatDate';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
@@ -84,6 +89,11 @@ export default function SearchScreen() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    questionId?: string;
+    commentId?: string;
+  } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const PAGE_SIZE = 20;
 
@@ -224,6 +234,40 @@ export default function SearchScreen() {
     await performSearch(query, statusFilter, whiteboardFilter, topicFilter, page + 1, false);
   };
 
+  const handleToggleBookmark = useCallback(
+    async (questionId: string) => {
+      const question = results.find((item) => item.id === questionId);
+      if (!question) {
+        return;
+      }
+
+      try {
+        if (question.isBookmarked) {
+          await bookmarkService.remove(questionId);
+        } else {
+          await bookmarkService.add(questionId);
+        }
+        setResults((prev) =>
+          prev.map((item) =>
+            item.id === questionId
+              ? {
+                  ...item,
+                  isBookmarked: !item.isBookmarked,
+                }
+              : item
+          )
+        );
+      } catch {
+        Alert.alert('Error', 'Failed to update bookmark.');
+      }
+    },
+    [results]
+  );
+
+  const stopCardPress = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+  };
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -264,6 +308,29 @@ export default function SearchScreen() {
           <Text style={styles.dotSeparator}>{' \u00B7 '}</Text>
           <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
           <View style={styles.footerRight}>
+            <TouchableOpacity
+              onPress={(event) => {
+                stopCardPress(event);
+                handleToggleBookmark(item.id);
+              }}
+              style={styles.footerActionButton}
+              accessibilityRole="button"
+              accessibilityLabel={item.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+            >
+              <Text style={styles.footerActionIcon}>{item.isBookmarked ? '\u2605' : '\u2606'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={(event) => {
+                stopCardPress(event);
+                setReportTarget({ questionId: item.id });
+                setReportModalVisible(true);
+              }}
+              style={styles.footerActionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Report question"
+            >
+              <Text style={styles.footerActionIcon}>{'\u{1F6A9}'}</Text>
+            </TouchableOpacity>
             <Text style={styles.statText}>
               {'\u25B2'} {item.karmaScore}
             </Text>
@@ -274,7 +341,7 @@ export default function SearchScreen() {
         </View>
       </GlassCard>
     ),
-    [query, router]
+    [handleToggleBookmark, query, router]
   );
 
   return (
@@ -412,7 +479,7 @@ export default function SearchScreen() {
       {/* Results */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <LoadingSkeleton type="question" count={4} />
         </View>
       ) : (
         <FlatList
@@ -447,6 +514,12 @@ export default function SearchScreen() {
           }
         />
       )}
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        target={reportTarget}
+        title="Report Question"
+      />
     </ScreenWrapper>
   );
 }
@@ -520,8 +593,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 12,
   },
   listContent: {
     paddingHorizontal: 24,
@@ -578,7 +650,21 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: 12,
+  },
+  footerActionButton: {
+    minHeight: 36,
+    minWidth: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  footerActionIcon: {
+    fontSize: 14,
+    color: Colors.textMuted,
   },
   statText: {
     fontSize: Fonts.sizes.sm,

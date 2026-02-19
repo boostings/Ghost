@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
+import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -216,7 +217,7 @@ export default function NotificationsScreen() {
       {/* Notification List */}
       {isLoading && notifications.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <LoadingSkeleton type="notification" count={5} />
         </View>
       ) : (
         <FlatList
@@ -287,8 +288,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 12,
   },
   listContent: {
     paddingHorizontal: 24,

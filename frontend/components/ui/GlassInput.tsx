@@ -106,17 +106,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   container: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.30)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
   },
   containerFocused: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   containerError: {
     borderColor: '#FF4444',

@@ -30,6 +30,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ghost_user
       SPRING_DATASOURCE_PASSWORD: ghost_pass
       SPRING_PROFILES_ACTIVE: dev
+      JWT_SECRET: ghost-dev-local-secret-change-this-value-please-32b
     depends_on:
       postgres:
         condition: service_healthy

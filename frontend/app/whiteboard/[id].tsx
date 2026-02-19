@@ -8,6 +8,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   ScrollView,
+  Alert,
+  type GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,12 +19,15 @@ import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
+import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
+import ReportModal from '../../components/ReportModal';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
+import { bookmarkService } from '../../services/bookmarkService';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { formatDate } from '../../utils/formatDate';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
@@ -98,6 +103,11 @@ export default function WhiteboardDetailScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>('ALL');
   const [topicFilter, setTopicFilter] = useState<'ALL' | string>('ALL');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    questionId?: string;
+    commentId?: string;
+  } | null>(null);
   const lastFetchRef = useRef(0);
   const PAGE_SIZE = 20;
   const { subscribe } = useWebSocket();
@@ -177,6 +187,45 @@ export default function WhiteboardDetailScreen() {
       return;
     }
     await fetchData({ page: page + 1, replace: false });
+  };
+
+  const handleToggleBookmark = useCallback(
+    async (questionId: string) => {
+      const question = questions.find((item) => item.id === questionId);
+      if (!question) {
+        return;
+      }
+
+      try {
+        if (question.isBookmarked) {
+          await bookmarkService.remove(questionId);
+        } else {
+          await bookmarkService.add(questionId);
+        }
+        setQuestions((prev) =>
+          prev.map((item) =>
+            item.id === questionId
+              ? {
+                  ...item,
+                  isBookmarked: !item.isBookmarked,
+                }
+              : item
+          )
+        );
+      } catch {
+        Alert.alert('Error', 'Failed to update bookmark.');
+      }
+    },
+    [questions]
+  );
+
+  const handleOpenReportModal = useCallback((questionId: string) => {
+    setReportTarget({ questionId });
+    setReportModalVisible(true);
+  }, []);
+
+  const stopCardPress = (event: GestureResponderEvent) => {
+    event.stopPropagation();
   };
 
   const pinnedQuestions = useMemo(() => questions.filter((q) => q.isPinned), [questions]);
@@ -277,6 +326,28 @@ export default function WhiteboardDetailScreen() {
           <Text style={styles.dotSep}>{' \u00B7 '}</Text>
           <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
           <View style={styles.footerRight}>
+            <TouchableOpacity
+              onPress={(event) => {
+                stopCardPress(event);
+                handleToggleBookmark(item.id);
+              }}
+              style={styles.footerActionButton}
+              accessibilityRole="button"
+              accessibilityLabel={item.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+            >
+              <Text style={styles.footerActionIcon}>{item.isBookmarked ? '\u2605' : '\u2606'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={(event) => {
+                stopCardPress(event);
+                handleOpenReportModal(item.id);
+              }}
+              style={styles.footerActionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Report question"
+            >
+              <Text style={styles.footerActionIcon}>{'\u{1F6A9}'}</Text>
+            </TouchableOpacity>
             <Text
               style={[
                 styles.karmaText,
@@ -294,14 +365,24 @@ export default function WhiteboardDetailScreen() {
         </View>
       </GlassCard>
     ),
-    [id, router]
+    [handleOpenReportModal, handleToggleBookmark, id, router]
   );
 
   if (loading) {
     return (
       <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
-        <SafeAreaView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <SafeAreaView style={styles.container} edges={['top']}>
+          <View style={styles.header}>
+            <View style={styles.backButton} />
+            <View style={styles.headerCenter}>
+              <Text style={styles.courseCode}>Loading...</Text>
+              <Text style={styles.courseName}>Fetching whiteboard</Text>
+            </View>
+            <View style={styles.headerButton} />
+          </View>
+          <View style={styles.skeletonWrapper}>
+            <LoadingSkeleton type="question" count={4} />
+          </View>
         </SafeAreaView>
       </LinearGradient>
     );
@@ -505,6 +586,12 @@ export default function WhiteboardDetailScreen() {
         >
           <Text style={styles.fabIcon}>{'+ Ask'}</Text>
         </TouchableOpacity>
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          target={reportTarget}
+          title="Report Question"
+        />
       </SafeAreaView>
     </LinearGradient>
   );
@@ -697,6 +784,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  footerActionButton: {
+    minHeight: 36,
+    minWidth: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  footerActionIcon: {
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
   karmaText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
@@ -718,6 +818,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skeletonWrapper: {
+    flex: 1,
+    paddingTop: 12,
   },
   fab: {
     position: 'absolute',

@@ -10,8 +10,11 @@ import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
 import com.ghost.model.User;
+import com.ghost.model.WhiteboardMembership;
+import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -32,6 +36,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
+    private final AuditLogService auditLogService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -67,6 +73,7 @@ public class AuthService {
 
         // Log verification code to console
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
+        logUserAction(user.getId(), AuditAction.USER_ENLISTED, user.getId(), null, "registered");
 
     }
 
@@ -84,6 +91,7 @@ public class AuthService {
         user.setVerificationCode(verificationCode);
         user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
+        logUserAction(user.getId(), AuditAction.USER_UPDATED, user.getId(), "verification_code=rotated", "verification_code=rotated");
 
         // Log verification code to console in development.
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
@@ -114,6 +122,7 @@ public class AuthService {
         user.setVerificationCode(null);
         user.setVerificationCodeExpiresAt(null);
         userRepository.save(user);
+        logUserAction(user.getId(), AuditAction.USER_UPDATED, user.getId(), "email_verified=false", "email_verified=true");
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +163,7 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
+        logUserAction(userId, AuditAction.USER_REMOVED, userId, "account_status=active", "account_status=deleted");
         userRepository.delete(user);
         log.info("Account deleted for user: {}", userId);
     }
@@ -189,5 +199,33 @@ public class AuthService {
                 .karmaScore(user.getKarmaScore())
                 .emailVerified(user.isEmailVerified())
                 .build();
+    }
+
+    private void logUserAction(UUID actorId, AuditAction action, UUID targetId, String oldValue, String newValue) {
+        List<WhiteboardMembership> memberships = whiteboardMembershipRepository.findByUserId(actorId);
+        if (!memberships.isEmpty()) {
+            for (WhiteboardMembership membership : memberships) {
+                auditLogService.logAction(
+                        membership.getWhiteboard().getId(),
+                        actorId,
+                        action,
+                        "User",
+                        targetId,
+                        oldValue,
+                        newValue
+                );
+            }
+            return;
+        }
+
+        auditLogService.logAction(
+                null,
+                actorId,
+                action,
+                "User",
+                targetId,
+                oldValue,
+                newValue
+        );
     }
 }
