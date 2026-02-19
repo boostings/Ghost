@@ -7,7 +7,11 @@ export const reportService = {
     return response.data;
   },
 
-  list: async (whiteboardId: string, page = 0, size = 20): Promise<PageResponse<ReportResponse>> => {
+  list: async (
+    whiteboardId: string,
+    page = 0,
+    size = 20
+  ): Promise<PageResponse<ReportResponse>> => {
     const response = await api.get<PageResponse<ReportResponse>>(
       `/reports/whiteboard/${whiteboardId}`,
       { params: { page, size } }

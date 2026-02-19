@@ -9,24 +9,11 @@ interface TopicBadgeProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const TopicBadge: React.FC<TopicBadgeProps> = ({
-  name,
-  isDefault = false,
-  style,
-}) => {
+const TopicBadge: React.FC<TopicBadgeProps> = ({ name, isDefault = false, style }) => {
   return (
-    <View
-      style={[
-        styles.badge,
-        isDefault ? styles.defaultBadge : styles.customBadge,
-        style,
-      ]}
-    >
+    <View style={[styles.badge, isDefault ? styles.defaultBadge : styles.customBadge, style]}>
       <Text
-        style={[
-          styles.text,
-          isDefault ? styles.defaultText : styles.customText,
-        ]}
+        style={[styles.text, isDefault ? styles.defaultText : styles.customText]}
         numberOfLines={1}
       >
         {name}

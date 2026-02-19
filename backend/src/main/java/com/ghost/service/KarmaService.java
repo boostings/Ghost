@@ -6,6 +6,7 @@ import com.ghost.model.KarmaVote;
 import com.ghost.model.Question;
 import com.ghost.model.User;
 import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.VoteType;
 import com.ghost.repository.CommentRepository;
 import com.ghost.repository.KarmaVoteRepository;
@@ -30,12 +31,14 @@ public class KarmaService {
     private final UserRepository userRepository;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Transactional
     public void voteOnQuestion(UUID userId, UUID questionId, VoteType voteType) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
         whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
+        long interactionsBefore = getQuestionInteractionCount(questionId);
 
         User voter = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
@@ -77,6 +80,8 @@ public class KarmaService {
                 null,
                 voteType.name()
         );
+
+        maybeNotifyTrendingQuestion(userId, question, interactionsBefore);
     }
 
     @Transactional
@@ -84,6 +89,7 @@ public class KarmaService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
         whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
+        long interactionsBefore = getCommentInteractionCount(commentId);
 
         User voter = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
@@ -125,6 +131,8 @@ public class KarmaService {
                 null,
                 voteType.name()
         );
+
+        maybeNotifyTrendingComment(userId, comment, interactionsBefore);
     }
 
     @Transactional
@@ -199,5 +207,51 @@ public class KarmaService {
 
         author.setKarmaScore(totalKarma);
         userRepository.save(author);
+    }
+
+    private long getQuestionInteractionCount(UUID questionId) {
+        return karmaVoteRepository.countByQuestionIdAndVoteType(questionId, VoteType.UPVOTE)
+                + karmaVoteRepository.countByQuestionIdAndVoteType(questionId, VoteType.DOWNVOTE);
+    }
+
+    private long getCommentInteractionCount(UUID commentId) {
+        return karmaVoteRepository.countByCommentIdAndVoteType(commentId, VoteType.UPVOTE)
+                + karmaVoteRepository.countByCommentIdAndVoteType(commentId, VoteType.DOWNVOTE);
+    }
+
+    private void maybeNotifyTrendingQuestion(UUID actorId, Question question, long interactionsBefore) {
+        long interactionsAfter = getQuestionInteractionCount(question.getId());
+        if (interactionsBefore < 20
+                && interactionsAfter >= 20
+                && !question.getAuthor().getId().equals(actorId)) {
+            notificationService.createAndSend(
+                    question.getAuthor().getId(),
+                    NotificationType.POST_TRENDING,
+                    "Your Question Is Trending",
+                    "Your question has reached 20+ interactions: " + question.getTitle(),
+                    "Question",
+                    question.getId()
+            );
+        }
+    }
+
+    private void maybeNotifyTrendingComment(UUID actorId, Comment comment, long interactionsBefore) {
+        long interactionsAfter = getCommentInteractionCount(comment.getId());
+        if (interactionsBefore < 20
+                && interactionsAfter >= 20
+                && !comment.getAuthor().getId().equals(actorId)) {
+            String preview = comment.getBody();
+            if (preview != null && preview.length() > 80) {
+                preview = preview.substring(0, 80) + "...";
+            }
+            notificationService.createAndSend(
+                    comment.getAuthor().getId(),
+                    NotificationType.POST_TRENDING,
+                    "Your Comment Is Trending",
+                    "Your comment has reached 20+ interactions: " + (preview != null ? preview : "Comment"),
+                    "Comment",
+                    comment.getId()
+            );
+        }
     }
 }

@@ -96,10 +96,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -113,9 +110,7 @@ export default function RegisterScreen() {
             {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>Create Account</Text>
-              <Text style={styles.subtitle}>
-                Join your classmates on Ghost
-              </Text>
+              <Text style={styles.subtitle}>Join your classmates on Ghost</Text>
             </View>
 
             {/* Registration Card */}

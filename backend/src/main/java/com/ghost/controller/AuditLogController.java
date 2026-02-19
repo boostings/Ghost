@@ -13,8 +13,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -31,7 +33,10 @@ public class AuditLogController {
             @PathVariable UUID wbId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String action) {
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) UUID actorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         UUID userId = UUID.fromString(userIdStr);
         whiteboardService.verifyFacultyRole(userId, wbId);
         Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
@@ -44,7 +49,14 @@ public class AuditLogController {
                 throw new BadRequestException("Invalid audit action: " + action);
             }
         }
-        Page<AuditLogResponse> auditLogPage = auditLogService.getAuditLogs(wbId, pageable, auditAction);
+        Page<AuditLogResponse> auditLogPage = auditLogService.getAuditLogs(
+                wbId,
+                pageable,
+                auditAction,
+                actorId,
+                from,
+                to
+        );
         return ResponseEntity.ok(PageResponse.from(auditLogPage));
     }
 

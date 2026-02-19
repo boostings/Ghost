@@ -129,57 +129,60 @@ export function useWebSocket() {
    * Handle incoming WebSocket messages and route them to the appropriate
    * subscription callback.
    */
-  const handleMessage = useCallback((event: MessageEvent) => {
-    const frame = parseFrame(typeof event.data === 'string' ? event.data : '');
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      const frame = parseFrame(typeof event.data === 'string' ? event.data : '');
 
-    switch (frame.command) {
-      case 'CONNECTED':
-        isConnectedRef.current = true;
-        setIsConnected(true);
-        reconnectAttemptRef.current = 0;
+      switch (frame.command) {
+        case 'CONNECTED':
+          isConnectedRef.current = true;
+          setIsConnected(true);
+          reconnectAttemptRef.current = 0;
 
-        // Re-subscribe any pending subscriptions
-        for (const pending of pendingSubscriptionsRef.current) {
-          sendFrame('SUBSCRIBE', {
-            id: pending.id,
-            destination: pending.destination,
-          });
-          subscriptionsRef.current.set(pending.id, {
-            destination: pending.destination,
-            callback: pending.callback,
-          });
-        }
-        pendingSubscriptionsRef.current = [];
-
-        // Also re-subscribe existing subscriptions (reconnection case)
-        for (const [id, sub] of subscriptionsRef.current.entries()) {
-          sendFrame('SUBSCRIBE', {
-            id,
-            destination: sub.destination,
-          });
-        }
-        break;
-
-      case 'MESSAGE': {
-        const subscriptionId = frame.headers['subscription'];
-        if (subscriptionId) {
-          const subscription = subscriptionsRef.current.get(subscriptionId);
-          if (subscription) {
-            subscription.callback(frame);
+          // Re-subscribe any pending subscriptions
+          for (const pending of pendingSubscriptionsRef.current) {
+            sendFrame('SUBSCRIBE', {
+              id: pending.id,
+              destination: pending.destination,
+            });
+            subscriptionsRef.current.set(pending.id, {
+              destination: pending.destination,
+              callback: pending.callback,
+            });
           }
+          pendingSubscriptionsRef.current = [];
+
+          // Also re-subscribe existing subscriptions (reconnection case)
+          for (const [id, sub] of subscriptionsRef.current.entries()) {
+            sendFrame('SUBSCRIBE', {
+              id,
+              destination: sub.destination,
+            });
+          }
+          break;
+
+        case 'MESSAGE': {
+          const subscriptionId = frame.headers['subscription'];
+          if (subscriptionId) {
+            const subscription = subscriptionsRef.current.get(subscriptionId);
+            if (subscription) {
+              subscription.callback(frame);
+            }
+          }
+          break;
         }
-        break;
+
+        case 'ERROR':
+          console.warn('[WebSocket] STOMP error:', frame.headers['message'], frame.body);
+          break;
+
+        default:
+          // RECEIPT, HEARTBEAT, etc. - ignore
+          break;
       }
-
-      case 'ERROR':
-        console.warn('[WebSocket] STOMP error:', frame.headers['message'], frame.body);
-        break;
-
-      default:
-        // RECEIPT, HEARTBEAT, etc. - ignore
-        break;
-    }
-  }, [sendFrame]);
+    },
+    [sendFrame]
+  );
 
   /**
    * Establish a WebSocket connection and send the STOMP CONNECT frame.
@@ -200,8 +203,7 @@ export function useWebSocket() {
     }
 
     try {
-      const wsUrl = `${Config.WS_URL}?access_token=${encodeURIComponent(accessToken)}`;
-      const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(Config.WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -224,10 +226,7 @@ export function useWebSocket() {
           reconnectAttemptRef.current < maxReconnectAttempts &&
           useAuthStore.getState().isAuthenticated
         ) {
-          const delay = Math.min(
-            1000 * Math.pow(2, reconnectAttemptRef.current),
-            30000
-          );
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000);
           reconnectAttemptRef.current++;
 
           reconnectTimerRef.current = setTimeout(() => {
@@ -254,10 +253,7 @@ export function useWebSocket() {
    * @returns A StompSubscription object with an unsubscribe() method, or null if not connected
    */
   const subscribe = useCallback(
-    (
-      destination: string,
-      callback: (frame: StompFrame) => void
-    ): StompSubscription | null => {
+    (destination: string, callback: (frame: StompFrame) => void): StompSubscription | null => {
       const id = `sub-${++subscriptionIdRef.current}`;
 
       if (isConnectedRef.current) {
@@ -275,8 +271,9 @@ export function useWebSocket() {
             sendFrame('UNSUBSCRIBE', { id });
           }
           subscriptionsRef.current.delete(id);
-          pendingSubscriptionsRef.current =
-            pendingSubscriptionsRef.current.filter((p) => p.id !== id);
+          pendingSubscriptionsRef.current = pendingSubscriptionsRef.current.filter(
+            (p) => p.id !== id
+          );
         },
       };
     },

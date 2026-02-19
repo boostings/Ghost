@@ -25,21 +25,14 @@ function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
 
   return (
     <View style={tabIconStyles.container}>
-      <Text
-        style={tabIconStyles.icon}
-      >
+      <Text style={tabIconStyles.icon}>
         <Ionicons
           name={icons[name] || 'help-circle-outline'}
           size={20}
           color={focused ? Colors.primary : Colors.textMuted}
         />
       </Text>
-      <Text
-        style={[
-          tabIconStyles.label,
-          { color: focused ? Colors.primary : Colors.textMuted },
-        ]}
-      >
+      <Text style={[tabIconStyles.label, { color: focused ? Colors.primary : Colors.textMuted }]}>
         {labels[name] || name}
       </Text>
     </View>
@@ -70,9 +63,7 @@ function NotificationBadge() {
 
   return (
     <View style={badgeStyles.badge}>
-      <Text style={badgeStyles.text}>
-        {unreadCount > 99 ? '99+' : unreadCount}
-      </Text>
+      <Text style={badgeStyles.text}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
     </View>
   );
 }
@@ -115,11 +106,7 @@ export default function TabLayout() {
           elevation: 0,
         },
         tabBarBackground: () => (
-          <BlurView
-            intensity={80}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
         ),
       }}
     >

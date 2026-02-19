@@ -37,11 +37,7 @@ const GlassButton: React.FC<GlassButtonProps> = ({
 
   return (
     <TouchableOpacity
-      style={[
-        styles.base,
-        containerStyle,
-        disabled && styles.disabled,
-      ]}
+      style={[styles.base, containerStyle, disabled && styles.disabled]}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}

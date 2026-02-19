@@ -45,13 +45,8 @@ export const questionService = {
    * Get a single question by ID.
    * GET /whiteboards/{wbId}/questions/{id}
    */
-  getQuestion: async (
-    wbId: string,
-    id: string
-  ): Promise<QuestionResponse> => {
-    const response = await api.get<QuestionResponse>(
-      `/whiteboards/${wbId}/questions/${id}`
-    );
+  getQuestion: async (wbId: string, id: string): Promise<QuestionResponse> => {
+    const response = await api.get<QuestionResponse>(`/whiteboards/${wbId}/questions/${id}`);
     return response.data;
   },
 
@@ -68,14 +63,8 @@ export const questionService = {
    * Create a new question in a whiteboard.
    * POST /whiteboards/{wbId}/questions
    */
-  createQuestion: async (
-    wbId: string,
-    data: CreateQuestionRequest
-  ): Promise<QuestionResponse> => {
-    const response = await api.post<QuestionResponse>(
-      `/whiteboards/${wbId}/questions`,
-      data
-    );
+  createQuestion: async (wbId: string, data: CreateQuestionRequest): Promise<QuestionResponse> => {
+    const response = await api.post<QuestionResponse>(`/whiteboards/${wbId}/questions`, data);
     return response.data;
   },
 
@@ -88,10 +77,7 @@ export const questionService = {
     id: string,
     data: EditQuestionRequest
   ): Promise<QuestionResponse> => {
-    const response = await api.put<QuestionResponse>(
-      `/whiteboards/${wbId}/questions/${id}`,
-      data
-    );
+    const response = await api.put<QuestionResponse>(`/whiteboards/${wbId}/questions/${id}`, data);
     return response.data;
   },
 
@@ -143,22 +129,19 @@ export const questionService = {
    * Search questions globally across enrolled whiteboards.
    * GET /search/questions
    */
-  searchQuestions: async (
-    params?: SearchParams
-  ): Promise<PageResponse<QuestionResponse>> => {
-    const response = await api.get<PageResponse<QuestionResponse>>(
-      '/search/questions',
-      {
-        params: {
-          q: params?.q,
-          whiteboard: params?.whiteboard,
-          topic: params?.topic,
-          status: params?.status,
-          page: params?.page ?? 0,
-          size: params?.size ?? Config.PAGE_SIZE,
-        },
-      }
-    );
+  searchQuestions: async (params?: SearchParams): Promise<PageResponse<QuestionResponse>> => {
+    const response = await api.get<PageResponse<QuestionResponse>>('/search/questions', {
+      params: {
+        q: params?.q,
+        whiteboard: params?.whiteboard,
+        topic: params?.topic,
+        status: params?.status,
+        from: params?.from,
+        to: params?.to,
+        page: params?.page ?? 0,
+        size: params?.size ?? Config.PAGE_SIZE,
+      },
+    });
     return response.data;
   },
 
@@ -196,10 +179,7 @@ export const questionService = {
     return questionService.getQuestionById(id);
   },
 
-  create: async (
-    wbId: string,
-    data: CreateQuestionRequest
-  ): Promise<QuestionResponse> => {
+  create: async (wbId: string, data: CreateQuestionRequest): Promise<QuestionResponse> => {
     return questionService.createQuestion(wbId, data);
   },
 

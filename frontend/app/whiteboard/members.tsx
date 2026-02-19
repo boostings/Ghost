@@ -136,7 +136,7 @@ export default function MembersScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Remove ${member.firstName} ${member.lastName}`}
         >
-          <Text style={styles.removeText}>{"\u2715"}</Text>
+          <Text style={styles.removeText}>{'\u2715'}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -144,10 +144,7 @@ export default function MembersScreen() {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1A1A2E', '#16213E', '#0F3460']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -156,10 +153,7 @@ export default function MembersScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -169,7 +163,7 @@ export default function MembersScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Members</Text>
           <Text style={styles.memberCount}>{members.length}</Text>
@@ -212,7 +206,7 @@ export default function MembersScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Approve ${request.userName}`}
                           >
-                            <Text style={styles.approveText}>{"\u2713"}</Text>
+                            <Text style={styles.approveText}>{'\u2713'}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.rejectButton}
@@ -220,7 +214,7 @@ export default function MembersScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Reject ${request.userName}`}
                           >
-                            <Text style={styles.rejectText}>{"\u2715"}</Text>
+                            <Text style={styles.rejectText}>{'\u2715'}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -232,27 +226,19 @@ export default function MembersScreen() {
               {/* Faculty */}
               {facultyMembers.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>
-                    Faculty ({facultyMembers.length})
-                  </Text>
-                  <GlassCard style={styles.card}>
-                    {facultyMembers.map(renderMemberItem)}
-                  </GlassCard>
+                  <Text style={styles.sectionTitle}>Faculty ({facultyMembers.length})</Text>
+                  <GlassCard style={styles.card}>{facultyMembers.map(renderMemberItem)}</GlassCard>
                 </View>
               )}
 
               {/* Students */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  Students ({studentMembers.length})
-                </Text>
+                <Text style={styles.sectionTitle}>Students ({studentMembers.length})</Text>
                 {studentMembers.length > 0 ? (
-                  <GlassCard style={styles.card}>
-                    {studentMembers.map(renderMemberItem)}
-                  </GlassCard>
+                  <GlassCard style={styles.card}>{studentMembers.map(renderMemberItem)}</GlassCard>
                 ) : (
                   <EmptyState
-                    icon={"\u{1F465}"}
+                    icon={'\u{1F465}'}
                     title="No Students"
                     subtitle={loadError || 'Share the invite code to get students to join'}
                   />

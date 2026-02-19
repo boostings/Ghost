@@ -6,6 +6,9 @@ export const auditLogService = {
     whiteboardId: string,
     params?: {
       action?: AuditAction;
+      actorId?: string;
+      from?: string;
+      to?: string;
       page?: number;
       size?: number;
     }
@@ -15,6 +18,9 @@ export const auditLogService = {
       {
         params: {
           action: params?.action,
+          actorId: params?.actorId,
+          from: params?.from,
+          to: params?.to,
           page: params?.page ?? 0,
           size: params?.size ?? 20,
         },

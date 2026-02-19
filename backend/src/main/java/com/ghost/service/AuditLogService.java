@@ -2,6 +2,7 @@ package com.ghost.service;
 
 import com.ghost.dto.response.AuditLogResponse;
 import com.ghost.mapper.AuditLogMapper;
+import com.ghost.exception.BadRequestException;
 import com.ghost.model.AuditLog;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
@@ -45,10 +47,26 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditLogResponse> getAuditLogs(UUID whiteboardId, Pageable pageable, AuditAction action) {
-        Page<AuditLog> page = action == null
-                ? auditLogRepository.findByWhiteboardIdOrderByCreatedAtDesc(whiteboardId, pageable)
-                : auditLogRepository.findByWhiteboardIdAndAction(whiteboardId, action, pageable);
+    public Page<AuditLogResponse> getAuditLogs(
+            UUID whiteboardId,
+            Pageable pageable,
+            AuditAction action,
+            UUID actorId,
+            LocalDateTime startAt,
+            LocalDateTime endAt
+    ) {
+        if (startAt != null && endAt != null && startAt.isAfter(endAt)) {
+            throw new BadRequestException("startAt must be before endAt");
+        }
+
+        Page<AuditLog> page = auditLogRepository.findByFilters(
+                whiteboardId,
+                action,
+                actorId,
+                startAt,
+                endAt,
+                pageable
+        );
         return page.map(auditLogMapper::toResponse);
     }
 

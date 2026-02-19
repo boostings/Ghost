@@ -60,12 +60,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
   const wasEdited = comment.updatedAt !== comment.createdAt;
 
   return (
-    <GlassCard
-      style={[
-        styles.card,
-        comment.isVerifiedAnswer && styles.verifiedCard,
-      ]}
-    >
+    <GlassCard style={[styles.card, comment.isVerifiedAnswer && styles.verifiedCard]}>
       {/* Verified Answer Badge */}
       {comment.isVerifiedAnswer && (
         <View style={styles.verifiedBadge}>
@@ -81,12 +76,8 @@ const CommentCard: React.FC<CommentCardProps> = ({
           <View style={styles.authorInfo}>
             <Text style={styles.authorName}>{comment.authorName}</Text>
             <View style={styles.timestampRow}>
-              <Text style={styles.timestamp}>
-                {formatTimestamp(comment.createdAt)}
-              </Text>
-              {wasEdited && (
-                <Text style={styles.editedLabel}> (edited)</Text>
-              )}
+              <Text style={styles.timestamp}>{formatTimestamp(comment.createdAt)}</Text>
+              {wasEdited && <Text style={styles.editedLabel}> (edited)</Text>}
             </View>
           </View>
         </View>

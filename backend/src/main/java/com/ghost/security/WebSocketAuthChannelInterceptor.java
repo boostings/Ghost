@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import java.util.EnumSet;
 import java.util.List;
 
 @Slf4j
@@ -19,32 +20,56 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
+    private static final EnumSet<StompCommand> AUTH_REQUIRED_COMMANDS = EnumSet.of(
+            StompCommand.SEND,
+            StompCommand.SUBSCRIBE,
+            StompCommand.UNSUBSCRIBE,
+            StompCommand.ACK,
+            StompCommand.NACK,
+            StompCommand.BEGIN,
+            StompCommand.COMMIT,
+            StompCommand.ABORT
+    );
+
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        if (accessor == null || !StompCommand.CONNECT.equals(accessor.getCommand())) {
+        if (accessor == null || accessor.getCommand() == null) {
             return message;
         }
 
-        String token = extractBearerToken(accessor);
-        if (token == null
-                || !jwtTokenProvider.validateToken(token)
-                || !jwtTokenProvider.validateTokenType(token, jwtTokenProvider.getAccessTokenType())) {
-            throw new IllegalArgumentException("Invalid WebSocket authentication token");
+        StompCommand command = accessor.getCommand();
+
+        if (StompCommand.CONNECT.equals(command) || StompCommand.STOMP.equals(command)) {
+            String token = extractBearerToken(accessor);
+            if (token == null
+                    || !jwtTokenProvider.validateToken(token)
+                    || !jwtTokenProvider.validateTokenType(token, jwtTokenProvider.getAccessTokenType())) {
+                throw new IllegalArgumentException("Invalid WebSocket authentication token");
+            }
+
+            String userId = jwtTokenProvider.getUserIdFromToken(token).toString();
+            String role = jwtTokenProvider.getRoleFromToken(token);
+            if (role == null || role.isBlank()) {
+                throw new IllegalArgumentException("Invalid WebSocket authentication token");
+            }
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                    );
+            accessor.setUser(authentication);
+            return message;
         }
 
-        String userId = jwtTokenProvider.getUserIdFromToken(token).toString();
-        String role = jwtTokenProvider.getRoleFromToken(token);
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                );
-        accessor.setUser(authentication);
+        if (AUTH_REQUIRED_COMMANDS.contains(command) && accessor.getUser() == null) {
+            throw new IllegalArgumentException("WebSocket command requires authentication");
+        }
+
         return message;
     }
 

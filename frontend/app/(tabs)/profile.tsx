@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-  Alert,
-  Switch,
-} from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Alert, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
@@ -73,109 +66,100 @@ export default function ProfileScreen() {
 
   return (
     <ScreenWrapper edges={['top']}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Profile</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
+
+        {/* User Info Card */}
+        <GlassCard style={styles.profileCard}>
+          <View style={styles.profileRow}>
+            <Avatar firstName={firstName} lastName={lastName} size={64} />
+            <View style={styles.profileInfo}>
+              <Text style={styles.userName}>
+                {firstName} {lastName}
+              </Text>
+              <Text style={styles.userEmail}>{email}</Text>
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleText}>{role}</Text>
+              </View>
+            </View>
           </View>
+        </GlassCard>
 
-          {/* User Info Card */}
-          <GlassCard style={styles.profileCard}>
-            <View style={styles.profileRow}>
-              <Avatar firstName={firstName} lastName={lastName} size={64} />
-              <View style={styles.profileInfo}>
-                <Text style={styles.userName}>
-                  {firstName} {lastName}
-                </Text>
-                <Text style={styles.userEmail}>{email}</Text>
-                <View style={styles.roleBadge}>
-                  <Text style={styles.roleText}>{role}</Text>
-                </View>
-              </View>
+        {/* Karma Card */}
+        <GlassCard style={styles.karmaCard}>
+          <View style={styles.karmaRow}>
+            <View style={styles.karmaItem}>
+              <Text style={styles.karmaValue}>{karmaScore}</Text>
+              <Text style={styles.karmaLabel}>Karma Score</Text>
             </View>
-          </GlassCard>
-
-          {/* Karma Card */}
-          <GlassCard style={styles.karmaCard}>
-            <View style={styles.karmaRow}>
-              <View style={styles.karmaItem}>
-                <Text style={styles.karmaValue}>{karmaScore}</Text>
-                <Text style={styles.karmaLabel}>Karma Score</Text>
-              </View>
-              <View style={styles.karmaDivider} />
-              <View style={styles.karmaItem}>
-                <Text style={styles.karmaValue}>
-                  {karmaScore >= 0 ? '\u25B2' : '\u25BC'}
-                </Text>
-                <Text style={styles.karmaLabel}>
-                  {karmaScore >= 0 ? 'Good Standing' : 'Needs Improvement'}
-                </Text>
-              </View>
+            <View style={styles.karmaDivider} />
+            <View style={styles.karmaItem}>
+              <Text style={styles.karmaValue}>{karmaScore >= 0 ? '\u25B2' : '\u25BC'}</Text>
+              <Text style={styles.karmaLabel}>
+                {karmaScore >= 0 ? 'Good Standing' : 'Needs Improvement'}
+              </Text>
             </View>
-          </GlassCard>
+          </View>
+        </GlassCard>
 
-          {/* Settings Section */}
-          <Text style={styles.sectionTitle}>Notification Settings</Text>
-          <GlassCard style={styles.settingsCard}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Push Notifications</Text>
-                <Text style={styles.settingDescription}>
-                  Receive alerts for new answers and comments
-                </Text>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
-                trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(108,99,255,0.5)' }}
-                thumbColor={notificationsEnabled ? Colors.primary : Colors.textMuted}
-              />
+        {/* Settings Section */}
+        <Text style={styles.sectionTitle}>Notification Settings</Text>
+        <GlassCard style={styles.settingsCard}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Push Notifications</Text>
+              <Text style={styles.settingDescription}>
+                Receive alerts for new answers and comments
+              </Text>
             </View>
-
-            <View style={styles.settingDivider} />
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Email Notifications</Text>
-                <Text style={styles.settingDescription}>
-                  Get email summaries of important updates
-                </Text>
-              </View>
-              <Switch
-                value={emailNotifications}
-                onValueChange={setEmailNotifications}
-                trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(108,99,255,0.5)' }}
-                thumbColor={emailNotifications ? Colors.primary : Colors.textMuted}
-              />
-            </View>
-          </GlassCard>
-
-          {/* Account Actions */}
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.actionsContainer}>
-            <GlassButton
-              title="Logout"
-              onPress={handleLogout}
-              variant="secondary"
-            />
-
-            <View style={styles.actionSpacer} />
-
-            <GlassButton
-              title="Delete Account"
-              onPress={handleDeleteAccount}
-              variant="danger"
-              loading={deletingAccount}
-              disabled={deletingAccount}
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(108,99,255,0.5)' }}
+              thumbColor={notificationsEnabled ? Colors.primary : Colors.textMuted}
             />
           </View>
 
-          {/* Version */}
-          <Text style={styles.versionText}>Ghost v1.0.0</Text>
-        </ScrollView>
+          <View style={styles.settingDivider} />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Email Notifications</Text>
+              <Text style={styles.settingDescription}>
+                Get email summaries of important updates
+              </Text>
+            </View>
+            <Switch
+              value={emailNotifications}
+              onValueChange={setEmailNotifications}
+              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(108,99,255,0.5)' }}
+              thumbColor={emailNotifications ? Colors.primary : Colors.textMuted}
+            />
+          </View>
+        </GlassCard>
+
+        {/* Account Actions */}
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.actionsContainer}>
+          <GlassButton title="Logout" onPress={handleLogout} variant="secondary" />
+
+          <View style={styles.actionSpacer} />
+
+          <GlassButton
+            title="Delete Account"
+            onPress={handleDeleteAccount}
+            variant="danger"
+            loading={deletingAccount}
+            disabled={deletingAccount}
+          />
+        </View>
+
+        {/* Version */}
+        <Text style={styles.versionText}>Ghost v1.0.0</Text>
+      </ScrollView>
     </ScreenWrapper>
   );
 }

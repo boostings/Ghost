@@ -49,42 +49,45 @@ export default function HomeScreen() {
   const PAGE_SIZE = 20;
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  const fetchWhiteboards = useCallback(async (options?: { page?: number; replace?: boolean }) => {
-    const nextPage = options?.page ?? 0;
-    const replace = options?.replace ?? true;
-    if (!replace && (!hasMore || loadingMore)) {
-      return;
-    }
-
-    try {
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
+  const fetchWhiteboards = useCallback(
+    async (options?: { page?: number; replace?: boolean }) => {
+      const nextPage = options?.page ?? 0;
+      const replace = options?.replace ?? true;
+      if (!replace && (!hasMore || loadingMore)) {
+        return;
       }
 
-      const response = await whiteboardService.list(nextPage, PAGE_SIZE);
-      const current = replace ? [] : useWhiteboardStore.getState().whiteboards;
-      const merged = [...current, ...response.content];
-      setWhiteboards(merged);
-      setPage(nextPage);
-      setHasMore(nextPage + 1 < response.totalPages);
-      lastFetchRef.current = Date.now();
-      setLoadError(null);
-    } catch {
-      setLoadError('Failed to load your classes. Pull down to retry.');
-      if (replace) {
-        setWhiteboards([]);
+      try {
+        if (replace) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const response = await whiteboardService.list(nextPage, PAGE_SIZE);
+        const current = replace ? [] : useWhiteboardStore.getState().whiteboards;
+        const merged = [...current, ...response.content];
+        setWhiteboards(merged);
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < response.totalPages);
+        lastFetchRef.current = Date.now();
+        setLoadError(null);
+      } catch {
+        setLoadError('Failed to load your classes. Pull down to retry.');
+        if (replace) {
+          setWhiteboards([]);
+        }
+        setHasMore(false);
+      } finally {
+        if (replace) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
       }
-      setHasMore(false);
-    } finally {
-      if (replace) {
-        setLoading(false);
-      } else {
-        setLoadingMore(false);
-      }
-    }
-  }, [hasMore, loadingMore, setLoading, setWhiteboards]);
+    },
+    [hasMore, loadingMore, setLoading, setWhiteboards]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -160,181 +163,177 @@ export default function HomeScreen() {
     setScannerLocked(false);
   };
 
-  const renderWhiteboardCard = useCallback(({ item }: { item: WhiteboardResponse }) => (
-    <GlassCard
-      style={styles.whiteboardCard}
-      accessibilityLabel={`Open ${item.courseCode} whiteboard`}
-      onPress={() =>
-        router.push({
-          pathname: '/whiteboard/[id]',
-          params: { id: item.id },
-        })
-      }
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.codeContainer}>
-          <Text style={styles.courseCode}>{item.courseCode}</Text>
-        </View>
-        {item.isDemo && (
-          <View style={styles.demoBadge}>
-            <Text style={styles.demoBadgeText}>DEMO</Text>
+  const renderWhiteboardCard = useCallback(
+    ({ item }: { item: WhiteboardResponse }) => (
+      <GlassCard
+        style={styles.whiteboardCard}
+        accessibilityLabel={`Open ${item.courseCode} whiteboard`}
+        onPress={() =>
+          router.push({
+            pathname: '/whiteboard/[id]',
+            params: { id: item.id },
+          })
+        }
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.codeContainer}>
+            <Text style={styles.courseCode}>{item.courseCode}</Text>
           </View>
-        )}
-      </View>
-
-      <Text style={styles.courseName} numberOfLines={2}>
-        {item.courseName}
-      </Text>
-
-      <View style={styles.cardFooter}>
-        <View style={styles.metaItem}>
-          <Text style={styles.metaIcon}>{"\u{1F4C5}"}</Text>
-          <Text style={styles.metaText}>{item.semester}</Text>
+          {item.isDemo && (
+            <View style={styles.demoBadge}>
+              <Text style={styles.demoBadgeText}>DEMO</Text>
+            </View>
+          )}
         </View>
-        <View style={styles.metaItem}>
-          <Text style={styles.metaIcon}>{"\u{1F465}"}</Text>
-          <Text style={styles.metaText}>
-            {item.memberCount} {item.memberCount === 1 ? 'member' : 'members'}
-          </Text>
+
+        <Text style={styles.courseName} numberOfLines={2}>
+          {item.courseName}
+        </Text>
+
+        <View style={styles.cardFooter}>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaIcon}>{'\u{1F4C5}'}</Text>
+            <Text style={styles.metaText}>{item.semester}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaIcon}>{'\u{1F465}'}</Text>
+            <Text style={styles.metaText}>
+              {item.memberCount} {item.memberCount === 1 ? 'member' : 'members'}
+            </Text>
+          </View>
         </View>
-      </View>
-    </GlassCard>
-  ), [router]);
+      </GlassCard>
+    ),
+    [router]
+  );
 
   return (
     <ScreenWrapper edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              Welcome back{user ? `, ${user.firstName}` : ''}
-            </Text>
-            <Text style={styles.headerTitle}>Your Classes</Text>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>Welcome back{user ? `, ${user.firstName}` : ''}</Text>
+          <Text style={styles.headerTitle}>Your Classes</Text>
         </View>
+      </View>
 
-        {/* Whiteboard List */}
-        {isLoading && whiteboards.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-          </View>
-        ) : (
-          <FlatList
-            data={whiteboards}
-            renderItem={renderWhiteboardCard}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.listContent,
-              whiteboards.length === 0 && styles.emptyList,
-            ]}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={Colors.primary}
-              />
-            }
-            ListEmptyComponent={
-              <EmptyState
-                icon={"\u{1F4DA}"}
-                title="No Classes Yet"
-                subtitle={loadError || 'Join a class to start asking and answering questions'}
-                actionLabel="Join a Class"
-                onAction={() => setShowJoinModal(true)}
-              />
-            }
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.3}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                </View>
-              ) : null
-            }
-          />
-        )}
-
-        {/* FAB */}
-        <TouchableOpacity
-          style={styles.fab}
-          activeOpacity={0.8}
-          onPress={() => setShowJoinModal(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Join a class"
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
-
-        {/* Join Modal */}
-        <GlassModal
-          visible={showJoinModal}
-          onClose={() => {
-            setShowJoinModal(false);
-            setInviteCode('');
-          }}
-          title={isFaculty ? 'Join or Create Class' : 'Join a Class'}
-        >
-          <GlassInput
-            label="Invite Code"
-            placeholder="Enter class invite code"
-            value={inviteCode}
-            onChangeText={setInviteCode}
-            autoCapitalize="characters"
-          />
-
-          <GlassButton
-            title="Join Class"
-            onPress={handleJoin}
-            loading={joining}
-            disabled={joining || !inviteCode.trim()}
-          />
-
-          <View style={styles.modalSpacing} />
-
-          <GlassButton
-            title="Scan QR Code"
-            onPress={openScanner}
-            variant="secondary"
-            disabled={joining}
-          />
-
-          {isFaculty && (
-            <>
-              <View style={styles.modalDivider}>
-                <View style={styles.modalDividerLine} />
-                <Text style={styles.modalDividerText}>OR</Text>
-                <View style={styles.modalDividerLine} />
-              </View>
-              <GlassButton
-                title="Create New Whiteboard"
-                onPress={() => {
-                  setShowJoinModal(false);
-                  router.push('/whiteboard/create');
-                }}
-                variant="secondary"
-              />
-            </>
-          )}
-        </GlassModal>
-
-        <GlassModal
-          visible={showScannerModal}
-          onClose={() => setShowScannerModal(false)}
-          title="Scan Class QR"
-        >
-          <View style={styles.scannerContainer}>
-            <CameraView
-              style={styles.scanner}
-              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-              onBarcodeScanned={handleBarcodeScanned}
+      {/* Whiteboard List */}
+      {isLoading && whiteboards.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={whiteboards}
+          renderItem={renderWhiteboardCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, whiteboards.length === 0 && styles.emptyList]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.primary}
             />
-          </View>
-          <Text style={styles.scannerHint}>
-            Point your camera at the QR code shared by faculty.
-          </Text>
-        </GlassModal>
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={'\u{1F4DA}'}
+              title="No Classes Yet"
+              subtitle={loadError || 'Join a class to start asking and answering questions'}
+              actionLabel="Join a Class"
+              onAction={() => setShowJoinModal(true)}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+              </View>
+            ) : null
+          }
+        />
+      )}
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        activeOpacity={0.8}
+        onPress={() => setShowJoinModal(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Join a class"
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
+
+      {/* Join Modal */}
+      <GlassModal
+        visible={showJoinModal}
+        onClose={() => {
+          setShowJoinModal(false);
+          setInviteCode('');
+        }}
+        title={isFaculty ? 'Join or Create Class' : 'Join a Class'}
+      >
+        <GlassInput
+          label="Invite Code"
+          placeholder="Enter class invite code"
+          value={inviteCode}
+          onChangeText={setInviteCode}
+          autoCapitalize="characters"
+        />
+
+        <GlassButton
+          title="Join Class"
+          onPress={handleJoin}
+          loading={joining}
+          disabled={joining || !inviteCode.trim()}
+        />
+
+        <View style={styles.modalSpacing} />
+
+        <GlassButton
+          title="Scan QR Code"
+          onPress={openScanner}
+          variant="secondary"
+          disabled={joining}
+        />
+
+        {isFaculty && (
+          <>
+            <View style={styles.modalDivider}>
+              <View style={styles.modalDividerLine} />
+              <Text style={styles.modalDividerText}>OR</Text>
+              <View style={styles.modalDividerLine} />
+            </View>
+            <GlassButton
+              title="Create New Whiteboard"
+              onPress={() => {
+                setShowJoinModal(false);
+                router.push('/whiteboard/create');
+              }}
+              variant="secondary"
+            />
+          </>
+        )}
+      </GlassModal>
+
+      <GlassModal
+        visible={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        title="Scan Class QR"
+      >
+        <View style={styles.scannerContainer}>
+          <CameraView
+            style={styles.scanner}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={handleBarcodeScanned}
+          />
+        </View>
+        <Text style={styles.scannerHint}>Point your camera at the QR code shared by faculty.</Text>
+      </GlassModal>
     </ScreenWrapper>
   );
 }

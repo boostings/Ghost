@@ -66,10 +66,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -83,12 +80,10 @@ export default function LoginScreen() {
             {/* Logo & Title */}
             <View style={styles.header}>
               <View style={styles.logoContainer}>
-                <Text style={styles.logoIcon}>{"👻"}</Text>
+                <Text style={styles.logoIcon}>{'👻'}</Text>
               </View>
               <Text style={styles.title}>Ghost</Text>
-              <Text style={styles.subtitle}>
-                Anonymous Q&A for ILSTU classes
-              </Text>
+              <Text style={styles.subtitle}>Anonymous Q&A for ILSTU classes</Text>
             </View>
 
             {/* Login Card */}

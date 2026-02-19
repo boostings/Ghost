@@ -56,9 +56,7 @@ export const whiteboardService = {
    * Get all whiteboards the current user is enrolled in.
    * GET /whiteboards
    */
-  getWhiteboards: async (
-    params?: PaginationParams
-  ): Promise<PageResponse<WhiteboardResponse>> => {
+  getWhiteboards: async (params?: PaginationParams): Promise<PageResponse<WhiteboardResponse>> => {
     const response = await api.get<PageResponse<WhiteboardResponse> | WhiteboardResponse[]>(
       '/whiteboards',
       {
@@ -103,9 +101,7 @@ export const whiteboardService = {
    * Create a new whiteboard (faculty only).
    * POST /whiteboards
    */
-  createWhiteboard: async (
-    data: CreateWhiteboardRequest
-  ): Promise<WhiteboardResponse> => {
+  createWhiteboard: async (data: CreateWhiteboardRequest): Promise<WhiteboardResponse> => {
     const response = await api.post<WhiteboardResponse>('/whiteboards', data);
     return response.data;
   },
@@ -122,10 +118,7 @@ export const whiteboardService = {
    * Join a whiteboard using an invite code.
    * POST /whiteboards/join-by-invite
    */
-  joinByInviteCode: async (
-    inviteCode: string,
-    whiteboardId?: string
-  ): Promise<void> => {
+  joinByInviteCode: async (inviteCode: string, whiteboardId?: string): Promise<void> => {
     const trimmedCode = inviteCode.trim();
     if (whiteboardId) {
       await api.post(`/whiteboards/${whiteboardId}/join`, { inviteCode: trimmedCode });
@@ -178,10 +171,7 @@ export const whiteboardService = {
    * Get members of a whiteboard.
    * GET /whiteboards/{id}/members
    */
-  getMembers: async (
-    id: string,
-    params?: PaginationParams
-  ): Promise<MemberResponse[]> => {
+  getMembers: async (id: string, params?: PaginationParams): Promise<MemberResponse[]> => {
     const response = await api.get<PageResponse<UserResponse> | UserResponse[]>(
       `/whiteboards/${id}/members`,
       {
@@ -208,13 +198,9 @@ export const whiteboardService = {
    * The original owner is removed from the whiteboard.
    * PUT /whiteboards/{id}/transfer-ownership
    */
-  transferOwnership: async (
-    id: string,
-    data: TransferOwnershipRequest | string
-  ): Promise<void> => {
-    const payload: TransferOwnershipRequest = typeof data === 'string'
-      ? { newOwnerEmail: data }
-      : data;
+  transferOwnership: async (id: string, data: TransferOwnershipRequest | string): Promise<void> => {
+    const payload: TransferOwnershipRequest =
+      typeof data === 'string' ? { newOwnerEmail: data } : data;
     await api.put(`/whiteboards/${id}/transfer-ownership`, payload);
   },
 
@@ -233,9 +219,7 @@ export const whiteboardService = {
   getInviteInfo: async (
     id: string
   ): Promise<{ inviteCode: string; inviteUrl: string; qrData: string }> => {
-    const response = await api.get<InviteInfoResponse>(
-      `/whiteboards/${id}/invite-info`
-    );
+    const response = await api.get<InviteInfoResponse>(`/whiteboards/${id}/invite-info`);
     return {
       inviteCode: response.data.inviteCode,
       inviteUrl: response.data.inviteUrl ?? response.data.qrData ?? '',

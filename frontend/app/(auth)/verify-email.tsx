@@ -60,10 +60,7 @@ export default function VerifyEmailScreen() {
     }
   };
 
-  const handleKeyPress = (
-    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
-    index: number
-  ) => {
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
       const newCode = [...code];
       newCode[index - 1] = '';
@@ -120,10 +117,7 @@ export default function VerifyEmailScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -133,12 +127,10 @@ export default function VerifyEmailScreen() {
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.iconCircle}>
-                <Text style={styles.mailIcon}>{"✉️"}</Text>
+                <Text style={styles.mailIcon}>{'✉️'}</Text>
               </View>
               <Text style={styles.title}>Check Your Email</Text>
-              <Text style={styles.subtitle}>
-                We sent a 6-digit verification code to
-              </Text>
+              <Text style={styles.subtitle}>We sent a 6-digit verification code to</Text>
               <Text style={styles.emailText}>{email}</Text>
             </View>
 
@@ -153,10 +145,7 @@ export default function VerifyEmailScreen() {
                     ref={(ref) => {
                       inputRefs.current[index] = ref;
                     }}
-                    style={[
-                      styles.codeInput,
-                      code[index] ? styles.codeInputFilled : null,
-                    ]}
+                    style={[styles.codeInput, code[index] ? styles.codeInputFilled : null]}
                     value={code[index]}
                     onChangeText={(text) => handleCodeChange(text, index)}
                     onKeyPress={(e) => handleKeyPress(e, index)}
@@ -188,10 +177,7 @@ export default function VerifyEmailScreen() {
             </View>
 
             {/* Back Link */}
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Text style={styles.backText}>Back to Registration</Text>
             </TouchableOpacity>
           </View>

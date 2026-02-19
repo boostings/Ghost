@@ -94,10 +94,7 @@ const NotificationSkeleton: React.FC<{ shimmer: Animated.Value }> = ({ shimmer }
   </View>
 );
 
-const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
-  count = 3,
-  type = 'question',
-}) => {
+const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 3, type = 'question' }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
   const items = Array.from({ length: count }, (_, i) => i);
 

@@ -21,11 +21,14 @@ import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -41,6 +44,7 @@ public class QuestionService {
     private final NotificationService notificationService;
     private final QuestionMapper questionMapper;
     private final SearchService searchService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public QuestionResponse createQuestion(UUID userId, UUID whiteboardId, CreateQuestionRequest req) {
@@ -70,7 +74,9 @@ public class QuestionService {
                 "Question", question.getId(), null, question.getTitle()
         );
 
-        return questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+        QuestionResponse response = questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+        publishQuestionEvent(whiteboardId, "QUESTION_CREATED", response);
+        return response;
     }
 
     @Transactional
@@ -120,7 +126,9 @@ public class QuestionService {
                 "title=" + question.getTitle() + "; body=" + question.getBody()
         );
 
-        return questionMapper.toResponse(question, userId, isFaculty(userId, whiteboardId));
+        QuestionResponse response = questionMapper.toResponse(question, userId, isFaculty(userId, whiteboardId));
+        publishQuestionEvent(question.getWhiteboard().getId(), "QUESTION_EDITED", response);
+        return response;
     }
 
     @Transactional
@@ -145,6 +153,9 @@ public class QuestionService {
                 null
         );
 
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id", questionId);
+        publishQuestionEvent(question.getWhiteboard().getId(), "QUESTION_DELETED", payload);
         questionRepository.delete(question);
     }
 
@@ -156,7 +167,7 @@ public class QuestionService {
             String status,
             Pageable pageable
     ) {
-        return searchService.search(userId, null, whiteboardId, topicId, status, pageable);
+        return searchService.search(userId, null, whiteboardId, topicId, status, null, null, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -207,6 +218,11 @@ public class QuestionService {
                 question.getWhiteboard().getId(), facultyId, AuditAction.QUESTION_CLOSED,
                 "Question", questionId, QuestionStatus.OPEN.name(), QuestionStatus.CLOSED.name()
         );
+        publishQuestionEvent(
+                question.getWhiteboard().getId(),
+                "QUESTION_UPDATED",
+                questionMapper.toResponse(question, facultyId, true)
+        );
     }
 
     @Transactional
@@ -237,6 +253,11 @@ public class QuestionService {
                 "false",
                 "true"
         );
+        publishQuestionEvent(
+                question.getWhiteboard().getId(),
+                "QUESTION_UPDATED",
+                questionMapper.toResponse(question, facultyId, true)
+        );
     }
 
     @Transactional
@@ -259,6 +280,11 @@ public class QuestionService {
                 questionId,
                 "true",
                 "false"
+        );
+        publishQuestionEvent(
+                question.getWhiteboard().getId(),
+                "QUESTION_UPDATED",
+                questionMapper.toResponse(question, facultyId, true)
         );
     }
 
@@ -291,5 +317,12 @@ public class QuestionService {
 
     private boolean isFaculty(UUID userId, UUID whiteboardId) {
         return whiteboardService.verifyMembership(userId, whiteboardId).getRole() == Role.FACULTY;
+    }
+
+    private void publishQuestionEvent(UUID whiteboardId, String type, Object payload) {
+        Map<String, Object> message = new HashMap<>();
+        message.put("type", type);
+        message.put("payload", payload);
+        messagingTemplate.convertAndSend("/topic/whiteboard/" + whiteboardId + "/questions", message);
     }
 }

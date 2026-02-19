@@ -15,6 +15,7 @@ interface QuestionCardProps {
   onUpvote: () => void;
   onDownvote: () => void;
   onBookmark?: () => void;
+  onReport?: () => void;
 }
 
 function formatTimestamp(dateString: string): string {
@@ -49,6 +50,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   onUpvote,
   onDownvote,
   onBookmark,
+  onReport,
 }) => {
   const { firstName, lastName } = parseAuthorName(question.authorName);
 
@@ -57,21 +59,17 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       {/* Hidden overlay */}
       {question.isHidden && (
         <View style={styles.hiddenOverlay}>
-          <Text style={styles.hiddenText}>Hidden</Text>
+          <Text style={styles.hiddenText}>[hidden]</Text>
         </View>
       )}
 
       {/* Top Row: Topic + Status + Pin */}
       <View style={styles.topRow}>
         <View style={styles.badges}>
-          {question.topicName && (
-            <TopicBadge name={question.topicName} style={styles.topicBadge} />
-          )}
+          {question.topicName && <TopicBadge name={question.topicName} style={styles.topicBadge} />}
           <StatusBadge status={question.status} />
         </View>
-        {question.isPinned && (
-          <Text style={styles.pinIcon}>📌</Text>
-        )}
+        {question.isPinned && <Text style={styles.pinIcon}>📌</Text>}
       </View>
 
       {/* Title */}
@@ -81,7 +79,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Body Preview */}
       <Text style={styles.body} numberOfLines={3}>
-        {question.body}
+        {question.isHidden ? '[hidden]' : question.body}
       </Text>
 
       {/* Bottom Row */}
@@ -119,16 +117,24 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               accessibilityRole="button"
               accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
             >
-              <Text style={styles.bookmarkIcon}>
-                {question.isBookmarked ? '🔖' : '🏷️'}
-              </Text>
+              <Text style={styles.bookmarkIcon}>{question.isBookmarked ? '🔖' : '🏷️'}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Report */}
+          {onReport && (
+            <TouchableOpacity
+              onPress={onReport}
+              style={styles.bookmarkButton}
+              accessibilityRole="button"
+              accessibilityLabel="Report question"
+            >
+              <Text style={styles.bookmarkIcon}>{'\u{1F6A9}'}</Text>
             </TouchableOpacity>
           )}
 
           {/* Timestamp */}
-          <Text style={styles.timestamp}>
-            {formatTimestamp(question.createdAt)}
-          </Text>
+          <Text style={styles.timestamp}>{formatTimestamp(question.createdAt)}</Text>
         </View>
       </View>
     </GlassCard>

@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
+import GlassModal from '../../components/ui/GlassModal';
 import CommentCard from '../../components/CommentCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -34,13 +35,25 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { sanitizeText } from '../../utils/sanitize';
 import type { QuestionResponse, CommentResponse, VoteType, ReportReason } from '../../types';
 
+const REPORT_REASON_OPTIONS: { label: string; value: ReportReason; description: string }[] = [
+  { label: 'Spam', value: 'SPAM', description: 'Promotional or repetitive content.' },
+  { label: 'Inappropriate', value: 'INAPPROPRIATE', description: 'Offensive or explicit content.' },
+  { label: 'Harassment', value: 'HARASSMENT', description: 'Bullying or targeted abuse.' },
+  { label: 'Off Topic', value: 'OFF_TOPIC', description: 'Not related to this class discussion.' },
+  { label: 'Other', value: 'OTHER', description: 'Something else that needs faculty review.' },
+];
+
 function sortCommentsByCreatedAt(comments: CommentResponse[]): CommentResponse[] {
   return [...comments].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 }
 
-function parseCommentMessage(body: string): { type?: string; comment?: CommentResponse; commentId?: string } {
+function parseCommentMessage(body: string): {
+  type?: string;
+  comment?: CommentResponse;
+  commentId?: string;
+} {
   try {
     const parsed: unknown = JSON.parse(body);
     if (!parsed || typeof parsed !== 'object') {
@@ -90,6 +103,14 @@ export default function QuestionDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason | null>(null);
+  const [reportNotes, setReportNotes] = useState('');
+  const [reportTarget, setReportTarget] = useState<{
+    questionId?: string;
+    commentId?: string;
+  } | null>(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
   const lastFetchRef = useRef(0);
   const { subscribe } = useWebSocket();
 
@@ -106,10 +127,7 @@ export default function QuestionDetailScreen() {
       const resolvedQuestion = whiteboardId
         ? questionService.getById(whiteboardId, id)
         : questionService.getByIdGlobal(id);
-      const [q, c] = await Promise.all([
-        resolvedQuestion,
-        commentService.list(id),
-      ]);
+      const [q, c] = await Promise.all([resolvedQuestion, commentService.list(id)]);
       setQuestion(q);
       setComments(c);
       setIsBookmarked(q.isBookmarked || false);
@@ -139,32 +157,28 @@ export default function QuestionDetailScreen() {
       return;
     }
 
-    const subscription = subscribe(
-      `/topic/question/${id}/comments`,
-      (frame) => {
-        const { type, comment, commentId } = parseCommentMessage(frame.body);
-        const normalizedType = type?.toUpperCase() ?? '';
-        const isDeleteEvent =
-          normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
+    const subscription = subscribe(`/topic/question/${id}/comments`, (frame) => {
+      const { type, comment, commentId } = parseCommentMessage(frame.body);
+      const normalizedType = type?.toUpperCase() ?? '';
+      const isDeleteEvent = normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
 
-        if (isDeleteEvent && commentId) {
-          setComments((prev) => prev.filter((existing) => existing.id !== commentId));
-          return;
-        }
-
-        if (comment) {
-          setComments((prev) => {
-            const index = prev.findIndex((existing) => existing.id === comment.id);
-            if (index >= 0) {
-              const next = [...prev];
-              next[index] = comment;
-              return sortCommentsByCreatedAt(next);
-            }
-            return sortCommentsByCreatedAt([...prev, comment]);
-          });
-        }
+      if (isDeleteEvent && commentId) {
+        setComments((prev) => prev.filter((existing) => existing.id !== commentId));
+        return;
       }
-    );
+
+      if (comment) {
+        setComments((prev) => {
+          const index = prev.findIndex((existing) => existing.id === comment.id);
+          if (index >= 0) {
+            const next = [...prev];
+            next[index] = comment;
+            return sortCommentsByCreatedAt(next);
+          }
+          return sortCommentsByCreatedAt([...prev, comment]);
+        });
+      }
+    });
 
     return () => {
       subscription?.unsubscribe();
@@ -188,9 +202,7 @@ export default function QuestionDetailScreen() {
           body: sanitizedComment,
         });
         setComments((prev) =>
-          prev.map((comment) =>
-            comment.id === updatedComment.id ? updatedComment : comment
-          )
+          prev.map((comment) => (comment.id === updatedComment.id ? updatedComment : comment))
         );
         setEditingCommentId(null);
       } else {
@@ -257,8 +269,7 @@ export default function QuestionDetailScreen() {
             ? {
                 ...prev,
                 userVote: null,
-                karmaScore:
-                  prev.karmaScore + (voteType === 'UPVOTE' ? -1 : 1),
+                karmaScore: prev.karmaScore + (voteType === 'UPVOTE' ? -1 : 1),
               }
             : prev
         );
@@ -268,9 +279,7 @@ export default function QuestionDetailScreen() {
         let scoreDiff = voteType === 'UPVOTE' ? 1 : -1;
         if (oldVote) scoreDiff += oldVote === 'UPVOTE' ? -1 : 1;
         setQuestion((prev) =>
-          prev
-            ? { ...prev, userVote: voteType, karmaScore: prev.karmaScore + scoreDiff }
-            : prev
+          prev ? { ...prev, userVote: voteType, karmaScore: prev.karmaScore + scoreDiff } : prev
         );
       }
     } catch {
@@ -286,7 +295,11 @@ export default function QuestionDetailScreen() {
         setComments((prev) =>
           prev.map((c) =>
             c.id === commentId
-              ? { ...c, userVote: null, karmaScore: c.karmaScore + (voteType === 'UPVOTE' ? -1 : 1) }
+              ? {
+                  ...c,
+                  userVote: null,
+                  karmaScore: c.karmaScore + (voteType === 'UPVOTE' ? -1 : 1),
+                }
               : c
           )
         );
@@ -345,55 +358,54 @@ export default function QuestionDetailScreen() {
     }
   };
 
+  const closeReportModal = () => {
+    setReportModalVisible(false);
+    setReportReason(null);
+    setReportNotes('');
+    setReportTarget(null);
+  };
+
+  const openReportModal = (target: { questionId?: string; commentId?: string }) => {
+    setReportTarget(target);
+    setReportReason(null);
+    setReportNotes('');
+    setReportModalVisible(true);
+  };
+
   const handleReportQuestion = () => {
-    Alert.alert('Report Question', 'Select a reason for reporting:', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Spam',
-        onPress: () => submitReport('SPAM', { questionId: id }),
-      },
-      {
-        text: 'Inappropriate',
-        onPress: () => submitReport('INAPPROPRIATE', { questionId: id }),
-      },
-      {
-        text: 'Off Topic',
-        onPress: () => submitReport('OFF_TOPIC', { questionId: id }),
-      },
-    ]);
+    if (!id) {
+      return;
+    }
+    openReportModal({ questionId: id });
   };
 
   const handleReportComment = (commentId: string) => {
-    Alert.alert('Report Comment', 'Select a reason for reporting:', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Spam',
-        onPress: () => submitReport('SPAM', { commentId }),
-      },
-      {
-        text: 'Inappropriate',
-        onPress: () => submitReport('INAPPROPRIATE', { commentId }),
-      },
-      {
-        text: 'Off Topic',
-        onPress: () => submitReport('OFF_TOPIC', { commentId }),
-      },
-    ]);
+    openReportModal({ commentId });
   };
 
-  const submitReport = async (
-    reason: ReportReason,
-    target: { questionId?: string; commentId?: string }
-  ) => {
-    if (!target.questionId && !target.commentId) {
+  const submitReport = async () => {
+    if (!reportTarget?.questionId && !reportTarget?.commentId) {
+      return;
+    }
+    if (!reportReason) {
+      Alert.alert('Report', 'Please select a reason.');
       return;
     }
 
+    setSubmittingReport(true);
     try {
-      await reportService.create({ ...target, reason });
+      const notes = reportNotes.trim();
+      await reportService.create({
+        ...reportTarget,
+        reason: reportReason,
+        notes: notes ? notes : undefined,
+      });
+      closeReportModal();
       Alert.alert('Reported', 'Thank you for your report. It will be reviewed by faculty.');
     } catch {
       Alert.alert('Error', 'Failed to submit report.');
+    } finally {
+      setSubmittingReport(false);
     }
   };
 
@@ -435,21 +447,9 @@ export default function QuestionDetailScreen() {
         comment={item}
         onUpvote={() => handleCommentVote(item.id, 'UPVOTE')}
         onDownvote={() => handleCommentVote(item.id, 'DOWNVOTE')}
-        onEdit={
-          isCommentAuthor && item.canEdit
-            ? () => handleStartEditComment(item)
-            : undefined
-        }
-        onDelete={
-          isCommentAuthor || isFaculty
-            ? () => handleDeleteComment(item)
-            : undefined
-        }
-        onReport={
-          !isCommentAuthor
-            ? () => handleReportComment(item.id)
-            : undefined
-        }
+        onEdit={isCommentAuthor && item.canEdit ? () => handleStartEditComment(item) : undefined}
+        onDelete={isCommentAuthor || isFaculty ? () => handleDeleteComment(item) : undefined}
+        onReport={!isCommentAuthor ? () => handleReportComment(item.id) : undefined}
         onVerify={
           isFaculty && !isClosed && !item.isVerifiedAnswer
             ? () => handleVerifyAnswer(item.id)
@@ -463,10 +463,7 @@ export default function QuestionDetailScreen() {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1A1A2E', '#16213E', '#0F3460']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -475,10 +472,7 @@ export default function QuestionDetailScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -493,7 +487,7 @@ export default function QuestionDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Text style={styles.backArrow}>{"\u2190"}</Text>
+              <Text style={styles.backArrow}>{'\u2190'}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle} numberOfLines={1}>
               Question
@@ -505,9 +499,7 @@ export default function QuestionDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
               >
-                <Text style={styles.headerButtonIcon}>
-                  {isBookmarked ? '\u2605' : '\u2606'}
-                </Text>
+                <Text style={styles.headerButtonIcon}>{isBookmarked ? '\u2605' : '\u2606'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleReportQuestion}
@@ -515,7 +507,7 @@ export default function QuestionDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Report question"
               >
-                <Text style={styles.headerButtonIcon}>{"\u{1F6A9}"}</Text>
+                <Text style={styles.headerButtonIcon}>{'\u{1F6A9}'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -540,12 +532,10 @@ export default function QuestionDetailScreen() {
                   {/* Question Card */}
                   <GlassCard style={styles.questionCard}>
                     <View style={styles.questionMeta}>
-                      {question.topicName && (
-                        <TopicBadge name={question.topicName} />
-                      )}
+                      {question.topicName && <TopicBadge name={question.topicName} />}
                       <StatusBadge status={question.status} />
                       {question.isPinned && (
-                        <Text style={styles.pinnedText}>{"\u{1F4CC}"} Pinned</Text>
+                        <Text style={styles.pinnedText}>{'\u{1F4CC}'} Pinned</Text>
                       )}
                     </View>
 
@@ -553,9 +543,7 @@ export default function QuestionDetailScreen() {
 
                     <View style={styles.questionAuthorRow}>
                       <Text style={styles.authorName}>{question.authorName}</Text>
-                      <Text style={styles.dateText}>
-                        {formatFullDate(question.createdAt)}
-                      </Text>
+                      <Text style={styles.dateText}>{formatFullDate(question.createdAt)}</Text>
                     </View>
 
                     <Text style={styles.questionBody}>{question.body}</Text>
@@ -594,9 +582,7 @@ export default function QuestionDetailScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Delete question"
                           >
-                            <Text style={styles.questionActionTextDanger}>
-                              Delete
-                            </Text>
+                            <Text style={styles.questionActionTextDanger}>Delete</Text>
                           </TouchableOpacity>
                         )}
                         {isFaculty && !isClosed && (
@@ -640,7 +626,9 @@ export default function QuestionDetailScreen() {
                             }}
                             style={styles.questionAction}
                             accessibilityRole="button"
-                            accessibilityLabel={question.isPinned ? 'Unpin question' : 'Pin question'}
+                            accessibilityLabel={
+                              question.isPinned ? 'Unpin question' : 'Pin question'
+                            }
                           >
                             <Text style={styles.questionActionText}>
                               {question.isPinned ? 'Unpin' : 'Pin'}
@@ -654,7 +642,7 @@ export default function QuestionDetailScreen() {
                   {/* Closed Banner */}
                   {isClosed && (
                     <View style={styles.closedBanner}>
-                      <Text style={styles.closedIcon}>{"\u{1F512}"}</Text>
+                      <Text style={styles.closedIcon}>{'\u{1F512}'}</Text>
                       <Text style={styles.closedText}>
                         This question has been answered and is now closed
                       </Text>
@@ -726,6 +714,70 @@ export default function QuestionDetailScreen() {
             </View>
           )}
         </KeyboardAvoidingView>
+
+        <GlassModal
+          visible={reportModalVisible}
+          onClose={closeReportModal}
+          title={reportTarget?.questionId ? 'Report Question' : 'Report Comment'}
+        >
+          <Text style={styles.reportModalSubtitle}>
+            Select the reason and add optional context for faculty moderators.
+          </Text>
+
+          <View style={styles.reportReasonList}>
+            {REPORT_REASON_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.reportReasonOption,
+                  reportReason === option.value && styles.reportReasonOptionActive,
+                ]}
+                onPress={() => setReportReason(option.value)}
+                accessibilityRole="button"
+                accessibilityLabel={`Report reason: ${option.label}`}
+              >
+                <Text
+                  style={[
+                    styles.reportReasonLabel,
+                    reportReason === option.value && styles.reportReasonLabelActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                <Text style={styles.reportReasonDescription}>{option.description}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.reportNotesLabel}>Notes (optional)</Text>
+          <TextInput
+            style={styles.reportNotesInput}
+            placeholder="Add context for faculty review..."
+            placeholderTextColor={Colors.textMuted}
+            value={reportNotes}
+            onChangeText={setReportNotes}
+            multiline
+            maxLength={500}
+            selectionColor={Colors.primary}
+          />
+
+          <TouchableOpacity
+            onPress={submitReport}
+            style={[
+              styles.reportSubmitButton,
+              (!reportReason || submittingReport) && styles.reportSubmitButtonDisabled,
+            ]}
+            disabled={!reportReason || submittingReport}
+            accessibilityRole="button"
+            accessibilityLabel="Submit report"
+          >
+            {submittingReport ? (
+              <ActivityIndicator size="small" color={Colors.text} />
+            ) : (
+              <Text style={styles.reportSubmitText}>Submit Report</Text>
+            )}
+          </TouchableOpacity>
+        </GlassModal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -1034,6 +1086,77 @@ const styles = StyleSheet.create({
   },
   sendIcon: {
     fontSize: 18,
+    color: Colors.text,
+    fontWeight: '700',
+  },
+  reportModalSubtitle: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  reportReasonList: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  reportReasonOption: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  reportReasonOptionActive: {
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(108,99,255,0.22)',
+  },
+  reportReasonLabel: {
+    fontSize: Fonts.sizes.md,
+    color: Colors.text,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  reportReasonLabelActive: {
+    color: Colors.primary,
+  },
+  reportReasonDescription: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textMuted,
+    lineHeight: 18,
+  },
+  reportNotesLabel: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  reportNotesInput: {
+    minHeight: 86,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    lineHeight: 20,
+    textAlignVertical: 'top',
+    marginBottom: 14,
+  },
+  reportSubmitButton: {
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportSubmitButtonDisabled: {
+    opacity: 0.45,
+  },
+  reportSubmitText: {
+    fontSize: Fonts.sizes.md,
     color: Colors.text,
     fontWeight: '700',
   },

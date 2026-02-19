@@ -1,11 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Share,
-} from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Share } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
@@ -64,28 +58,17 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
   }, [whiteboardName, inviteCode, deepLink]);
 
   return (
-    <GlassModal
-      visible={visible}
-      onClose={onClose}
-      title={whiteboardName}
-    >
+    <GlassModal visible={visible} onClose={onClose} title={whiteboardName}>
       <View style={styles.content}>
         {/* QR Code */}
         <View style={styles.qrContainer}>
           <View style={styles.qrBackground}>
-            <QRCode
-              value={deepLink}
-              size={200}
-              backgroundColor="#FFFFFF"
-              color="#1A1A2E"
-            />
+            <QRCode value={deepLink} size={200} backgroundColor="#FFFFFF" color="#1A1A2E" />
           </View>
         </View>
 
         {/* Instructions */}
-        <Text style={styles.instructions}>
-          Scan this QR code to join the whiteboard
-        </Text>
+        <Text style={styles.instructions}>Scan this QR code to join the whiteboard</Text>
 
         {/* Invite Code */}
         <View style={styles.codeSection}>
@@ -98,9 +81,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
             accessibilityLabel="Share invite code"
           >
             <Text style={styles.codeText}>{inviteCode}</Text>
-            <Text style={styles.copyHint}>
-              {copied ? 'Copied!' : 'Tap to share code'}
-            </Text>
+            <Text style={styles.copyHint}>{copied ? 'Copied!' : 'Tap to share code'}</Text>
           </TouchableOpacity>
         </View>
 

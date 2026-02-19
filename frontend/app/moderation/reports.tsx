@@ -53,44 +53,48 @@ export default function ReportsScreen() {
   const lastFilterRef = useRef(statusFilter);
   const PAGE_SIZE = 20;
 
-  const fetchReports = useCallback(async (options?: { page?: number; replace?: boolean }) => {
-    if (!whiteboardId) return;
-    const nextPage = options?.page ?? 0;
-    const replace = options?.replace ?? true;
-    if (!replace && (!hasMore || loadingMore)) {
-      return;
-    }
-
-    try {
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
+  const fetchReports = useCallback(
+    async (options?: { page?: number; replace?: boolean }) => {
+      if (!whiteboardId) return;
+      const nextPage = options?.page ?? 0;
+      const replace = options?.replace ?? true;
+      if (!replace && (!hasMore || loadingMore)) {
+        return;
       }
 
-      const response = await reportService.list(whiteboardId, nextPage, PAGE_SIZE);
-      const filtered = statusFilter === 'ALL'
-        ? response.content
-        : response.content.filter((report) => report.status === statusFilter);
-      setReports((prev) => (replace ? filtered : [...prev, ...filtered]));
-      setPage(nextPage);
-      setHasMore(nextPage + 1 < response.totalPages);
-      setLoadError(null);
-      lastFetchRef.current = Date.now();
-    } catch {
-      if (replace) {
-        setReports([]);
+      try {
+        if (replace) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const response = await reportService.list(whiteboardId, nextPage, PAGE_SIZE);
+        const filtered =
+          statusFilter === 'ALL'
+            ? response.content
+            : response.content.filter((report) => report.status === statusFilter);
+        setReports((prev) => (replace ? filtered : [...prev, ...filtered]));
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < response.totalPages);
+        setLoadError(null);
+        lastFetchRef.current = Date.now();
+      } catch {
+        if (replace) {
+          setReports([]);
+        }
+        setHasMore(false);
+        setLoadError('Failed to load reports.');
+      } finally {
+        if (replace) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
       }
-      setHasMore(false);
-      setLoadError('Failed to load reports.');
-    } finally {
-      if (replace) {
-        setLoading(false);
-      } else {
-        setLoadingMore(false);
-      }
-    }
-  }, [hasMore, loadingMore, statusFilter, whiteboardId]);
+    },
+    [hasMore, loadingMore, statusFilter, whiteboardId]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -133,26 +137,22 @@ export default function ReportsScreen() {
   };
 
   const handleRemoveContent = async (report: ReportResponse) => {
-    Alert.alert(
-      'Remove Content',
-      'This will hide the reported content from all users. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await reportService.review(report.id, { status: 'REVIEWED' });
-              setReports((prev) => prev.filter((r) => r.id !== report.id));
-              Alert.alert('Removed', 'Content has been hidden.');
-            } catch {
-              Alert.alert('Error', 'Failed to remove content.');
-            }
-          },
+    Alert.alert('Remove Content', 'This will hide the reported content from all users. Continue?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await reportService.review(report.id, { status: 'REVIEWED' });
+            setReports((prev) => prev.filter((r) => r.id !== report.id));
+            Alert.alert('Removed', 'Content has been hidden.');
+          } catch {
+            Alert.alert('Error', 'Failed to remove content.');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleRestore = async (reportId: string) => {
@@ -182,12 +182,7 @@ export default function ReportsScreen() {
             { backgroundColor: `${REASON_COLORS[item.reason] || '#9E9E9E'}20` },
           ]}
         >
-          <Text
-            style={[
-              styles.reasonText,
-              { color: REASON_COLORS[item.reason] || '#9E9E9E' },
-            ]}
-          >
+          <Text style={[styles.reasonText, { color: REASON_COLORS[item.reason] || '#9E9E9E' }]}>
             {REASON_LABELS[item.reason] || item.reason}
           </Text>
         </View>
@@ -214,12 +209,8 @@ export default function ReportsScreen() {
 
       {/* Content Info */}
       <View style={styles.contentInfo}>
-        <Text style={styles.contentType}>
-          {item.questionId ? 'Question' : 'Comment'} Report
-        </Text>
-        <Text style={styles.reporterText}>
-          Reported by {item.reporterName}
-        </Text>
+        <Text style={styles.contentType}>{item.questionId ? 'Question' : 'Comment'} Report</Text>
+        <Text style={styles.reporterText}>Reported by {item.reporterName}</Text>
         <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
       </View>
 
@@ -277,16 +268,13 @@ export default function ReportsScreen() {
         accessibilityRole="button"
         accessibilityLabel="View reported content"
       >
-        <Text style={styles.viewLinkText}>View Content {"\u203A"}</Text>
+        <Text style={styles.viewLinkText}>View Content {'\u203A'}</Text>
       </TouchableOpacity>
     </GlassCard>
   );
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -296,7 +284,7 @@ export default function ReportsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Moderation</Text>
           <View style={styles.headerSpacer} />
@@ -307,10 +295,7 @@ export default function ReportsScreen() {
           {statusFilters.map((filter) => (
             <TouchableOpacity
               key={filter.value}
-              style={[
-                styles.filterChip,
-                statusFilter === filter.value && styles.filterChipActive,
-              ]}
+              style={[styles.filterChip, statusFilter === filter.value && styles.filterChipActive]}
               onPress={() => {
                 setStatusFilter(filter.value);
                 setLoading(true);
@@ -340,10 +325,7 @@ export default function ReportsScreen() {
             data={reports}
             renderItem={renderReportItem}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.listContent,
-              reports.length === 0 && styles.emptyList,
-            ]}
+            contentContainerStyle={[styles.listContent, reports.length === 0 && styles.emptyList]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -354,7 +336,7 @@ export default function ReportsScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={"\u{1F6A9}"}
+                icon={'\u{1F6A9}'}
                 title="No Reports"
                 subtitle={loadError || 'There are no reported items to review'}
               />

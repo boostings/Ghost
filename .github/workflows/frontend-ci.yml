@@ -2,7 +2,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - 'frontend/**'
   pull_request:
@@ -11,7 +11,7 @@ on:
       - 'frontend/**'
 
 jobs:
-  lint-and-typecheck:
+  lint-type-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,9 +29,21 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Format check
+        working-directory: frontend
+        run: npm run format:check
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
       - name: TypeScript type check
         working-directory: frontend
-        run: npx tsc --noEmit
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test -- --runInBand
 
       - name: Expo doctor
         working-directory: frontend

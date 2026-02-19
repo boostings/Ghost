@@ -102,7 +102,7 @@ export default function CreateWhiteboardScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Whiteboard</Text>
           <View style={styles.headerSpacer} />

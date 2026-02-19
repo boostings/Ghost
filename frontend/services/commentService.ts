@@ -18,10 +18,7 @@ export const commentService = {
    * Get comments for a question.
    * GET /questions/{qId}/comments
    */
-  getComments: async (
-    qId: string,
-    params?: PaginationParams
-  ): Promise<CommentResponse[]> => {
+  getComments: async (qId: string, params?: PaginationParams): Promise<CommentResponse[]> => {
     const response = await api.get<PageResponse<CommentResponse> | CommentResponse[]>(
       `/questions/${qId}/comments`,
       {
@@ -39,14 +36,8 @@ export const commentService = {
    * Blocked if the question status is CLOSED.
    * POST /questions/{qId}/comments
    */
-  createComment: async (
-    qId: string,
-    data: CreateCommentRequest
-  ): Promise<CommentResponse> => {
-    const response = await api.post<CommentResponse>(
-      `/questions/${qId}/comments`,
-      data
-    );
+  createComment: async (qId: string, data: CreateCommentRequest): Promise<CommentResponse> => {
+    const response = await api.post<CommentResponse>(`/questions/${qId}/comments`, data);
     return response.data;
   },
 
@@ -59,10 +50,7 @@ export const commentService = {
     id: string,
     data: EditCommentRequest
   ): Promise<CommentResponse> => {
-    const response = await api.put<CommentResponse>(
-      `/questions/${qId}/comments/${id}`,
-      data
-    );
+    const response = await api.put<CommentResponse>(`/questions/${qId}/comments/${id}`, data);
     return response.data;
   },
 
@@ -110,11 +98,7 @@ export const commentService = {
     return commentService.createComment(qId, data);
   },
 
-  update: async (
-    qId: string,
-    id: string,
-    data: EditCommentRequest
-  ): Promise<CommentResponse> => {
+  update: async (qId: string, id: string, data: EditCommentRequest): Promise<CommentResponse> => {
     return commentService.editComment(qId, id, data);
   },
 

@@ -8,6 +8,7 @@ import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
+import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.JoinRequestRepository;
 import com.ghost.repository.UserRepository;
@@ -53,6 +54,9 @@ class WhiteboardServiceTest {
 
     @Mock
     private WhiteboardMembershipService whiteboardMembershipService;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private WhiteboardJoinRequestService whiteboardJoinRequestService;
@@ -151,6 +155,14 @@ class WhiteboardServiceTest {
                 requestId,
                 JoinRequestStatus.PENDING.name(),
                 JoinRequestStatus.APPROVED.name()
+        );
+        verify(notificationService).createAndSend(
+                studentId,
+                NotificationType.JOIN_REQUEST_APPROVED,
+                "Join Request Approved",
+                "Your request to join " + joinRequest.getWhiteboard().getCourseCode() + " was approved.",
+                "Whiteboard",
+                whiteboardId
         );
     }
 }

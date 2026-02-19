@@ -1,12 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/authService';
-import type {
-  LoginRequest,
-  RegisterRequest,
-  VerifyEmailRequest,
-  UserResponse,
-} from '../types';
+import type { LoginRequest, RegisterRequest, VerifyEmailRequest, UserResponse } from '../types';
 
 /**
  * Convenience hook that wraps the authStore and provides authentication actions.
@@ -67,23 +62,17 @@ export function useAuth() {
    * Register a new account.
    * After registration, the user still needs to verify their email.
    */
-  const register = useCallback(
-    async (data: RegisterRequest): Promise<void> => {
-      await authService.register(data);
-    },
-    []
-  );
+  const register = useCallback(async (data: RegisterRequest): Promise<void> => {
+    await authService.register(data);
+  }, []);
 
   /**
    * Verify email with a 6-digit code.
    * On success, the user can proceed to login.
    */
-  const verifyEmail = useCallback(
-    async (data: VerifyEmailRequest): Promise<void> => {
-      await authService.verifyEmail(data);
-    },
-    []
-  );
+  const verifyEmail = useCallback(async (data: VerifyEmailRequest): Promise<void> => {
+    await authService.verifyEmail(data);
+  }, []);
 
   /**
    * Log out - clears all auth state and stored tokens.

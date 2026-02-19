@@ -58,6 +58,7 @@ public class NotificationService {
                 .build();
 
         notification = notificationRepository.save(notification);
+        NotificationResponse payload = notificationMapper.toResponse(notification);
         logNotificationAction(
                 recipientId,
                 notification.getId(),
@@ -68,10 +69,14 @@ public class NotificationService {
 
         // Send via WebSocket
         try {
+            messagingTemplate.convertAndSend(
+                    "/topic/user/" + recipientId + "/notifications",
+                    payload
+            );
             messagingTemplate.convertAndSendToUser(
                     recipientId.toString(),
                     "/queue/notifications",
-                    notification
+                    payload
             );
         } catch (Exception e) {
             log.error("Failed to send WebSocket notification to user {}: {}", recipientId, e.getMessage());
@@ -79,7 +84,7 @@ public class NotificationService {
 
         // Send Expo push notification if user has a push token
         if (recipient.getExpoPushToken() != null && !recipient.getExpoPushToken().isBlank()) {
-            sendExpoPush(recipient.getExpoPushToken(), title, body);
+            sendExpoPush(recipient.getExpoPushToken(), payload);
         }
     }
 
@@ -125,15 +130,21 @@ public class NotificationService {
         return notificationRepository.countByRecipientIdAndIsReadFalse(userId);
     }
 
-    private void sendExpoPush(String expoPushToken, String title, String body) {
+    private void sendExpoPush(String expoPushToken, NotificationResponse notification) {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
             Map<String, Object> payload = new HashMap<>();
             payload.put("to", expoPushToken);
-            payload.put("title", title);
-            payload.put("body", body);
+            payload.put("title", notification.getTitle());
+            payload.put("body", notification.getBody() != null ? notification.getBody() : "");
             payload.put("sound", "default");
+            Map<String, Object> data = new HashMap<>();
+            data.put("notificationId", notification.getId());
+            data.put("type", notification.getType().name());
+            data.put("referenceType", notification.getReferenceType());
+            data.put("referenceId", notification.getReferenceId());
+            payload.put("data", data);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

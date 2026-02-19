@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-  StyleProp,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, View, ViewStyle, StyleProp } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 interface GlassCardProps {

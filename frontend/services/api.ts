@@ -108,10 +108,7 @@ api.interceptors.response.use(
         requestData
       );
 
-      const {
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      } = response.data;
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
 
       setTokens(newAccessToken, newRefreshToken);
       processQueue(null, newAccessToken);

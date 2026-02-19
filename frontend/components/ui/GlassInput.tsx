@@ -50,9 +50,7 @@ const GlassInput: React.FC<GlassInputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
-  const inputHeight = multiline
-    ? Math.max(48, numberOfLines * 24 + 24)
-    : 48;
+  const inputHeight = multiline ? Math.max(48, numberOfLines * 24 + 24) : 48;
 
   return (
     <View style={[styles.wrapper, style]}>

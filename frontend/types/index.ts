@@ -20,12 +20,7 @@ export type NotificationType =
   | 'CONTENT_HIDDEN'
   | 'POST_TRENDING';
 
-export type ReportReason =
-  | 'SPAM'
-  | 'INAPPROPRIATE'
-  | 'HARASSMENT'
-  | 'OFF_TOPIC'
-  | 'OTHER';
+export type ReportReason = 'SPAM' | 'INAPPROPRIATE' | 'HARASSMENT' | 'OFF_TOPIC' | 'OTHER';
 
 export type ReportStatus = 'PENDING' | 'REVIEWED' | 'DISMISSED';
 
@@ -287,6 +282,8 @@ export interface SearchParams extends PaginationParams {
   whiteboard?: string;
   topic?: string;
   status?: QuestionStatus;
+  from?: string;
+  to?: string;
 }
 
 // ---- WebSocket Message Types ----

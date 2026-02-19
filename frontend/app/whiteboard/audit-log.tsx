@@ -61,6 +61,38 @@ const FILTER_OPTIONS = [
   'REPORT_SUBMITTED',
 ] as const;
 
+type DateWindow = 'ALL_TIME' | 'LAST_24H' | 'LAST_7D' | 'LAST_30D';
+
+const DATE_FILTER_OPTIONS: { label: string; value: DateWindow }[] = [
+  { label: 'All Time', value: 'ALL_TIME' },
+  { label: '24h', value: 'LAST_24H' },
+  { label: '7d', value: 'LAST_7D' },
+  { label: '30d', value: 'LAST_30D' },
+];
+
+function getDateRange(value: DateWindow): { from?: string; to?: string } {
+  if (value === 'ALL_TIME') {
+    return {};
+  }
+
+  const to = new Date();
+  const from = new Date(to);
+  if (value === 'LAST_24H') {
+    from.setDate(from.getDate() - 1);
+  } else if (value === 'LAST_7D') {
+    from.setDate(from.getDate() - 7);
+  } else {
+    from.setDate(from.getDate() - 30);
+  }
+
+  const formatDateParam = (date: Date) => date.toISOString().slice(0, 19);
+
+  return {
+    from: formatDateParam(from),
+    to: formatDateParam(to),
+  };
+}
+
 export default function AuditLogScreen() {
   const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
@@ -69,6 +101,7 @@ export default function AuditLogScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionFilter, setActionFilter] = useState<string>('ALL');
+  const [dateFilter, setDateFilter] = useState<DateWindow>('ALL_TIME');
   const [exporting, setExporting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -76,53 +109,62 @@ export default function AuditLogScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const lastFetchRef = useRef(0);
   const lastFilterRef = useRef(actionFilter);
+  const lastDateFilterRef = useRef(dateFilter);
   const PAGE_SIZE = 20;
 
-  const fetchLogs = useCallback(async (options?: { page?: number; replace?: boolean }) => {
-    if (!whiteboardId) return;
-    const nextPage = options?.page ?? 0;
-    const replace = options?.replace ?? true;
-    if (!replace && (!hasMore || loadingMore)) {
-      return;
-    }
-
-    try {
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
+  const fetchLogs = useCallback(
+    async (options?: { page?: number; replace?: boolean }) => {
+      if (!whiteboardId) return;
+      const nextPage = options?.page ?? 0;
+      const replace = options?.replace ?? true;
+      if (!replace && (!hasMore || loadingMore)) {
+        return;
       }
 
-      const response = await auditLogService.list(whiteboardId, {
-        action: actionFilter === 'ALL' ? undefined : actionFilter as AuditAction,
-        page: nextPage,
-        size: PAGE_SIZE,
-      });
-      setLogs((prev) => (replace ? response.content : [...prev, ...response.content]));
-      setPage(nextPage);
-      setHasMore(nextPage + 1 < response.totalPages);
-      setLoadError(null);
-      lastFetchRef.current = Date.now();
-    } catch {
-      if (replace) {
-        setLogs([]);
+      try {
+        if (replace) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const dateRange = getDateRange(dateFilter);
+        const response = await auditLogService.list(whiteboardId, {
+          action: actionFilter === 'ALL' ? undefined : (actionFilter as AuditAction),
+          from: dateRange.from,
+          to: dateRange.to,
+          page: nextPage,
+          size: PAGE_SIZE,
+        });
+        setLogs((prev) => (replace ? response.content : [...prev, ...response.content]));
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < response.totalPages);
+        setLoadError(null);
+        lastFetchRef.current = Date.now();
+      } catch {
+        if (replace) {
+          setLogs([]);
+        }
+        setHasMore(false);
+        setLoadError('Failed to load audit logs.');
+      } finally {
+        if (replace) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
       }
-      setHasMore(false);
-      setLoadError('Failed to load audit logs.');
-    } finally {
-      if (replace) {
-        setLoading(false);
-      } else {
-        setLoadingMore(false);
-      }
-    }
-  }, [actionFilter, hasMore, loadingMore, whiteboardId]);
+    },
+    [actionFilter, dateFilter, hasMore, loadingMore, whiteboardId]
+  );
 
   useFocusEffect(
     useCallback(() => {
-      const filterChanged = lastFilterRef.current !== actionFilter;
+      const filterChanged =
+        lastFilterRef.current !== actionFilter || lastDateFilterRef.current !== dateFilter;
       if (filterChanged) {
         lastFilterRef.current = actionFilter;
+        lastDateFilterRef.current = dateFilter;
         fetchLogs({ page: 0, replace: true });
         return;
       }
@@ -132,7 +174,7 @@ export default function AuditLogScreen() {
       if (logs.length === 0 || isStale) {
         fetchLogs({ page: 0, replace: true });
       }
-    }, [actionFilter, fetchLogs, logs.length])
+    }, [actionFilter, dateFilter, fetchLogs, logs.length])
   );
 
   const handleRefresh = async () => {
@@ -167,9 +209,7 @@ export default function AuditLogScreen() {
     <GlassCard style={styles.logCard}>
       <View style={styles.logRow}>
         <View style={styles.logIconContainer}>
-          <Text style={styles.logIcon}>
-            {ACTION_ICONS[item.action] || '\u{1F4DD}'}
-          </Text>
+          <Text style={styles.logIcon}>{ACTION_ICONS[item.action] || '\u{1F4DD}'}</Text>
         </View>
 
         <View style={styles.logContent}>
@@ -208,10 +248,7 @@ export default function AuditLogScreen() {
   );
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -221,7 +258,7 @@ export default function AuditLogScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Audit Log</Text>
           <TouchableOpacity
@@ -231,43 +268,68 @@ export default function AuditLogScreen() {
             accessibilityRole="button"
             accessibilityLabel="Export audit log as CSV"
           >
-            <Text style={styles.exportText}>
-              {exporting ? '...' : 'CSV'}
-            </Text>
+            <Text style={styles.exportText}>{exporting ? '...' : 'CSV'}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Filter Chips */}
-        <FlatList
-          horizontal
-          data={FILTER_OPTIONS}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterList}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                actionFilter === item && styles.filterChipActive,
-              ]}
-              onPress={() => {
-                setActionFilter(item);
-                setLoading(true);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Filter audit log by ${item === 'ALL' ? 'all actions' : formatAction(item)}`}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  actionFilter === item && styles.filterChipTextActive,
-                ]}
+        <View style={styles.filtersSection}>
+          <FlatList
+            horizontal
+            data={FILTER_OPTIONS}
+            keyExtractor={(item) => item}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.filterChip, actionFilter === item && styles.filterChipActive]}
+                onPress={() => {
+                  setActionFilter(item);
+                  setLoading(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter audit log by ${item === 'ALL' ? 'all actions' : formatAction(item)}`}
               >
-                {item === 'ALL' ? 'All' : formatAction(item)}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    actionFilter === item && styles.filterChipTextActive,
+                  ]}
+                >
+                  {item === 'ALL' ? 'All' : formatAction(item)}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+
+          <FlatList
+            horizontal
+            data={DATE_FILTER_OPTIONS}
+            keyExtractor={(item) => item.value}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterListCompact}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.filterChip, dateFilter === item.value && styles.filterChipActive]}
+                onPress={() => {
+                  setDateFilter(item.value);
+                  setLoading(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter audit log by ${item.label}`}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    dateFilter === item.value && styles.filterChipTextActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
 
         {/* Log List */}
         {loading ? (
@@ -279,10 +341,7 @@ export default function AuditLogScreen() {
             data={logs}
             renderItem={renderLogItem}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.listContent,
-              logs.length === 0 && styles.emptyList,
-            ]}
+            contentContainerStyle={[styles.listContent, logs.length === 0 && styles.emptyList]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -293,7 +352,7 @@ export default function AuditLogScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={"\u{1F4CB}"}
+                icon={'\u{1F4CB}'}
                 title="No Audit Entries"
                 subtitle={loadError || 'Activity will be recorded here as changes are made'}
               />
@@ -371,9 +430,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  filtersSection: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    paddingBottom: 8,
+  },
   filterList: {
     paddingHorizontal: 16,
     paddingVertical: 12,
+    gap: 8,
+  },
+  filterListCompact: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
     gap: 8,
   },
   filterChip: {

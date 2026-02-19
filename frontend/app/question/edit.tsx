@@ -104,10 +104,7 @@ export default function EditQuestionScreen() {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1A1A2E', '#16213E', '#0F3460']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -116,10 +113,7 @@ export default function EditQuestionScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -133,7 +127,7 @@ export default function EditQuestionScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Text style={styles.backArrow}>{"\u2190"}</Text>
+              <Text style={styles.backArrow}>{'\u2190'}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Edit Question</Text>
             <View style={styles.headerSpacer} />
@@ -179,10 +173,7 @@ export default function EditQuestionScreen() {
                   <Text style={styles.topicLabel}>Topic</Text>
                   <View style={styles.topicList}>
                     <TouchableOpacity
-                      style={[
-                        styles.topicChip,
-                        !selectedTopicId && styles.topicChipActive,
-                      ]}
+                      style={[styles.topicChip, !selectedTopicId && styles.topicChipActive]}
                       onPress={() => setSelectedTopicId(undefined)}
                     >
                       <Text
@@ -228,10 +219,10 @@ export default function EditQuestionScreen() {
 
             {/* Info Note */}
             <GlassCard style={styles.noteCard}>
-              <Text style={styles.noteIcon}>{"\u{2139}\uFE0F"}</Text>
+              <Text style={styles.noteIcon}>{'\u{2139}\uFE0F'}</Text>
               <Text style={styles.noteText}>
-                Questions can only be edited before a verified answer is provided.
-                Once a faculty member verifies an answer, the question will be locked.
+                Questions can only be edited before a verified answer is provided. Once a faculty
+                member verifies an answer, the question will be locked.
               </Text>
             </GlassCard>
           </ScrollView>

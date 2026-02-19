@@ -122,7 +122,7 @@ export default function TopicsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Delete topic ${item.name}`}
         >
-          <Text style={styles.deleteText}>{"\u2715"}</Text>
+          <Text style={styles.deleteText}>{'\u2715'}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -135,10 +135,7 @@ export default function TopicsScreen() {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1A1A2E', '#16213E', '#0F3460']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -147,10 +144,7 @@ export default function TopicsScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -160,7 +154,7 @@ export default function TopicsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Topics</Text>
           <View style={styles.headerSpacer} />
@@ -198,14 +192,12 @@ export default function TopicsScreen() {
               </GlassCard>
 
               {/* Section Labels */}
-              {defaultTopics.length > 0 && (
-                <Text style={styles.sectionLabel}>Default Topics</Text>
-              )}
+              {defaultTopics.length > 0 && <Text style={styles.sectionLabel}>Default Topics</Text>}
             </>
           }
           ListEmptyComponent={
             <EmptyState
-              icon={"\u{1F3F7}\uFE0F"}
+              icon={'\u{1F3F7}\uFE0F'}
               title="No Topics"
               subtitle={loadError || 'Add topics to help organize questions'}
             />

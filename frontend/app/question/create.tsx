@@ -92,10 +92,7 @@ export default function CreateQuestionScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -109,7 +106,7 @@ export default function CreateQuestionScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Text style={styles.backArrow}>{"\u2190"}</Text>
+              <Text style={styles.backArrow}>{'\u2190'}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Ask a Question</Text>
             <View style={styles.headerSpacer} />
@@ -155,10 +152,7 @@ export default function CreateQuestionScreen() {
                   <Text style={styles.topicLabel}>Topic (Optional)</Text>
                   <View style={styles.topicList}>
                     <TouchableOpacity
-                      style={[
-                        styles.topicChip,
-                        !selectedTopicId && styles.topicChipActive,
-                      ]}
+                      style={[styles.topicChip, !selectedTopicId && styles.topicChipActive]}
                       onPress={() => setSelectedTopicId(undefined)}
                     >
                       <Text
@@ -196,7 +190,8 @@ export default function CreateQuestionScreen() {
               {/* Character Count */}
               <View style={styles.charCount}>
                 <Text style={styles.charCountText}>
-                  {title.length}/500 title{' \u00B7 '}{body.length} body
+                  {title.length}/500 title{' \u00B7 '}
+                  {body.length} body
                 </Text>
               </View>
 
@@ -213,16 +208,16 @@ export default function CreateQuestionScreen() {
             <GlassCard style={styles.tipsCard}>
               <Text style={styles.tipsTitle}>Tips for a great question</Text>
               <Text style={styles.tipItem}>
-                {"\u2022"} Be specific about what you need help with
+                {'\u2022'} Be specific about what you need help with
               </Text>
               <Text style={styles.tipItem}>
-                {"\u2022"} Include relevant context (lecture, assignment, etc.)
+                {'\u2022'} Include relevant context (lecture, assignment, etc.)
               </Text>
               <Text style={styles.tipItem}>
-                {"\u2022"} Choose the right topic for easier discovery
+                {'\u2022'} Choose the right topic for easier discovery
               </Text>
               <Text style={styles.tipItem}>
-                {"\u2022"} Check if a similar question was already asked
+                {'\u2022'} Check if a similar question was already asked
               </Text>
             </GlassCard>
           </ScrollView>

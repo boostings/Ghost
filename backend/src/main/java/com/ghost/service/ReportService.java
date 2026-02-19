@@ -35,6 +35,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReportService {
 
+    private static final int AUTO_HIDE_REPORT_THRESHOLD = 3;
+
     private final ReportRepository reportRepository;
     private final QuestionRepository questionRepository;
     private final CommentRepository commentRepository;
@@ -82,8 +84,8 @@ public class ReportService {
             // Increment report count
             question.setReportCount(question.getReportCount() + 1);
 
-            // If report_count >= 3: set is_hidden=true
-            if (question.getReportCount() >= 3 && !question.isHidden()) {
+            // If report_count >= threshold: set is_hidden=true
+            if (question.getReportCount() >= AUTO_HIDE_REPORT_THRESHOLD && !question.isHidden()) {
                 question.setHidden(true);
                 questionRepository.save(question);
 
@@ -93,7 +95,7 @@ public class ReportService {
                 // Log CONTENT_HIDDEN
                 auditLogService.logAction(
                         whiteboardId, userId, AuditAction.CONTENT_HIDDEN,
-                        targetType, targetId, null, "Auto-hidden due to 3+ reports"
+                        targetType, targetId, null, "Auto-hidden due to " + AUTO_HIDE_REPORT_THRESHOLD + "+ reports"
                 );
             } else {
                 questionRepository.save(question);
@@ -115,8 +117,8 @@ public class ReportService {
             // Increment report count
             comment.setReportCount(comment.getReportCount() + 1);
 
-            // If report_count >= 3: set is_hidden=true
-            if (comment.getReportCount() >= 3 && !comment.isHidden()) {
+            // If report_count >= threshold: set is_hidden=true
+            if (comment.getReportCount() >= AUTO_HIDE_REPORT_THRESHOLD && !comment.isHidden()) {
                 comment.setHidden(true);
                 commentRepository.save(comment);
 
@@ -126,7 +128,7 @@ public class ReportService {
                 // Log CONTENT_HIDDEN
                 auditLogService.logAction(
                         whiteboardId, userId, AuditAction.CONTENT_HIDDEN,
-                        targetType, targetId, null, "Auto-hidden due to 3+ reports"
+                        targetType, targetId, null, "Auto-hidden due to " + AUTO_HIDE_REPORT_THRESHOLD + "+ reports"
                 );
             } else {
                 commentRepository.save(comment);
@@ -190,29 +192,66 @@ public class ReportService {
                 req.getStatus().name()
         );
 
-        // If dismissed, optionally restore hidden content
+        // Dismissed reports no longer contribute to active moderation thresholds.
+        // Restore only if active (non-dismissed) reports drop below threshold.
         if (req.getStatus() == ReportStatus.DISMISSED) {
-            if (report.getQuestion() != null && report.getQuestion().isHidden()) {
-                Question question = report.getQuestion();
-                question.setHidden(false);
-                questionRepository.save(question);
-
-                auditLogService.logAction(
-                        whiteboardId, facultyId, AuditAction.CONTENT_RESTORED,
-                        "Question", question.getId(), "hidden", "visible"
-                );
-            } else if (report.getComment() != null && report.getComment().isHidden()) {
-                Comment comment = report.getComment();
-                comment.setHidden(false);
-                commentRepository.save(comment);
-
-                auditLogService.logAction(
-                        whiteboardId, facultyId, AuditAction.CONTENT_RESTORED,
-                        "Comment", comment.getId(), "hidden", "visible"
-                );
+            if (report.getQuestion() != null) {
+                reconcileQuestionModerationState(whiteboardId, facultyId, report.getQuestion());
+            } else if (report.getComment() != null) {
+                reconcileCommentModerationState(whiteboardId, facultyId, report.getComment());
             }
         }
         return reportMapper.toResponse(report);
+    }
+
+    private void reconcileQuestionModerationState(UUID whiteboardId, UUID facultyId, Question question) {
+        long activeReportCount = reportRepository.countByQuestionIdAndStatusNot(
+                question.getId(),
+                ReportStatus.DISMISSED
+        );
+        question.setReportCount((int) activeReportCount);
+
+        if (question.isHidden() && activeReportCount < AUTO_HIDE_REPORT_THRESHOLD) {
+            question.setHidden(false);
+            questionRepository.save(question);
+            auditLogService.logAction(
+                    whiteboardId,
+                    facultyId,
+                    AuditAction.CONTENT_RESTORED,
+                    "Question",
+                    question.getId(),
+                    "hidden",
+                    "visible"
+            );
+            return;
+        }
+
+        questionRepository.save(question);
+    }
+
+    private void reconcileCommentModerationState(UUID whiteboardId, UUID facultyId, Comment comment) {
+        long activeReportCount = reportRepository.countByCommentIdAndStatusNot(
+                comment.getId(),
+                ReportStatus.DISMISSED
+        );
+        comment.setReportCount((int) activeReportCount);
+
+        if (comment.isHidden() && activeReportCount < AUTO_HIDE_REPORT_THRESHOLD) {
+            comment.setHidden(false);
+            commentRepository.save(comment);
+            auditLogService.logAction(
+                    whiteboardId,
+                    facultyId,
+                    AuditAction.CONTENT_RESTORED,
+                    "Comment",
+                    comment.getId(),
+                    "hidden",
+                    "visible"
+            );
+            return;
+        }
+
+        commentRepository.save(comment);
     }
 
     private void notifyFacultyOfHiddenContent(UUID whiteboardId, String contentType, UUID contentId, String contentPreview) {

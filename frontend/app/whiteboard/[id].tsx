@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,7 +25,15 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { formatDate } from '../../utils/formatDate';
-import type { QuestionResponse, WhiteboardResponse } from '../../types';
+import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
+
+type FeedStatusFilter = 'ALL' | QuestionStatus;
+
+const FEED_STATUS_FILTERS: Array<{ label: string; value: FeedStatusFilter }> = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Open', value: 'OPEN' },
+  { label: 'Closed', value: 'CLOSED' },
+];
 
 function sortQuestionsForFeed(questions: QuestionResponse[]): QuestionResponse[] {
   return [...questions].sort((a, b) => {
@@ -35,7 +44,11 @@ function sortQuestionsForFeed(questions: QuestionResponse[]): QuestionResponse[]
   });
 }
 
-function parseQuestionMessage(body: string): { type?: string; question?: QuestionResponse; questionId?: string } {
+function parseQuestionMessage(body: string): {
+  type?: string;
+  question?: QuestionResponse;
+  questionId?: string;
+} {
   try {
     const parsed: unknown = JSON.parse(body);
     if (!parsed || typeof parsed !== 'object') {
@@ -83,60 +96,65 @@ export default function WhiteboardDetailScreen() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>('ALL');
+  const [topicFilter, setTopicFilter] = useState<'ALL' | string>('ALL');
   const lastFetchRef = useRef(0);
   const PAGE_SIZE = 20;
   const { subscribe } = useWebSocket();
 
   const isFaculty = user?.role === 'FACULTY';
 
-  const fetchData = useCallback(async (options?: { page?: number; replace?: boolean }) => {
-    if (!id) {
-      setLoadError('Missing whiteboard id.');
-      setLoading(false);
-      return;
-    }
-
-    const nextPage = options?.page ?? 0;
-    const replace = options?.replace ?? true;
-    if (!replace && (!hasMore || loadingMore)) {
-      return;
-    }
-
-    try {
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-
-      const [wb, qs] = await Promise.all([
-        replace ? whiteboardService.getById(id) : Promise.resolve(whiteboard),
-        questionService.list(id, { page: nextPage, size: PAGE_SIZE, sort: 'recent' }),
-      ]);
-      if (wb) {
-        setWhiteboard(wb);
-        setCurrentWhiteboard(wb);
-      }
-      setQuestions((prev) => (replace ? qs.content : [...prev, ...qs.content]));
-      setPage(nextPage);
-      setHasMore(nextPage + 1 < qs.totalPages);
-      lastFetchRef.current = Date.now();
-      setLoadError(null);
-    } catch {
-      setLoadError('Failed to load this whiteboard.');
-      if (replace) {
-        setWhiteboard(null);
-        setQuestions([]);
-      }
-      setHasMore(false);
-    } finally {
-      if (replace) {
+  const fetchData = useCallback(
+    async (options?: { page?: number; replace?: boolean }) => {
+      if (!id) {
+        setLoadError('Missing whiteboard id.');
         setLoading(false);
-      } else {
-        setLoadingMore(false);
+        return;
       }
-    }
-  }, [hasMore, id, loadingMore, setCurrentWhiteboard, whiteboard]);
+
+      const nextPage = options?.page ?? 0;
+      const replace = options?.replace ?? true;
+      if (!replace && (!hasMore || loadingMore)) {
+        return;
+      }
+
+      try {
+        if (replace) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const [wb, qs] = await Promise.all([
+          replace ? whiteboardService.getById(id) : Promise.resolve(whiteboard),
+          questionService.list(id, { page: nextPage, size: PAGE_SIZE, sort: 'recent' }),
+        ]);
+        if (wb) {
+          setWhiteboard(wb);
+          setCurrentWhiteboard(wb);
+        }
+        setQuestions((prev) => (replace ? qs.content : [...prev, ...qs.content]));
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < qs.totalPages);
+        lastFetchRef.current = Date.now();
+        setLoadError(null);
+      } catch {
+        setLoadError('Failed to load this whiteboard.');
+        if (replace) {
+          setWhiteboard(null);
+          setQuestions([]);
+        }
+        setHasMore(false);
+      } finally {
+        if (replace) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
+      }
+    },
+    [hasMore, id, loadingMore, setCurrentWhiteboard, whiteboard]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -161,120 +179,127 @@ export default function WhiteboardDetailScreen() {
     await fetchData({ page: page + 1, replace: false });
   };
 
-  const pinnedQuestions = useMemo(
-    () => questions.filter((q) => q.isPinned),
-    [questions]
-  );
-  const regularQuestions = useMemo(
-    () => questions.filter((q) => !q.isPinned),
-    [questions]
-  );
+  const pinnedQuestions = useMemo(() => questions.filter((q) => q.isPinned), [questions]);
+  const regularQuestions = useMemo(() => questions.filter((q) => !q.isPinned), [questions]);
   const orderedQuestions = useMemo(
     () => [...pinnedQuestions, ...regularQuestions],
     [pinnedQuestions, regularQuestions]
   );
+
+  const topicFilters = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          questions
+            .filter((question) => question.topicId && question.topicName)
+            .map((question) => [question.topicId as string, question.topicName as string])
+        ),
+        ([id, name]) => ({ id, name })
+      ),
+    [questions]
+  );
+
+  const filteredQuestions = useMemo(() => {
+    return orderedQuestions.filter((question) => {
+      const statusMatch = statusFilter === 'ALL' || question.status === statusFilter;
+      const topicMatch = topicFilter === 'ALL' || question.topicId === topicFilter;
+      return statusMatch && topicMatch;
+    });
+  }, [orderedQuestions, statusFilter, topicFilter]);
 
   useEffect(() => {
     if (!id) {
       return;
     }
 
-    const subscription = subscribe(
-      `/topic/whiteboard/${id}/questions`,
-      (frame) => {
-        const { type, question, questionId } = parseQuestionMessage(frame.body);
-        const normalizedType = type?.toUpperCase() ?? '';
-        const isDeleteEvent =
-          normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
+    const subscription = subscribe(`/topic/whiteboard/${id}/questions`, (frame) => {
+      const { type, question, questionId } = parseQuestionMessage(frame.body);
+      const normalizedType = type?.toUpperCase() ?? '';
+      const isDeleteEvent = normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
 
-        if (isDeleteEvent && questionId) {
-          setQuestions((prev) => prev.filter((existing) => existing.id !== questionId));
-          return;
-        }
-
-        if (question) {
-          setQuestions((prev) => {
-            const index = prev.findIndex((existing) => existing.id === question.id);
-            if (index >= 0) {
-              const next = [...prev];
-              next[index] = question;
-              return sortQuestionsForFeed(next);
-            }
-            return sortQuestionsForFeed([question, ...prev]);
-          });
-        }
+      if (isDeleteEvent && questionId) {
+        setQuestions((prev) => prev.filter((existing) => existing.id !== questionId));
+        return;
       }
-    );
+
+      if (question) {
+        setQuestions((prev) => {
+          const index = prev.findIndex((existing) => existing.id === question.id);
+          if (index >= 0) {
+            const next = [...prev];
+            next[index] = question;
+            return sortQuestionsForFeed(next);
+          }
+          return sortQuestionsForFeed([question, ...prev]);
+        });
+      }
+    });
 
     return () => {
       subscription?.unsubscribe();
     };
   }, [id, subscribe]);
 
-  const renderQuestionCard = useCallback(({ item }: { item: QuestionResponse }) => (
-    <GlassCard
-      style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
-      accessibilityLabel={`Open question: ${item.title}`}
-      onPress={() =>
-        router.push({
-          pathname: '/question/[id]',
-          params: { id: item.id, whiteboardId: id },
-        })
-      }
-    >
-      {item.isPinned && (
-        <View style={styles.pinnedBanner}>
-          <Text style={styles.pinnedIcon}>{"\u{1F4CC}"}</Text>
-          <Text style={styles.pinnedText}>PINNED</Text>
-        </View>
-      )}
-
-      <View style={styles.questionHeader}>
-        {item.topicName && (
-          <TopicBadge name={item.topicName} style={styles.topicBadge} />
+  const renderQuestionCard = useCallback(
+    ({ item }: { item: QuestionResponse }) => (
+      <GlassCard
+        style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
+        accessibilityLabel={`Open question: ${item.title}`}
+        onPress={() =>
+          router.push({
+            pathname: '/question/[id]',
+            params: { id: item.id, whiteboardId: id },
+          })
+        }
+      >
+        {item.isPinned && (
+          <View style={styles.pinnedBanner}>
+            <Text style={styles.pinnedIcon}>{'\u{1F4CC}'}</Text>
+            <Text style={styles.pinnedText}>PINNED</Text>
+          </View>
         )}
-        <StatusBadge status={item.status} />
-      </View>
 
-      <Text style={styles.questionTitle} numberOfLines={2}>
-        {item.title}
-      </Text>
-
-      <Text style={styles.questionBody} numberOfLines={3}>
-        {item.body}
-      </Text>
-
-      <View style={styles.questionFooter}>
-        <Text style={styles.authorText}>{item.authorName}</Text>
-        <Text style={styles.dotSep}>{" \u00B7 "}</Text>
-        <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
-        <View style={styles.footerRight}>
-          <Text
-            style={[
-              styles.karmaText,
-              item.karmaScore > 0 && styles.karmaPositive,
-              item.karmaScore < 0 && styles.karmaNegative,
-            ]}
-          >
-            {"\u25B2"} {item.karmaScore}
-          </Text>
-          <Text style={styles.commentText}>
-            {"\u{1F4AC}"} {item.commentCount}
-          </Text>
-          {item.verifiedAnswerId && (
-            <Text style={styles.verifiedText}>{"\u2705"}</Text>
-          )}
+        <View style={styles.questionHeader}>
+          {item.topicName && <TopicBadge name={item.topicName} style={styles.topicBadge} />}
+          <StatusBadge status={item.status} />
         </View>
-      </View>
-    </GlassCard>
-  ), [id, router]);
+
+        <Text style={styles.questionTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+
+        <Text style={styles.questionBody} numberOfLines={3}>
+          {item.isHidden ? '[hidden]' : item.body}
+        </Text>
+
+        <View style={styles.questionFooter}>
+          <Text style={styles.authorText}>{item.authorName}</Text>
+          <Text style={styles.dotSep}>{' \u00B7 '}</Text>
+          <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+          <View style={styles.footerRight}>
+            <Text
+              style={[
+                styles.karmaText,
+                item.karmaScore > 0 && styles.karmaPositive,
+                item.karmaScore < 0 && styles.karmaNegative,
+              ]}
+            >
+              {'\u25B2'} {item.karmaScore}
+            </Text>
+            <Text style={styles.commentText}>
+              {'\u{1F4AC}'} {item.commentCount}
+            </Text>
+            {item.verifiedAnswerId && <Text style={styles.verifiedText}>{'\u2705'}</Text>}
+          </View>
+        </View>
+      </GlassCard>
+    ),
+    [id, router]
+  );
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1A1A2E', '#16213E', '#0F3460']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -283,10 +308,7 @@ export default function WhiteboardDetailScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -296,7 +318,7 @@ export default function WhiteboardDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
@@ -318,7 +340,7 @@ export default function WhiteboardDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="View whiteboard members"
             >
-              <Text style={styles.headerButtonIcon}>{"\u{1F465}"}</Text>
+              <Text style={styles.headerButtonIcon}>{'\u{1F465}'}</Text>
             </TouchableOpacity>
             {isFaculty && (
               <TouchableOpacity
@@ -332,20 +354,90 @@ export default function WhiteboardDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Open whiteboard settings"
               >
-                <Text style={styles.headerButtonIcon}>{"\u2699\uFE0F"}</Text>
+                <Text style={styles.headerButtonIcon}>{'\u2699\uFE0F'}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Status</Text>
+          <View style={styles.filterContainer}>
+            {FEED_STATUS_FILTERS.map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[
+                  styles.filterChip,
+                  statusFilter === filter.value && styles.filterChipActive,
+                ]}
+                onPress={() => setStatusFilter(filter.value)}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by ${filter.label}`}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    statusFilter === filter.value && styles.filterChipTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Topic</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            <TouchableOpacity
+              style={[styles.filterChip, topicFilter === 'ALL' && styles.filterChipActive]}
+              onPress={() => setTopicFilter('ALL')}
+              accessibilityRole="button"
+              accessibilityLabel="Filter by all topics"
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  topicFilter === 'ALL' && styles.filterChipTextActive,
+                ]}
+              >
+                All Topics
+              </Text>
+            </TouchableOpacity>
+            {topicFilters.map((topic) => (
+              <TouchableOpacity
+                key={topic.id}
+                style={[styles.filterChip, topicFilter === topic.id && styles.filterChipActive]}
+                onPress={() => setTopicFilter(topic.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter by topic ${topic.name}`}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    topicFilter === topic.id && styles.filterChipTextActive,
+                  ]}
+                >
+                  {topic.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Question Feed */}
         <FlatList
-          data={orderedQuestions}
+          data={filteredQuestions}
           renderItem={renderQuestionCard}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContent,
-            questions.length === 0 && styles.emptyList,
+            filteredQuestions.length === 0 && styles.emptyList,
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -357,24 +449,35 @@ export default function WhiteboardDetailScreen() {
           }
           ListHeaderComponent={
             pinnedQuestions.length > 0 ? (
-              <Text style={styles.sectionLabel}>
-                {pinnedQuestions.length} Pinned
-              </Text>
+              <Text style={styles.sectionLabel}>{pinnedQuestions.length} Pinned</Text>
             ) : null
           }
           ListEmptyComponent={
-            <EmptyState
-              icon={"\u2753"}
-              title="No Questions Yet"
-              subtitle={loadError || 'Be the first to ask a question in this class!'}
-              actionLabel="Ask a Question"
-              onAction={() =>
-                router.push({
-                  pathname: '/question/create',
-                  params: { whiteboardId: id },
-                })
-              }
-            />
+            questions.length > 0 ? (
+              <EmptyState
+                icon={'\u{1F50E}'}
+                title="No Matching Questions"
+                subtitle="Adjust filters to see more questions."
+                actionLabel="Clear Filters"
+                onAction={() => {
+                  setStatusFilter('ALL');
+                  setTopicFilter('ALL');
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={'\u2753'}
+                title="No Questions Yet"
+                subtitle={loadError || 'Be the first to ask a question in this class!'}
+                actionLabel="Ask a Question"
+                onAction={() =>
+                  router.push({
+                    pathname: '/question/create',
+                    params: { whiteboardId: id },
+                  })
+                }
+              />
+            )
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
@@ -400,7 +503,7 @@ export default function WhiteboardDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Ask a question"
         >
-          <Text style={styles.fabIcon}>{"+ Ask"}</Text>
+          <Text style={styles.fabIcon}>{'+ Ask'}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     </LinearGradient>
@@ -468,6 +571,50 @@ const styles = StyleSheet.create({
   },
   headerButtonIcon: {
     fontSize: 16,
+  },
+  filterSection: {
+    marginTop: 8,
+  },
+  filterTitle: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  filterRow: {
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    minHeight: 44,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipActive: {
+    backgroundColor: 'rgba(108,99,255,0.25)',
+    borderColor: Colors.primary,
+  },
+  filterChipText: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: Colors.primary,
   },
   sectionLabel: {
     fontSize: Fonts.sizes.sm,

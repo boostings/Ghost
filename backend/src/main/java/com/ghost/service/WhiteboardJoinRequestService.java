@@ -10,6 +10,7 @@ import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
+import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.JoinRequestRepository;
 import com.ghost.repository.UserRepository;
@@ -32,6 +33,7 @@ public class WhiteboardJoinRequestService {
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
     private final JoinRequestMapper joinRequestMapper;
     private final WhiteboardMembershipService whiteboardMembershipService;
 
@@ -129,6 +131,25 @@ public class WhiteboardJoinRequestService {
                 joinRequest.getId(),
                 oldStatus.name(),
                 status.name()
+        );
+
+        NotificationType notificationType = status == JoinRequestStatus.APPROVED
+                ? NotificationType.JOIN_REQUEST_APPROVED
+                : NotificationType.JOIN_REQUEST_REJECTED;
+        String title = status == JoinRequestStatus.APPROVED
+                ? "Join Request Approved"
+                : "Join Request Rejected";
+        String body = status == JoinRequestStatus.APPROVED
+                ? "Your request to join " + joinRequest.getWhiteboard().getCourseCode() + " was approved."
+                : "Your request to join " + joinRequest.getWhiteboard().getCourseCode() + " was rejected.";
+
+        notificationService.createAndSend(
+                joinRequest.getUser().getId(),
+                notificationType,
+                title,
+                body,
+                "Whiteboard",
+                whiteboardId
         );
     }
 

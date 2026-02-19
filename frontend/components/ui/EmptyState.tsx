@@ -26,11 +26,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       {actionLabel && onAction && (
         <View style={styles.actionContainer}>
-          <GlassButton
-            title={actionLabel}
-            onPress={onAction}
-            variant="secondary"
-          />
+          <GlassButton title={actionLabel} onPress={onAction} variant="secondary" />
         </View>
       )}
     </View>

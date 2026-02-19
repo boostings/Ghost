@@ -45,20 +45,15 @@ export const useWhiteboardStore = create<WhiteboardStore>()((set) => ({
   removeWhiteboard: (id: string) => {
     set((state) => ({
       whiteboards: state.whiteboards.filter((wb) => wb.id !== id),
-      currentWhiteboard:
-        state.currentWhiteboard?.id === id ? null : state.currentWhiteboard,
+      currentWhiteboard: state.currentWhiteboard?.id === id ? null : state.currentWhiteboard,
     }));
   },
 
   updateWhiteboard: (whiteboard: WhiteboardResponse) => {
     set((state) => ({
-      whiteboards: state.whiteboards.map((wb) =>
-        wb.id === whiteboard.id ? whiteboard : wb
-      ),
+      whiteboards: state.whiteboards.map((wb) => (wb.id === whiteboard.id ? whiteboard : wb)),
       currentWhiteboard:
-        state.currentWhiteboard?.id === whiteboard.id
-          ? whiteboard
-          : state.currentWhiteboard,
+        state.currentWhiteboard?.id === whiteboard.id ? whiteboard : state.currentWhiteboard,
     }));
   },
 

@@ -25,14 +25,11 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
   const arrowSize = isSmall ? Fonts.sizes.md : Fonts.sizes.xl;
   const scoreSize = isSmall ? Fonts.sizes.sm : Fonts.sizes.lg;
 
-  const scoreColor =
-    score > 0 ? '#00C851' : score < 0 ? '#FF4444' : Colors.text;
+  const scoreColor = score > 0 ? '#00C851' : score < 0 ? '#FF4444' : Colors.text;
 
-  const upvoteColor =
-    userVote === 'UPVOTE' ? '#00C851' : Colors.textMuted;
+  const upvoteColor = userVote === 'UPVOTE' ? '#00C851' : Colors.textMuted;
 
-  const downvoteColor =
-    userVote === 'DOWNVOTE' ? '#FF4444' : Colors.textMuted;
+  const downvoteColor = userVote === 'DOWNVOTE' ? '#FF4444' : Colors.textMuted;
 
   return (
     <View style={[styles.container, isSmall && styles.containerSmall]}>
@@ -43,19 +40,10 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Upvote"
       >
-        <Text style={[styles.arrow, { fontSize: arrowSize, color: upvoteColor }]}>
-          ▲
-        </Text>
+        <Text style={[styles.arrow, { fontSize: arrowSize, color: upvoteColor }]}>▲</Text>
       </TouchableOpacity>
 
-      <Text
-        style={[
-          styles.score,
-          { fontSize: scoreSize, color: scoreColor },
-        ]}
-      >
-        {score}
-      </Text>
+      <Text style={[styles.score, { fontSize: scoreSize, color: scoreColor }]}>{score}</Text>
 
       <TouchableOpacity
         onPress={onDownvote}
@@ -64,9 +52,7 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Downvote"
       >
-        <Text style={[styles.arrow, { fontSize: arrowSize, color: downvoteColor }]}>
-          ▼
-        </Text>
+        <Text style={[styles.arrow, { fontSize: arrowSize, color: downvoteColor }]}>▼</Text>
       </TouchableOpacity>
     </View>
   );

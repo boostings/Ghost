@@ -57,13 +57,15 @@ export default function WhiteboardSettingsScreen() {
 
   const handleCopyInviteCode = () => {
     if (whiteboard?.inviteCode) {
-      Clipboard.setStringAsync(whiteboard.inviteCode).then(() => {
-        Alert.alert('Copied', 'Invite code copied to clipboard.');
-      }).catch(() => {
-        Alert.alert('Invite Code', `The invite code is: ${whiteboard.inviteCode}`, [
-          { text: 'OK' },
-        ]);
-      });
+      Clipboard.setStringAsync(whiteboard.inviteCode)
+        .then(() => {
+          Alert.alert('Copied', 'Invite code copied to clipboard.');
+        })
+        .catch(() => {
+          Alert.alert('Invite Code', `The invite code is: ${whiteboard.inviteCode}`, [
+            { text: 'OK' },
+          ]);
+        });
     }
   };
 
@@ -73,7 +75,10 @@ export default function WhiteboardSettingsScreen() {
     setTransferring(true);
     try {
       await whiteboardService.transferOwnership(whiteboardId, transferEmail.trim());
-      Alert.alert('Success', 'Ownership has been transferred. You have been removed from this whiteboard.');
+      Alert.alert(
+        'Success',
+        'Ownership has been transferred. You have been removed from this whiteboard.'
+      );
       setShowTransferModal(false);
       router.back();
     } catch (error: unknown) {
@@ -120,10 +125,7 @@ export default function WhiteboardSettingsScreen() {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#1A1A2E', '#16213E', '#0F3460']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
         <SafeAreaView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </SafeAreaView>
@@ -132,10 +134,7 @@ export default function WhiteboardSettingsScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
@@ -145,7 +144,7 @@ export default function WhiteboardSettingsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{"\u2190"}</Text>
+            <Text style={styles.backArrow}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Whiteboard Settings</Text>
           <View style={styles.headerSpacer} />
@@ -190,9 +189,7 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Copy invite code"
             >
-              <Text style={styles.inviteCodeText}>
-                {whiteboard?.inviteCode || '------'}
-              </Text>
+              <Text style={styles.inviteCodeText}>{whiteboard?.inviteCode || '------'}</Text>
               <Text style={styles.copyText}>Tap to copy</Text>
             </TouchableOpacity>
 
@@ -201,7 +198,7 @@ export default function WhiteboardSettingsScreen() {
               onPress={handleOpenQrModal}
               activeOpacity={0.8}
             >
-              <Text style={styles.qrIcon}>{"\u{1F4F1}"}</Text>
+              <Text style={styles.qrIcon}>{'\u{1F4F1}'}</Text>
               <Text style={styles.qrText}>QR Code</Text>
               <Text style={styles.qrSubtext}>Students can scan this to join</Text>
             </TouchableOpacity>
@@ -222,14 +219,12 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Manage topics"
             >
-              <Text style={styles.menuIcon}>{"\u{1F3F7}\uFE0F"}</Text>
+              <Text style={styles.menuIcon}>{'\u{1F3F7}\uFE0F'}</Text>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Manage Topics</Text>
-                <Text style={styles.menuDescription}>
-                  Add or remove question topics
-                </Text>
+                <Text style={styles.menuDescription}>Add or remove question topics</Text>
               </View>
-              <Text style={styles.menuChevron}>{"\u203A"}</Text>
+              <Text style={styles.menuChevron}>{'\u203A'}</Text>
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -245,14 +240,12 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Manage members"
             >
-              <Text style={styles.menuIcon}>{"\u{1F465}"}</Text>
+              <Text style={styles.menuIcon}>{'\u{1F465}'}</Text>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Manage Members</Text>
-                <Text style={styles.menuDescription}>
-                  View members and join requests
-                </Text>
+                <Text style={styles.menuDescription}>View members and join requests</Text>
               </View>
-              <Text style={styles.menuChevron}>{"\u203A"}</Text>
+              <Text style={styles.menuChevron}>{'\u203A'}</Text>
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -268,14 +261,12 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open audit log"
             >
-              <Text style={styles.menuIcon}>{"\u{1F4CB}"}</Text>
+              <Text style={styles.menuIcon}>{'\u{1F4CB}'}</Text>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Audit Log</Text>
-                <Text style={styles.menuDescription}>
-                  View activity history
-                </Text>
+                <Text style={styles.menuDescription}>View activity history</Text>
               </View>
-              <Text style={styles.menuChevron}>{"\u203A"}</Text>
+              <Text style={styles.menuChevron}>{'\u203A'}</Text>
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -291,14 +282,12 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open moderation reports"
             >
-              <Text style={styles.menuIcon}>{"\u{1F6A9}"}</Text>
+              <Text style={styles.menuIcon}>{'\u{1F6A9}'}</Text>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Moderation</Text>
-                <Text style={styles.menuDescription}>
-                  Review reported content
-                </Text>
+                <Text style={styles.menuDescription}>Review reported content</Text>
               </View>
-              <Text style={styles.menuChevron}>{"\u203A"}</Text>
+              <Text style={styles.menuChevron}>{'\u203A'}</Text>
             </TouchableOpacity>
           </GlassCard>
 
@@ -335,8 +324,8 @@ export default function WhiteboardSettingsScreen() {
           title="Transfer Ownership"
         >
           <Text style={styles.modalDescription}>
-            Enter the email of the faculty member you want to transfer ownership to.
-            You will be removed from this whiteboard.
+            Enter the email of the faculty member you want to transfer ownership to. You will be
+            removed from this whiteboard.
           </Text>
 
           <GlassInput
@@ -361,7 +350,9 @@ export default function WhiteboardSettingsScreen() {
           visible={showQrModal}
           onClose={() => setShowQrModal(false)}
           inviteCode={whiteboard?.inviteCode ?? ''}
-          whiteboardName={whiteboard ? `${whiteboard.courseCode} - ${whiteboard.courseName}` : 'Whiteboard'}
+          whiteboardName={
+            whiteboard ? `${whiteboard.courseCode} - ${whiteboard.courseName}` : 'Whiteboard'
+          }
         />
       </SafeAreaView>
     </LinearGradient>

@@ -19,15 +19,12 @@ export const notificationService = {
   getNotifications: async (
     params?: PaginationParams
   ): Promise<PageResponse<NotificationResponse>> => {
-    const response = await api.get<PageResponse<NotificationResponse>>(
-      '/notifications',
-      {
-        params: {
-          page: params?.page ?? 0,
-          size: params?.size ?? Config.PAGE_SIZE,
-        },
-      }
-    );
+    const response = await api.get<PageResponse<NotificationResponse>>('/notifications', {
+      params: {
+        page: params?.page ?? 0,
+        size: params?.size ?? Config.PAGE_SIZE,
+      },
+    });
     return response.data;
   },
 
@@ -36,9 +33,7 @@ export const notificationService = {
    * GET /notifications/unread-count
    */
   getUnreadCount: async (): Promise<number> => {
-    const response = await api.get<UnreadCountResponse>(
-      '/notifications/unread-count'
-    );
+    const response = await api.get<UnreadCountResponse>('/notifications/unread-count');
     return response.data.count;
   },
 

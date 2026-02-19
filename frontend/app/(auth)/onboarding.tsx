@@ -185,10 +185,7 @@ export default function OnboardingScreen() {
   const demoJoined = joinedClasses.some((whiteboard) => whiteboard.isDemo);
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={['#1A1A2E', '#16213E', '#0F3460']} style={styles.gradient}>
       <SafeAreaView style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -197,11 +194,9 @@ export default function OnboardingScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.welcomeEmoji}>{"🎉"}</Text>
+            <Text style={styles.welcomeEmoji}>{'🎉'}</Text>
             <Text style={styles.title}>Welcome to Ghost!</Text>
-            <Text style={styles.subtitle}>
-              Join at least one class to continue
-            </Text>
+            <Text style={styles.subtitle}>Join at least one class to continue</Text>
           </View>
 
           {/* Join with Code */}
@@ -227,18 +222,13 @@ export default function OnboardingScreen() {
               disabled={joiningByCode || joiningDemo || !inviteCode.trim()}
             />
 
-            <TouchableOpacity
-              style={styles.qrButton}
-              onPress={openScanner}
-            >
-              <Text style={styles.qrIcon}>{"📷"}</Text>
+            <TouchableOpacity style={styles.qrButton} onPress={openScanner}>
+              <Text style={styles.qrIcon}>{'📷'}</Text>
               <View style={styles.qrTextContainer}>
                 <Text style={styles.qrTitle}>Scan QR Code</Text>
-                <Text style={styles.qrSubtitle}>
-                  Use your camera to scan the class QR code
-                </Text>
+                <Text style={styles.qrSubtitle}>Use your camera to scan the class QR code</Text>
               </View>
-              <Text style={styles.chevron}>{"›"}</Text>
+              <Text style={styles.chevron}>{'›'}</Text>
             </TouchableOpacity>
           </GlassCard>
 
@@ -301,14 +291,16 @@ export default function OnboardingScreen() {
               onPress={handleJoinDemo}
               disabled={joiningDemo || demoJoined}
             >
-              <Text style={styles.demoIcon}>{"🏫"}</Text>
+              <Text style={styles.demoIcon}>{'🏫'}</Text>
               <View style={styles.demoTextContainer}>
                 <Text style={styles.demoTitle}>Try the Demo Class</Text>
                 <Text style={styles.demoSubtitle}>
-                  {demoJoined ? 'You already joined the demo class' : 'Explore Ghost with sample Q&A data'}
+                  {demoJoined
+                    ? 'You already joined the demo class'
+                    : 'Explore Ghost with sample Q&A data'}
                 </Text>
               </View>
-              <Text style={styles.chevron}>{"›"}</Text>
+              <Text style={styles.chevron}>{'›'}</Text>
             </TouchableOpacity>
 
             <Text style={styles.joinedClassesTitle}>Joined Classes</Text>

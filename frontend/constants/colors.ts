@@ -1,9 +1,9 @@
 export const Colors = {
-  primary: '#6C63FF',        // deep indigo/purple
+  primary: '#6C63FF', // deep indigo/purple
   primaryDark: '#5A52D5',
   primaryLight: '#8B85FF',
   secondary: '#FF6584',
-  background: '#1A1A2E',     // deep dark blue-purple
+  background: '#1A1A2E', // deep dark blue-purple
   backgroundLight: '#16213E',
   surface: 'rgba(255, 255, 255, 0.10)',
   surfaceLight: 'rgba(255, 255, 255, 0.15)',

@@ -17,13 +17,16 @@ import com.ghost.model.enums.QuestionStatus;
 import com.ghost.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -38,6 +41,7 @@ public class CommentService {
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
     private final CommentMapper commentMapper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public CommentResponse createComment(UUID userId, UUID questionId, CreateCommentRequest req) {
@@ -82,7 +86,9 @@ public class CommentService {
             );
         }
 
-        return commentMapper.toResponse(comment, userId);
+        CommentResponse response = commentMapper.toResponse(comment, userId);
+        publishCommentEvent(question.getId(), "COMMENT_CREATED", response);
+        return response;
     }
 
     @Transactional
@@ -111,7 +117,9 @@ public class CommentService {
                 "Comment", commentId, oldBody, comment.getBody()
         );
 
-        return commentMapper.toResponse(comment, userId);
+        CommentResponse response = commentMapper.toResponse(comment, userId);
+        publishCommentEvent(questionId, "COMMENT_EDITED", response);
+        return response;
     }
 
     @Transactional
@@ -135,6 +143,9 @@ public class CommentService {
                 "Comment", commentId, comment.getBody(), null
         );
 
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id", commentId);
+        publishCommentEvent(questionId, "COMMENT_DELETED", payload);
         commentRepository.delete(comment);
     }
 
@@ -162,6 +173,7 @@ public class CommentService {
         // Set comment as verified answer
         comment.setVerifiedAnswer(true);
         commentRepository.save(comment);
+        publishCommentEvent(questionId, "COMMENT_UPDATED", commentMapper.toResponse(comment, facultyId));
 
         // Set question verified answer and close it
         questionService.markVerifiedAnswerAndClose(question.getId(), commentId);
@@ -223,6 +235,13 @@ public class CommentService {
         }
         return commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(questionId, pageable)
                 .map(comment -> commentMapper.toResponse(comment, userId));
+    }
+
+    private void publishCommentEvent(UUID questionId, String type, Object payload) {
+        Map<String, Object> message = new HashMap<>();
+        message.put("type", type);
+        message.put("payload", payload);
+        messagingTemplate.convertAndSend("/topic/question/" + questionId + "/comments", message);
     }
 
     private Comment getCommentByIdAndQuestion(UUID commentId, UUID questionId) {

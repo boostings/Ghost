@@ -23,12 +23,7 @@ interface GlassModalProps {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const GlassModal: React.FC<GlassModalProps> = ({
-  visible,
-  onClose,
-  title,
-  children,
-}) => {
+const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, children }) => {
   return (
     <Modal
       visible={visible}

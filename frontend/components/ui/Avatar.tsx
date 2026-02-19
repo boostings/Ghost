@@ -29,7 +29,7 @@ function hashName(firstName: string, lastName: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
   return Math.abs(hash);
@@ -41,21 +41,13 @@ function getInitials(firstName: string, lastName: string): string {
   return `${first}${last}`;
 }
 
-const Avatar: React.FC<AvatarProps> = ({
-  firstName,
-  lastName,
-  size = 40,
-  style,
-}) => {
+const Avatar: React.FC<AvatarProps> = ({ firstName, lastName, size = 40, style }) => {
   const backgroundColor = useMemo(() => {
     const hash = hashName(firstName, lastName);
     return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
   }, [firstName, lastName]);
 
-  const initials = useMemo(
-    () => getInitials(firstName, lastName),
-    [firstName, lastName]
-  );
+  const initials = useMemo(() => getInitials(firstName, lastName), [firstName, lastName]);
 
   const fontSize = size * 0.38;
 
@@ -72,14 +64,7 @@ const Avatar: React.FC<AvatarProps> = ({
         style,
       ]}
     >
-      <Text
-        style={[
-          styles.initials,
-          { fontSize, lineHeight: fontSize * 1.2 },
-        ]}
-      >
-        {initials}
-      </Text>
+      <Text style={[styles.initials, { fontSize, lineHeight: fontSize * 1.2 }]}>{initials}</Text>
     </View>
   );
 };

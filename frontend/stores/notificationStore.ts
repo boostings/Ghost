@@ -52,9 +52,7 @@ export const useNotificationStore = create<NotificationStore>()((set) => ({
   addNotification: (notification: NotificationResponse) => {
     set((state) => ({
       notifications: [notification, ...state.notifications],
-      unreadCount: notification.isRead
-        ? state.unreadCount
-        : state.unreadCount + 1,
+      unreadCount: notification.isRead ? state.unreadCount : state.unreadCount + 1,
     }));
   },
 
@@ -71,12 +69,8 @@ export const useNotificationStore = create<NotificationStore>()((set) => ({
       const wasUnread = notification && !notification.isRead;
 
       return {
-        notifications: state.notifications.map((n) =>
-          n.id === id ? { ...n, isRead: true } : n
-        ),
-        unreadCount: wasUnread
-          ? Math.max(0, state.unreadCount - 1)
-          : state.unreadCount,
+        notifications: state.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+        unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
       };
     });
   },

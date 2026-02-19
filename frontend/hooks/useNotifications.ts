@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
+import { useWebSocket } from './useWebSocket';
 import type { NotificationResponse } from '../types';
 
 // Configure how notifications appear when the app is in the foreground
@@ -42,6 +43,7 @@ export function useNotifications() {
   const user = useAuthStore((state) => state.user);
   const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
   const addNotification = useNotificationStore((state) => state.addNotification);
+  const { subscribe } = useWebSocket();
 
   const notificationListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
@@ -72,7 +74,8 @@ export function useNotifications() {
       }
 
       // Get the project ID from Constants
-      const projectId = Constants.default.expoConfig?.extra?.eas?.projectId ??
+      const projectId =
+        Constants.default.expoConfig?.extra?.eas?.projectId ??
         Constants.default.easConfig?.projectId;
 
       if (!projectId) {
@@ -132,71 +135,66 @@ export function useNotifications() {
    * Handle a notification tap - navigate to the relevant screen based on
    * the notification's reference type and ID.
    */
-  const handleNotificationResponse = useCallback(
-    (response: Notifications.NotificationResponse) => {
-      const data = response.notification.request.content.data as
-        | Record<string, unknown>
-        | undefined;
+  const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
+    const data = response.notification.request.content.data as Record<string, unknown> | undefined;
 
-      if (!data) return;
+    if (!data) return;
 
-      const referenceType = data.referenceType as string | undefined;
-      const referenceId = data.referenceId as string | undefined;
-      const whiteboardId = data.whiteboardId as string | undefined;
+    const referenceType = data.referenceType as string | undefined;
+    const referenceId = data.referenceId as string | undefined;
+    const whiteboardId = data.whiteboardId as string | undefined;
 
-      if (!referenceType || !referenceId) return;
+    if (!referenceType || !referenceId) return;
 
-      switch (referenceType) {
-        case 'QUESTION':
-          if (whiteboardId) {
-            router.push({
-              pathname: '/question/[id]',
-              params: { id: referenceId, whiteboardId },
-            });
-          } else {
-            router.push({
-              pathname: '/question/[id]',
-              params: { id: referenceId },
-            });
-          }
-          break;
-
-        case 'WHITEBOARD':
+    switch (referenceType) {
+      case 'QUESTION':
+        if (whiteboardId) {
           router.push({
-            pathname: '/whiteboard/[id]',
+            pathname: '/question/[id]',
+            params: { id: referenceId, whiteboardId },
+          });
+        } else {
+          router.push({
+            pathname: '/question/[id]',
             params: { id: referenceId },
           });
-          break;
+        }
+        break;
 
-        case 'COMMENT':
-          // Navigate to the parent question
-          if (data.questionId) {
-            router.push({
-              pathname: '/question/[id]',
-              params: {
-                id: data.questionId as string,
-                whiteboardId: whiteboardId ?? undefined,
-              },
-            });
-          }
-          break;
-
-        default:
-          // Navigate to the notifications tab
-          router.push('/(tabs)/notifications');
-          break;
-      }
-
-      // Mark the notification as read
-      const notificationId = data.notificationId as string | undefined;
-      if (notificationId) {
-        notificationService.markAsRead(notificationId).catch(() => {
-          console.warn('[Notifications] Failed to mark notification as read');
+      case 'WHITEBOARD':
+        router.push({
+          pathname: '/whiteboard/[id]',
+          params: { id: referenceId },
         });
-      }
-    },
-    []
-  );
+        break;
+
+      case 'COMMENT':
+        // Navigate to the parent question
+        if (data.questionId) {
+          router.push({
+            pathname: '/question/[id]',
+            params: {
+              id: data.questionId as string,
+              whiteboardId: whiteboardId ?? undefined,
+            },
+          });
+        }
+        break;
+
+      default:
+        // Navigate to the notifications tab
+        router.push('/(tabs)/notifications');
+        break;
+    }
+
+    // Mark the notification as read
+    const notificationId = data.notificationId as string | undefined;
+    if (notificationId) {
+      notificationService.markAsRead(notificationId).catch(() => {
+        console.warn('[Notifications] Failed to mark notification as read');
+      });
+    }
+  }, []);
 
   /**
    * Fetch the initial unread notification count from the server.
@@ -229,14 +227,14 @@ export function useNotifications() {
     fetchUnreadCount();
 
     // Listen for notifications received while app is in foreground
-    notificationListenerRef.current =
-      Notifications.addNotificationReceivedListener(handleNotificationReceived);
+    notificationListenerRef.current = Notifications.addNotificationReceivedListener(
+      handleNotificationReceived
+    );
 
     // Listen for notification taps
-    responseListenerRef.current =
-      Notifications.addNotificationResponseReceivedListener(
-        handleNotificationResponse
-      );
+    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse
+    );
 
     return () => {
       if (notificationListenerRef.current) {
@@ -254,6 +252,44 @@ export function useNotifications() {
     handleNotificationReceived,
     handleNotificationResponse,
   ]);
+
+  // Subscribe to personal WebSocket notifications for real-time updates.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      return;
+    }
+
+    const subscription = subscribe(`/topic/user/${user.id}/notifications`, (frame) => {
+      try {
+        const parsed = JSON.parse(frame.body) as Record<string, unknown>;
+        const notification: NotificationResponse = {
+          id: String(parsed.id ?? ''),
+          type: (parsed.type as NotificationResponse['type']) ?? 'COMMENT_ADDED',
+          title: String(parsed.title ?? ''),
+          body: parsed.body ? String(parsed.body) : null,
+          referenceType: parsed.referenceType ? String(parsed.referenceType) : null,
+          referenceId: parsed.referenceId ? String(parsed.referenceId) : null,
+          isRead: Boolean(parsed.isRead),
+          createdAt: parsed.createdAt ? String(parsed.createdAt) : new Date().toISOString(),
+        };
+
+        if (notification.id) {
+          const exists = useNotificationStore
+            .getState()
+            .notifications.some((item) => item.id === notification.id);
+          if (!exists) {
+            addNotification(notification);
+          }
+        }
+      } catch (error) {
+        console.warn('[Notifications] Failed to parse WebSocket notification', error);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [addNotification, isAuthenticated, subscribe, user?.id]);
 
   return {
     registerForPushNotifications,

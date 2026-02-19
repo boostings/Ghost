@@ -1,12 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  FlatList,
-  RefreshControl,
-  ActivityIndicator,
-} from 'react-native';
+import { StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
@@ -33,40 +26,43 @@ export default function BookmarksScreen() {
   const lastFetchRef = useRef(0);
   const PAGE_SIZE = 20;
 
-  const fetchBookmarks = useCallback(async (options?: { page?: number; replace?: boolean }) => {
-    const nextPage = options?.page ?? 0;
-    const replace = options?.replace ?? true;
-    if (!replace && (!hasMore || loadingMore)) {
-      return;
-    }
-
-    try {
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
+  const fetchBookmarks = useCallback(
+    async (options?: { page?: number; replace?: boolean }) => {
+      const nextPage = options?.page ?? 0;
+      const replace = options?.replace ?? true;
+      if (!replace && (!hasMore || loadingMore)) {
+        return;
       }
 
-      const response = await bookmarkService.list(nextPage, PAGE_SIZE);
-      setBookmarks((prev) => (replace ? response.content : [...prev, ...response.content]));
-      setPage(nextPage);
-      setHasMore(nextPage + 1 < response.totalPages);
-      setLoadError(null);
-      lastFetchRef.current = Date.now();
-    } catch {
-      if (replace) {
-        setBookmarks([]);
+      try {
+        if (replace) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const response = await bookmarkService.list(nextPage, PAGE_SIZE);
+        setBookmarks((prev) => (replace ? response.content : [...prev, ...response.content]));
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < response.totalPages);
+        setLoadError(null);
+        lastFetchRef.current = Date.now();
+      } catch {
+        if (replace) {
+          setBookmarks([]);
+        }
+        setHasMore(false);
+        setLoadError('Failed to load bookmarks. Pull down to retry.');
+      } finally {
+        if (replace) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
       }
-      setHasMore(false);
-      setLoadError('Failed to load bookmarks. Pull down to retry.');
-    } finally {
-      if (replace) {
-        setLoading(false);
-      } else {
-        setLoadingMore(false);
-      }
-    }
-  }, [hasMore, loadingMore]);
+    },
+    [hasMore, loadingMore]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -105,9 +101,7 @@ export default function BookmarksScreen() {
         }
       >
         <View style={styles.cardHeader}>
-          {question.topicName && (
-            <TopicBadge name={question.topicName} style={styles.topicBadge} />
-          )}
+          {question.topicName && <TopicBadge name={question.topicName} style={styles.topicBadge} />}
           <StatusBadge status={question.status} />
         </View>
 
@@ -116,27 +110,25 @@ export default function BookmarksScreen() {
         </Text>
 
         <Text style={styles.questionBody} numberOfLines={2}>
-          {question.body}
+          {question.isHidden ? '[hidden]' : question.body}
         </Text>
 
         <View style={styles.cardFooter}>
           <Text style={styles.authorText}>{question.authorName}</Text>
-          <Text style={styles.dotSeparator}>{" \u00B7 "}</Text>
+          <Text style={styles.dotSeparator}>{' \u00B7 '}</Text>
           <Text style={styles.dateText}>{formatDate(question.createdAt)}</Text>
           <View style={styles.footerRight}>
             <Text style={styles.statText}>
-              {"\u25B2"} {question.karmaScore}
+              {'\u25B2'} {question.karmaScore}
             </Text>
             <Text style={styles.statText}>
-              {"\u{1F4AC}"} {question.commentCount}
+              {'\u{1F4AC}'} {question.commentCount}
             </Text>
           </View>
         </View>
 
         <View style={styles.bookmarkMeta}>
-          <Text style={styles.bookmarkedText}>
-            Saved {formatDate(item.createdAt)}
-          </Text>
+          <Text style={styles.bookmarkedText}>Saved {formatDate(item.createdAt)}</Text>
         </View>
       </GlassCard>
     );
@@ -144,56 +136,52 @@ export default function BookmarksScreen() {
 
   return (
     <ScreenWrapper edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Bookmarks</Text>
-          {bookmarks.length > 0 && (
-            <Text style={styles.countText}>
-              {bookmarks.length} saved
-            </Text>
-          )}
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Bookmarks</Text>
+        {bookmarks.length > 0 && <Text style={styles.countText}>{bookmarks.length} saved</Text>}
+      </View>
 
-        {/* Bookmark List */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-          </View>
-        ) : (
-          <FlatList
-            data={bookmarks}
-            renderItem={renderBookmark}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.listContent,
-              bookmarks.length === 0 && styles.emptyList,
-            ]}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={Colors.primary}
-              />
-            }
-            ListEmptyComponent={
-              <EmptyState
-                icon={"\u2606"}
-                title="No Saved Questions"
-                subtitle={loadError || "Bookmark questions you want to revisit. They'll appear here for easy access."}
-              />
-            }
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.3}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                </View>
-              ) : null
-            }
-          />
-        )}
+      {/* Bookmark List */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={bookmarks}
+          renderItem={renderBookmark}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, bookmarks.length === 0 && styles.emptyList]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.primary}
+            />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={'\u2606'}
+              title="No Saved Questions"
+              subtitle={
+                loadError ||
+                "Bookmark questions you want to revisit. They'll appear here for easy access."
+              }
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+              </View>
+            ) : null
+          }
+        />
+      )}
     </ScreenWrapper>
   );
 }
