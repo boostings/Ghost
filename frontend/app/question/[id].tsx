@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
+import CommentCard from '../../components/CommentCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import KarmaDisplay from '../../components/ui/KarmaDisplay';
@@ -27,10 +28,51 @@ import { questionService } from '../../services/questionService';
 import { commentService } from '../../services/commentService';
 import { bookmarkService } from '../../services/bookmarkService';
 import { reportService } from '../../services/reportService';
-import { formatDate, formatFullDate } from '../../utils/formatDate';
+import { formatFullDate } from '../../utils/formatDate';
 import { extractErrorMessage } from '../../hooks/useApi';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { sanitizeText } from '../../utils/sanitize';
 import type { QuestionResponse, CommentResponse, VoteType, ReportReason } from '../../types';
+
+function sortCommentsByCreatedAt(comments: CommentResponse[]): CommentResponse[] {
+  return [...comments].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
+function parseCommentMessage(body: string): { type?: string; comment?: CommentResponse; commentId?: string } {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
+    }
+
+    const envelope = parsed as { type?: unknown; payload?: unknown; id?: unknown };
+    const type = typeof envelope.type === 'string' ? envelope.type : undefined;
+    const payload = envelope.payload ?? parsed;
+
+    if (payload && typeof payload === 'object') {
+      const payloadObj = payload as Record<string, unknown>;
+      const payloadId = typeof payloadObj.id === 'string' ? payloadObj.id : undefined;
+      const hasCommentShape =
+        typeof payloadObj.authorName === 'string' &&
+        typeof payloadObj.body === 'string' &&
+        typeof payloadObj.createdAt === 'string';
+
+      if (hasCommentShape && payloadId) {
+        return { type, comment: payloadObj as unknown as CommentResponse };
+      }
+      if (payloadId) {
+        return { type, commentId: payloadId };
+      }
+    }
+
+    const rootId = typeof envelope.id === 'string' ? envelope.id : undefined;
+    return { type, commentId: rootId };
+  } catch {
+    return {};
+  }
+}
 
 export default function QuestionDetailScreen() {
   const router = useRouter();
@@ -44,10 +86,12 @@ export default function QuestionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const lastFetchRef = useRef(0);
+  const { subscribe } = useWebSocket();
 
   const fetchData = useCallback(async () => {
     if (!id) {
@@ -90,6 +134,43 @@ export default function QuestionDetailScreen() {
     }, [fetchData, question])
   );
 
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    const subscription = subscribe(
+      `/topic/question/${id}/comments`,
+      (frame) => {
+        const { type, comment, commentId } = parseCommentMessage(frame.body);
+        const normalizedType = type?.toUpperCase() ?? '';
+        const isDeleteEvent =
+          normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
+
+        if (isDeleteEvent && commentId) {
+          setComments((prev) => prev.filter((existing) => existing.id !== commentId));
+          return;
+        }
+
+        if (comment) {
+          setComments((prev) => {
+            const index = prev.findIndex((existing) => existing.id === comment.id);
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = comment;
+              return sortCommentsByCreatedAt(next);
+            }
+            return sortCommentsByCreatedAt([...prev, comment]);
+          });
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [id, subscribe]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -98,11 +179,25 @@ export default function QuestionDetailScreen() {
 
   const handleSubmitComment = async () => {
     const sanitizedComment = sanitizeText(commentText);
-    if (!sanitizedComment || !id) return;
+    if (!sanitizedComment || !id || submitting) return;
+
     setSubmitting(true);
     try {
-      const newComment = await commentService.create(id, { body: sanitizedComment });
-      setComments((prev) => [...prev, newComment]);
+      if (editingCommentId) {
+        const updatedComment = await commentService.update(id, editingCommentId, {
+          body: sanitizedComment,
+        });
+        setComments((prev) =>
+          prev.map((comment) =>
+            comment.id === updatedComment.id ? updatedComment : comment
+          )
+        );
+        setEditingCommentId(null);
+      } else {
+        const newComment = await commentService.create(id, { body: sanitizedComment });
+        setComments((prev) => sortCommentsByCreatedAt([...prev, newComment]));
+      }
+
       setCommentText('');
       commentInputRef.current?.blur();
     } catch (error: unknown) {
@@ -110,6 +205,46 @@ export default function QuestionDetailScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleStartEditComment = (comment: CommentResponse) => {
+    if (isClosed) {
+      return;
+    }
+    setEditingCommentId(comment.id);
+    setCommentText(comment.body);
+    commentInputRef.current?.focus();
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setCommentText('');
+    commentInputRef.current?.blur();
+  };
+
+  const handleDeleteComment = (comment: CommentResponse) => {
+    if (!id) {
+      return;
+    }
+
+    Alert.alert('Delete Comment', 'Are you sure? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await commentService.delete(id, comment.id);
+            setComments((prev) => prev.filter((existing) => existing.id !== comment.id));
+            if (editingCommentId === comment.id) {
+              handleCancelEditComment();
+            }
+          } catch {
+            Alert.alert('Error', 'Failed to delete comment.');
+          }
+        },
+      },
+    ]);
   };
 
   const handleQuestionVote = async (voteType: VoteType) => {
@@ -210,28 +345,52 @@ export default function QuestionDetailScreen() {
     }
   };
 
-  const handleReport = () => {
-    Alert.alert('Report Content', 'Select a reason for reporting:', [
+  const handleReportQuestion = () => {
+    Alert.alert('Report Question', 'Select a reason for reporting:', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Spam',
-        onPress: () => submitReport('SPAM'),
+        onPress: () => submitReport('SPAM', { questionId: id }),
       },
       {
         text: 'Inappropriate',
-        onPress: () => submitReport('INAPPROPRIATE'),
+        onPress: () => submitReport('INAPPROPRIATE', { questionId: id }),
       },
       {
         text: 'Off Topic',
-        onPress: () => submitReport('OFF_TOPIC'),
+        onPress: () => submitReport('OFF_TOPIC', { questionId: id }),
       },
     ]);
   };
 
-  const submitReport = async (reason: ReportReason) => {
-    if (!id) return;
+  const handleReportComment = (commentId: string) => {
+    Alert.alert('Report Comment', 'Select a reason for reporting:', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Spam',
+        onPress: () => submitReport('SPAM', { commentId }),
+      },
+      {
+        text: 'Inappropriate',
+        onPress: () => submitReport('INAPPROPRIATE', { commentId }),
+      },
+      {
+        text: 'Off Topic',
+        onPress: () => submitReport('OFF_TOPIC', { commentId }),
+      },
+    ]);
+  };
+
+  const submitReport = async (
+    reason: ReportReason,
+    target: { questionId?: string; commentId?: string }
+  ) => {
+    if (!target.questionId && !target.commentId) {
+      return;
+    }
+
     try {
-      await reportService.create({ questionId: id, reason });
+      await reportService.create({ ...target, reason });
       Alert.alert('Reported', 'Thank you for your report. It will be reviewed by faculty.');
     } catch {
       Alert.alert('Error', 'Failed to submit report.');
@@ -268,62 +427,39 @@ export default function QuestionDetailScreen() {
   const isAuthor = question?.authorId === user?.id;
   const canEdit = isAuthor && !isClosed && !question?.verifiedAnswerId;
 
-  const renderComment = ({ item }: { item: CommentResponse }) => (
-    <GlassCard
-      style={[
-        styles.commentCard,
-        item.isVerifiedAnswer && styles.verifiedCard,
-      ]}
-    >
-      {item.isVerifiedAnswer && (
-        <View style={styles.verifiedBanner}>
-          <Text style={styles.verifiedIcon}>{"\u2705"}</Text>
-          <Text style={styles.verifiedText}>Verified Answer</Text>
-        </View>
-      )}
+  const renderComment = ({ item }: { item: CommentResponse }) => {
+    const isCommentAuthor = item.authorId === user?.id;
 
-      <View style={styles.commentRow}>
-        <KarmaDisplay
-          score={item.karmaScore}
-          userVote={item.userVote}
-          onUpvote={() => handleCommentVote(item.id, 'UPVOTE')}
-          onDownvote={() => handleCommentVote(item.id, 'DOWNVOTE')}
-          size="small"
-        />
-
-        <View style={styles.commentContent}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentAuthor}>{item.authorName}</Text>
-            <Text style={styles.commentDate}>{formatDate(item.createdAt)}</Text>
-          </View>
-
-          <Text style={styles.commentBody}>{item.body}</Text>
-
-          <View style={styles.commentActions}>
-            {isFaculty && !item.isVerifiedAnswer && !isClosed && (
-              <TouchableOpacity
-                onPress={() => handleVerifyAnswer(item.id)}
-                style={styles.actionButton}
-                accessibilityRole="button"
-                accessibilityLabel="Verify this answer"
-              >
-                <Text style={styles.actionButtonText}>{"\u2713 Verify"}</Text>
-              </TouchableOpacity>
-            )}
-            {item.canEdit && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                accessibilityRole="button"
-                accessibilityLabel="Edit comment"
-              >
-                <Text style={styles.actionButtonText}>Edit</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </View>
-    </GlassCard>
-  );
+    return (
+      <CommentCard
+        comment={item}
+        onUpvote={() => handleCommentVote(item.id, 'UPVOTE')}
+        onDownvote={() => handleCommentVote(item.id, 'DOWNVOTE')}
+        onEdit={
+          isCommentAuthor && item.canEdit
+            ? () => handleStartEditComment(item)
+            : undefined
+        }
+        onDelete={
+          isCommentAuthor || isFaculty
+            ? () => handleDeleteComment(item)
+            : undefined
+        }
+        onReport={
+          !isCommentAuthor
+            ? () => handleReportComment(item.id)
+            : undefined
+        }
+        onVerify={
+          isFaculty && !isClosed && !item.isVerifiedAnswer
+            ? () => handleVerifyAnswer(item.id)
+            : undefined
+        }
+        isCurrentUser={isCommentAuthor}
+        canDelete={isCommentAuthor || isFaculty}
+      />
+    );
+  };
 
   if (loading) {
     return (
@@ -374,7 +510,7 @@ export default function QuestionDetailScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={handleReport}
+                onPress={handleReportQuestion}
                 style={styles.headerButton}
                 accessibilityRole="button"
                 accessibilityLabel="Report question"
@@ -546,11 +682,23 @@ export default function QuestionDetailScreen() {
           {/* Comment Input */}
           {!isClosed && (
             <View style={styles.commentInputContainer}>
+              {editingCommentId && (
+                <View style={styles.editingBanner}>
+                  <Text style={styles.editingText}>Editing comment</Text>
+                  <TouchableOpacity
+                    onPress={handleCancelEditComment}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel comment edit"
+                  >
+                    <Text style={styles.editingCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               <View style={styles.commentInputRow}>
                 <TextInput
                   ref={commentInputRef}
                   style={styles.commentInput}
-                  placeholder="Write a comment..."
+                  placeholder={editingCommentId ? 'Update your comment...' : 'Write a comment...'}
                   placeholderTextColor={Colors.textMuted}
                   value={commentText}
                   onChangeText={setCommentText}
@@ -571,7 +719,7 @@ export default function QuestionDetailScreen() {
                   {submitting ? (
                     <ActivityIndicator size="small" color={Colors.text} />
                   ) : (
-                    <Text style={styles.sendIcon}>{"\u2191"}</Text>
+                    <Text style={styles.sendIcon}>{editingCommentId ? '\u2713' : '\u2191'}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -832,6 +980,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+  },
+  editingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(108,99,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(108,99,255,0.3)',
+  },
+  editingText: {
+    color: Colors.textSecondary,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
+  },
+  editingCancelText: {
+    color: Colors.primary,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
   },
   commentInputRow: {
     flexDirection: 'row',

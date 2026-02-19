@@ -10,6 +10,7 @@ import com.ghost.exception.UnauthorizedException;
 import com.ghost.mapper.QuestionMapper;
 import com.ghost.model.Question;
 import com.ghost.model.Topic;
+import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.NotificationType;
@@ -17,6 +18,7 @@ import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
+import com.ghost.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +35,7 @@ public class QuestionService {
 
     private final QuestionRepository questionRepository;
     private final TopicRepository topicRepository;
+    private final UserRepository userRepository;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
@@ -264,11 +267,15 @@ public class QuestionService {
         Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
-        whiteboardService.verifyFacultyRole(req.getTargetFacultyId(), question.getWhiteboard().getId());
+        User targetFaculty = userRepository.findById(req.getTargetFacultyId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", req.getTargetFacultyId()));
+        if (targetFaculty.getRole() != Role.FACULTY) {
+            throw new BadRequestException("Question can only be forwarded to a faculty member");
+        }
 
         // Create notification for target faculty
         notificationService.createAndSend(
-                req.getTargetFacultyId(),
+                targetFaculty.getId(),
                 NotificationType.QUESTION_FORWARDED,
                 "Question Forwarded",
                 "A question has been forwarded to you: " + question.getTitle(),
@@ -278,7 +285,7 @@ public class QuestionService {
 
         auditLogService.logAction(
                 question.getWhiteboard().getId(), facultyId, AuditAction.QUESTION_FORWARDED,
-                "Question", questionId, null, "Forwarded to: " + req.getTargetFacultyId()
+                "Question", questionId, null, "Forwarded to: " + targetFaculty.getId()
         );
     }
 

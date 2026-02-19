@@ -166,6 +166,17 @@ public class CommentService {
         // Set question verified answer and close it
         questionService.markVerifiedAnswerAndClose(question.getId(), commentId);
 
+        // Log question status transition caused by verified answer.
+        auditLogService.logAction(
+                question.getWhiteboard().getId(),
+                facultyId,
+                AuditAction.QUESTION_CLOSED,
+                "Question",
+                question.getId(),
+                QuestionStatus.OPEN.name(),
+                QuestionStatus.CLOSED.name()
+        );
+
         // Log audit
         auditLogService.logAction(
                 question.getWhiteboard().getId(), facultyId, AuditAction.VERIFIED_ANSWER_PROVIDED,

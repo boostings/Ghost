@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -22,8 +22,52 @@ import { useAuthStore } from '../../stores/authStore';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { formatDate } from '../../utils/formatDate';
 import type { QuestionResponse, WhiteboardResponse } from '../../types';
+
+function sortQuestionsForFeed(questions: QuestionResponse[]): QuestionResponse[] {
+  return [...questions].sort((a, b) => {
+    if (a.isPinned !== b.isPinned) {
+      return a.isPinned ? -1 : 1;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
+
+function parseQuestionMessage(body: string): { type?: string; question?: QuestionResponse; questionId?: string } {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
+    }
+
+    const envelope = parsed as { type?: unknown; payload?: unknown; id?: unknown };
+    const type = typeof envelope.type === 'string' ? envelope.type : undefined;
+    const payload = envelope.payload ?? parsed;
+
+    if (payload && typeof payload === 'object') {
+      const payloadObj = payload as Record<string, unknown>;
+      const payloadId = typeof payloadObj.id === 'string' ? payloadObj.id : undefined;
+      const hasQuestionShape =
+        typeof payloadObj.title === 'string' &&
+        typeof payloadObj.body === 'string' &&
+        typeof payloadObj.status === 'string';
+
+      if (hasQuestionShape && payloadId) {
+        return { type, question: payloadObj as unknown as QuestionResponse };
+      }
+      if (payloadId) {
+        return { type, questionId: payloadId };
+      }
+    }
+
+    const rootId = typeof envelope.id === 'string' ? envelope.id : undefined;
+    return { type, questionId: rootId };
+  } catch {
+    return {};
+  }
+}
 
 export default function WhiteboardDetailScreen() {
   const router = useRouter();
@@ -41,6 +85,7 @@ export default function WhiteboardDetailScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const lastFetchRef = useRef(0);
   const PAGE_SIZE = 20;
+  const { subscribe } = useWebSocket();
 
   const isFaculty = user?.role === 'FACULTY';
 
@@ -128,6 +173,43 @@ export default function WhiteboardDetailScreen() {
     () => [...pinnedQuestions, ...regularQuestions],
     [pinnedQuestions, regularQuestions]
   );
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    const subscription = subscribe(
+      `/topic/whiteboard/${id}/questions`,
+      (frame) => {
+        const { type, question, questionId } = parseQuestionMessage(frame.body);
+        const normalizedType = type?.toUpperCase() ?? '';
+        const isDeleteEvent =
+          normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
+
+        if (isDeleteEvent && questionId) {
+          setQuestions((prev) => prev.filter((existing) => existing.id !== questionId));
+          return;
+        }
+
+        if (question) {
+          setQuestions((prev) => {
+            const index = prev.findIndex((existing) => existing.id === question.id);
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = question;
+              return sortQuestionsForFeed(next);
+            }
+            return sortQuestionsForFeed([question, ...prev]);
+          });
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [id, subscribe]);
 
   const renderQuestionCard = useCallback(({ item }: { item: QuestionResponse }) => (
     <GlassCard

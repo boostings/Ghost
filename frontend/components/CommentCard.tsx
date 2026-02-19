@@ -16,6 +16,7 @@ interface CommentCardProps {
   onReport?: () => void;
   onVerify?: () => void;
   isCurrentUser?: boolean;
+  canDelete?: boolean;
 }
 
 function formatTimestamp(dateString: string): string {
@@ -53,6 +54,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
   onReport,
   onVerify,
   isCurrentUser = false,
+  canDelete,
 }) => {
   const { firstName, lastName } = parseAuthorName(comment.authorName);
   const wasEdited = comment.updatedAt !== comment.createdAt;
@@ -129,7 +131,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
           )}
 
           {/* Delete Button (own comment) */}
-          {isCurrentUser && onDelete && (
+          {(canDelete ?? isCurrentUser) && onDelete && (
             <TouchableOpacity
               onPress={onDelete}
               style={styles.actionButton}
