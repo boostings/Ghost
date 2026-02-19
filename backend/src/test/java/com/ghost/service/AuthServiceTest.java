@@ -7,7 +7,6 @@ import com.ghost.dto.response.AuthResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
-import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
@@ -67,6 +66,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(whiteboardMembershipRepository.findByUserId(any(UUID.class))).thenReturn(List.of());
+        lenient().when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(any(UUID.class))).thenReturn(List.of());
         lenient().when(whiteboardRepository.findByOwnerId(any(UUID.class))).thenReturn(List.of());
     }
 
@@ -235,13 +235,9 @@ class AuthServiceTest {
                 .id(userId)
                 .email("student@ilstu.edu")
                 .build();
-        WhiteboardMembership membership = WhiteboardMembership.builder()
-                .user(user)
-                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
-                .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(whiteboardMembershipRepository.findByUserId(userId)).thenReturn(List.of(membership));
+        when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(userId)).thenReturn(List.of(whiteboardId));
 
         authService.deleteAccount(userId);
 

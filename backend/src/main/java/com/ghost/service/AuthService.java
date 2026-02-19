@@ -254,11 +254,11 @@ public class AuthService {
     }
 
     private void logUserDeletion(UUID targetId, String oldValue, String newValue) {
-        List<WhiteboardMembership> memberships = whiteboardMembershipRepository.findByUserId(targetId);
-        if (!memberships.isEmpty()) {
-            for (WhiteboardMembership membership : memberships) {
+        List<UUID> whiteboardIds = whiteboardMembershipRepository.findWhiteboardIdsByUserId(targetId);
+        if (!whiteboardIds.isEmpty()) {
+            for (UUID whiteboardId : whiteboardIds) {
                 auditLogService.logAction(
-                        membership.getWhiteboard().getId(),
+                        whiteboardId,
                         null,
                         AuditAction.USER_REMOVED,
                         "User",
