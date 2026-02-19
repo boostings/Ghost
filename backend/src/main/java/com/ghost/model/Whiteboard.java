@@ -11,8 +11,14 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "whiteboards")
-@Data
+@Table(
+        name = "whiteboards",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_whiteboards_course_semester", columnNames = {"course_code", "semester"})
+        }
+)
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -32,7 +38,7 @@ public class Whiteboard {
     @Column(name = "section")
     private String section;
 
-    @Column(name = "semester")
+    @Column(name = "semester", nullable = false)
     private String semester;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -41,7 +47,7 @@ public class Whiteboard {
     @EqualsAndHashCode.Exclude
     private User owner;
 
-    @Column(name = "invite_code", unique = true)
+    @Column(name = "invite_code", unique = true, nullable = false)
     private String inviteCode;
 
     @Column(name = "is_demo", nullable = false)

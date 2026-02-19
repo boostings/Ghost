@@ -10,8 +10,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "join_requests")
-@Data
+@Table(
+        name = "join_requests",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_join_requests_user_whiteboard", columnNames = {"user_id", "whiteboard_id"})
+        }
+)
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

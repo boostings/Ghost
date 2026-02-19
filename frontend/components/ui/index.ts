@@ -8,3 +8,6 @@ export { default as KarmaDisplay } from './KarmaDisplay';
 export { default as StatusBadge } from './StatusBadge';
 export { default as EmptyState } from './EmptyState';
 export { default as LoadingSkeleton } from './LoadingSkeleton';
+export { default as ScreenWrapper } from './ScreenWrapper';
+export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as NetworkStatusBanner } from './NetworkStatusBanner';

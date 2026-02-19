@@ -12,7 +12,8 @@ import java.util.UUID;
 @Table(name = "whiteboard_memberships", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"whiteboard_id", "user_id"})
 })
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -4,12 +4,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +22,7 @@ public class CreateQuestionRequest {
     private String title;
 
     @NotBlank(message = "Body is required")
+    @Size(max = 10000, message = "Body must not exceed 10000 characters")
     private String body;
 
     private UUID topicId;

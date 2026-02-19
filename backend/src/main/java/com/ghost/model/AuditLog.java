@@ -1,6 +1,7 @@
 package com.ghost.model;
 
 import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.AuditTargetType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,7 +11,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "audit_logs")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,8 +39,10 @@ public class AuditLog {
     @Column(name = "action", nullable = false)
     private AuditAction action;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "target_type")
-    private String targetType;
+    @Builder.Default
+    private AuditTargetType targetType = AuditTargetType.UNKNOWN;
 
     @Column(name = "target_id")
     private UUID targetId;

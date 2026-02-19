@@ -1,6 +1,8 @@
 package com.ghost.repository;
 
 import com.ghost.model.WhiteboardMembership;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,7 +17,11 @@ public interface WhiteboardMembershipRepository extends JpaRepository<Whiteboard
 
     List<WhiteboardMembership> findByUserId(UUID userId);
 
+    Page<WhiteboardMembership> findByUserId(UUID userId, Pageable pageable);
+
     List<WhiteboardMembership> findByWhiteboardId(UUID whiteboardId);
+
+    Page<WhiteboardMembership> findByWhiteboardId(UUID whiteboardId, Pageable pageable);
 
     boolean existsByWhiteboardIdAndUserId(UUID whiteboardId, UUID userId);
 

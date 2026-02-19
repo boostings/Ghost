@@ -1,9 +1,12 @@
 package com.ghost.service;
 
+import com.ghost.dto.response.AuditLogResponse;
+import com.ghost.mapper.AuditLogMapper;
 import com.ghost.model.AuditLog;
-import com.ghost.model.Whiteboard;
 import com.ghost.model.User;
+import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.AuditTargetType;
 import com.ghost.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +25,7 @@ import java.util.UUID;
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
+    private final AuditLogMapper auditLogMapper;
 
     @Transactional
     public void logAction(UUID whiteboardId, UUID actorId, AuditAction action,
@@ -30,7 +34,7 @@ public class AuditLogService {
                 .whiteboard(Whiteboard.builder().id(whiteboardId).build())
                 .actor(User.builder().id(actorId).build())
                 .action(action)
-                .targetType(targetType)
+                .targetType(AuditTargetType.from(targetType))
                 .targetId(targetId)
                 .oldValue(oldValue)
                 .newValue(newValue)
@@ -41,8 +45,11 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditLog> getAuditLogs(UUID whiteboardId, Pageable pageable) {
-        return auditLogRepository.findByWhiteboardIdOrderByCreatedAtDesc(whiteboardId, pageable);
+    public Page<AuditLogResponse> getAuditLogs(UUID whiteboardId, Pageable pageable, AuditAction action) {
+        Page<AuditLog> page = action == null
+                ? auditLogRepository.findByWhiteboardIdOrderByCreatedAtDesc(whiteboardId, pageable)
+                : auditLogRepository.findByWhiteboardIdAndAction(whiteboardId, action, pageable);
+        return page.map(auditLogMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -63,10 +70,10 @@ public class AuditLogService {
             csv.append(escapeCsv(entry.getCreatedAt() != null ? entry.getCreatedAt().format(formatter) : "")).append(",");
             csv.append(escapeCsv(entry.getActor() != null ? entry.getActor().getId().toString() : "")).append(",");
             csv.append(escapeCsv(entry.getAction().name())).append(",");
-            csv.append(escapeCsv(entry.getTargetType() != null ? entry.getTargetType() : "")).append(",");
+            csv.append(escapeCsv(entry.getTargetType() != null ? entry.getTargetType().name() : "")).append(",");
             csv.append(escapeCsv(entry.getTargetId() != null ? entry.getTargetId().toString() : "")).append(",");
-            csv.append(escapeCsv(entry.getOldValue() != null ? entry.getOldValue() : "")).append(",");
-            csv.append(escapeCsv(entry.getNewValue() != null ? entry.getNewValue() : ""));
+            csv.append(escapeCsv(auditLogMapper.redactSensitive(entry.getOldValue() != null ? entry.getOldValue() : ""))).append(",");
+            csv.append(escapeCsv(auditLogMapper.redactSensitive(entry.getNewValue() != null ? entry.getNewValue() : "")));
             csv.append("\n");
         }
 
@@ -76,6 +83,12 @@ public class AuditLogService {
     private String escapeCsv(String value) {
         if (value == null) {
             return "";
+        }
+        if (!value.isEmpty()) {
+            char leading = value.charAt(0);
+            if (leading == '=' || leading == '+' || leading == '-' || leading == '@') {
+                value = "'" + value;
+            }
         }
         if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
             return "\"" + value.replace("\"", "\"\"") + "\"";

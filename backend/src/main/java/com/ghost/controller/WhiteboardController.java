@@ -1,30 +1,27 @@
 package com.ghost.controller;
 
 import com.ghost.dto.request.CreateWhiteboardRequest;
+import com.ghost.dto.request.EmailRequest;
 import com.ghost.dto.request.JoinRequestActionRequest;
+import com.ghost.dto.request.JoinWhiteboardRequest;
 import com.ghost.dto.request.TransferOwnershipRequest;
+import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
+import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
-import com.ghost.model.JoinRequest;
-import com.ghost.model.User;
-import com.ghost.model.Whiteboard;
-import com.ghost.model.WhiteboardMembership;
-import com.ghost.model.enums.JoinRequestStatus;
-import com.ghost.repository.JoinRequestRepository;
-import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.service.WhiteboardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/whiteboards")
@@ -32,27 +29,36 @@ import java.util.stream.Collectors;
 public class WhiteboardController {
 
     private final WhiteboardService whiteboardService;
-    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
-    private final JoinRequestRepository joinRequestRepository;
 
     @PostMapping
     public ResponseEntity<WhiteboardResponse> createWhiteboard(
             @AuthenticationPrincipal String userIdStr,
             @Valid @RequestBody CreateWhiteboardRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        Whiteboard whiteboard = whiteboardService.createWhiteboard(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(mapToWhiteboardResponse(whiteboard));
+        WhiteboardResponse whiteboard = whiteboardService.createWhiteboardResponse(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(whiteboard);
     }
 
     @GetMapping
-    public ResponseEntity<List<WhiteboardResponse>> getWhiteboards(
-            @AuthenticationPrincipal String userIdStr) {
+    public ResponseEntity<PageResponse<WhiteboardResponse>> getWhiteboards(
+            @AuthenticationPrincipal String userIdStr,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
-        List<Whiteboard> whiteboards = whiteboardService.getWhiteboardsForUser(userId);
-        List<WhiteboardResponse> response = whiteboards.stream()
-                .map(this::mapToWhiteboardResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<WhiteboardResponse> whiteboards = whiteboardService.getWhiteboardResponsesForUser(userId, pageable);
+        return ResponseEntity.ok(PageResponse.from(whiteboards));
+    }
+
+    @GetMapping("/discover")
+    public ResponseEntity<PageResponse<WhiteboardResponse>> getDiscoverableWhiteboards(
+            @AuthenticationPrincipal String userIdStr,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        UUID userId = UUID.fromString(userIdStr);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<WhiteboardResponse> discoverable = whiteboardService.getDiscoverableWhiteboards(userId, pageable);
+        return ResponseEntity.ok(PageResponse.from(discoverable));
     }
 
     @GetMapping("/{id}")
@@ -60,9 +66,8 @@ public class WhiteboardController {
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.verifyMembership(userId, id);
-        Whiteboard whiteboard = whiteboardService.getWhiteboardById(id);
-        return ResponseEntity.ok(mapToWhiteboardResponse(whiteboard));
+        WhiteboardResponse whiteboard = whiteboardService.getWhiteboardResponse(userId, id);
+        return ResponseEntity.ok(whiteboard);
     }
 
     @DeleteMapping("/{id}")
@@ -78,10 +83,19 @@ public class WhiteboardController {
     public ResponseEntity<Void> joinWhiteboard(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body) {
+            @Valid @RequestBody JoinWhiteboardRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.joinByInviteCode(userId, body.get("inviteCode"));
-        return ResponseEntity.ok().build();
+        whiteboardService.joinByInviteCode(userId, id, request.getInviteCode());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/join-by-invite")
+    public ResponseEntity<Void> joinWhiteboardByInvite(
+            @AuthenticationPrincipal String userIdStr,
+            @Valid @RequestBody JoinWhiteboardRequest request) {
+        UUID userId = UUID.fromString(userIdStr);
+        whiteboardService.joinByInviteCode(userId, request.getInviteCode());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/request-join")
@@ -89,21 +103,20 @@ public class WhiteboardController {
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id) {
         UUID userId = UUID.fromString(userIdStr);
-        JoinRequest joinRequest = whiteboardService.requestToJoin(userId, id);
-        return ResponseEntity.status(HttpStatus.CREATED).body(mapToJoinRequestResponse(joinRequest));
+        JoinRequestResponse joinRequest = whiteboardService.requestToJoinResponse(userId, id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(joinRequest);
     }
 
     @GetMapping("/{id}/join-requests")
-    public ResponseEntity<List<JoinRequestResponse>> getJoinRequests(
+    public ResponseEntity<PageResponse<JoinRequestResponse>> getJoinRequests(
             @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID id) {
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.verifyFacultyRole(userId, id);
-        List<JoinRequest> requests = joinRequestRepository.findByWhiteboardIdAndStatus(id, JoinRequestStatus.PENDING);
-        List<JoinRequestResponse> response = requests.stream()
-                .map(this::mapToJoinRequestResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<JoinRequestResponse> requests = whiteboardService.getJoinRequestResponses(userId, id, pageable);
+        return ResponseEntity.ok(PageResponse.from(requests));
     }
 
     @PutMapping("/{id}/join-requests/{reqId}")
@@ -113,21 +126,20 @@ public class WhiteboardController {
             @PathVariable UUID reqId,
             @Valid @RequestBody JoinRequestActionRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.handleJoinRequest(userId, reqId, request.getStatus());
-        return ResponseEntity.ok().build();
+        whiteboardService.handleJoinRequest(userId, id, reqId, request.getStatus());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/members")
-    public ResponseEntity<List<UserResponse>> getMembers(
+    public ResponseEntity<PageResponse<UserResponse>> getMembers(
             @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID id) {
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.verifyMembership(userId, id);
-        List<WhiteboardMembership> memberships = whiteboardService.getMembers(id);
-        List<UserResponse> response = memberships.stream()
-                .map(m -> mapToUserResponse(m.getUser()))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<UserResponse> members = whiteboardService.getMemberResponses(userId, id, pageable);
+        return ResponseEntity.ok(PageResponse.from(members));
     }
 
     @DeleteMapping("/{id}/members/{memberId}")
@@ -144,10 +156,10 @@ public class WhiteboardController {
     public ResponseEntity<Void> enlistUser(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body) {
+            @Valid @RequestBody EmailRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.enlistUser(userId, id, body.get("email"));
-        return ResponseEntity.ok().build();
+        whiteboardService.enlistUser(userId, id, request.getEmail());
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/transfer-ownership")
@@ -157,17 +169,17 @@ public class WhiteboardController {
             @Valid @RequestBody TransferOwnershipRequest request) {
         UUID userId = UUID.fromString(userIdStr);
         whiteboardService.transferOwnership(userId, id, request.getNewOwnerEmail());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/invite-faculty")
     public ResponseEntity<Void> inviteFaculty(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body) {
+            @Valid @RequestBody EmailRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.inviteFaculty(userId, id, body.get("email"));
-        return ResponseEntity.ok().build();
+        whiteboardService.inviteFaculty(userId, id, request.getEmail());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/leave")
@@ -180,60 +192,10 @@ public class WhiteboardController {
     }
 
     @GetMapping("/{id}/invite-info")
-    public ResponseEntity<Map<String, String>> getInviteInfo(
+    public ResponseEntity<InviteInfoResponse> getInviteInfo(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.verifyFacultyRole(userId, id);
-        Whiteboard whiteboard = whiteboardService.getWhiteboardById(id);
-        Map<String, String> response = Map.of(
-                "inviteCode", whiteboard.getInviteCode(),
-                "qrData", "ghost://join/" + whiteboard.getInviteCode()
-        );
-        return ResponseEntity.ok(response);
-    }
-
-    private WhiteboardResponse mapToWhiteboardResponse(Whiteboard wb) {
-        long memberCount = whiteboardMembershipRepository.countByWhiteboardId(wb.getId());
-        User owner = wb.getOwner();
-        return WhiteboardResponse.builder()
-                .id(wb.getId())
-                .courseCode(wb.getCourseCode())
-                .courseName(wb.getCourseName())
-                .section(wb.getSection())
-                .semester(wb.getSemester())
-                .ownerId(owner.getId())
-                .ownerName(owner.getFirstName() + " " + owner.getLastName())
-                .inviteCode(wb.getInviteCode())
-                .isDemo(wb.isDemo())
-                .memberCount(memberCount)
-                .createdAt(wb.getCreatedAt())
-                .build();
-    }
-
-    private JoinRequestResponse mapToJoinRequestResponse(JoinRequest jr) {
-        User user = jr.getUser();
-        return JoinRequestResponse.builder()
-                .id(jr.getId())
-                .userId(user.getId())
-                .userName(user.getFirstName() + " " + user.getLastName())
-                .userEmail(user.getEmail())
-                .whiteboardId(jr.getWhiteboard().getId())
-                .status(jr.getStatus())
-                .createdAt(jr.getCreatedAt())
-                .build();
-    }
-
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .role(user.getRole())
-                .karmaScore(user.getKarmaScore())
-                .emailVerified(user.isEmailVerified())
-                .createdAt(user.getCreatedAt())
-                .build();
+        return ResponseEntity.ok(whiteboardService.getInviteInfo(userId, id));
     }
 }

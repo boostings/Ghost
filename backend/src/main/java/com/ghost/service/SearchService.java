@@ -1,25 +1,25 @@
 package com.ghost.service;
 
-import com.ghost.model.Question;
+import com.ghost.dto.response.QuestionResponse;
+import com.ghost.exception.BadRequestException;
+import com.ghost.mapper.QuestionMapper;
+import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.QuestionStatus;
+import com.ghost.model.enums.Role;
 import com.ghost.repository.QuestionRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -28,99 +28,95 @@ import java.util.UUID;
 public class SearchService {
 
     private final QuestionRepository questionRepository;
-
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
+    private final WhiteboardService whiteboardService;
+    private final QuestionMapper questionMapper;
 
     @Transactional(readOnly = true)
-    public Page<Question> search(String query, UUID whiteboardId, UUID topicId,
-                                  String status, Pageable pageable) {
-        // If a full-text search query is provided and only whiteboardId filter,
-        // use the native full-text search
-        if (query != null && !query.isBlank() && whiteboardId != null
-                && topicId == null && status == null) {
-            return questionRepository.searchByWhiteboardId(whiteboardId, query.trim(), pageable);
-        }
-
-        // Otherwise, build a dynamic query using JPA Criteria API
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Question> cq = cb.createQuery(Question.class);
-        Root<Question> root = cq.from(Question.class);
-
-        List<Predicate> predicates = new ArrayList<>();
-
-        // Always exclude hidden questions
-        predicates.add(cb.isFalse(root.get("isHidden")));
+    public Page<QuestionResponse> search(UUID userId, String query, UUID whiteboardId, UUID topicId,
+                                         String status, Pageable pageable) {
+        Map<UUID, Role> whiteboardRoles = new HashMap<>();
 
         if (whiteboardId != null) {
-            predicates.add(cb.equal(root.get("whiteboard").get("id"), whiteboardId));
-        }
-
-        if (topicId != null) {
-            predicates.add(cb.equal(root.get("topic").get("id"), topicId));
-        }
-
-        if (status != null && !status.isBlank()) {
-            try {
-                QuestionStatus questionStatus = QuestionStatus.valueOf(status.toUpperCase());
-                predicates.add(cb.equal(root.get("status"), questionStatus));
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid status filter: {}", status);
+            WhiteboardMembership membership = whiteboardService.verifyMembership(userId, whiteboardId);
+            whiteboardRoles.put(whiteboardId, membership.getRole());
+        } else {
+            for (WhiteboardMembership membership : whiteboardMembershipRepository.findByUserId(userId)) {
+                whiteboardRoles.put(membership.getWhiteboard().getId(), membership.getRole());
+            }
+            if (whiteboardRoles.isEmpty()) {
+                return Page.empty(pageable);
             }
         }
 
-        if (query != null && !query.isBlank()) {
-            String likePattern = "%" + query.trim().toLowerCase() + "%";
-            Predicate titleMatch = cb.like(cb.lower(root.get("title")), likePattern);
-            Predicate bodyMatch = cb.like(cb.lower(root.get("body")), likePattern);
-            predicates.add(cb.or(titleMatch, bodyMatch));
-        }
-
-        cq.where(predicates.toArray(new Predicate[0]));
-        cq.orderBy(
-                cb.desc(root.get("isPinned")),
-                cb.desc(root.get("createdAt"))
-        );
-
-        // Count query
-        CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
-        Root<Question> countRoot = countQuery.from(Question.class);
-        List<Predicate> countPredicates = new ArrayList<>();
-
-        countPredicates.add(cb.isFalse(countRoot.get("isHidden")));
-
-        if (whiteboardId != null) {
-            countPredicates.add(cb.equal(countRoot.get("whiteboard").get("id"), whiteboardId));
-        }
-        if (topicId != null) {
-            countPredicates.add(cb.equal(countRoot.get("topic").get("id"), topicId));
-        }
+        QuestionStatus parsedStatus = null;
         if (status != null && !status.isBlank()) {
             try {
-                QuestionStatus questionStatus = QuestionStatus.valueOf(status.toUpperCase());
-                countPredicates.add(cb.equal(countRoot.get("status"), questionStatus));
+                parsedStatus = QuestionStatus.valueOf(status.toUpperCase());
             } catch (IllegalArgumentException e) {
-                // Already logged above
+                throw new BadRequestException("Invalid status filter: " + status);
             }
         }
+
+        Specification<com.ghost.model.Question> spec = Specification.where(notHidden());
+        if (whiteboardId != null) {
+            spec = spec.and(inWhiteboard(whiteboardId));
+        } else {
+            spec = spec.and(inWhiteboards(whiteboardRoles.keySet()));
+        }
+        if (topicId != null) {
+            spec = spec.and(hasTopic(topicId));
+        }
+        if (parsedStatus != null) {
+            spec = spec.and(hasStatus(parsedStatus));
+        }
         if (query != null && !query.isBlank()) {
-            String likePattern = "%" + query.trim().toLowerCase() + "%";
-            Predicate titleMatch = cb.like(cb.lower(countRoot.get("title")), likePattern);
-            Predicate bodyMatch = cb.like(cb.lower(countRoot.get("body")), likePattern);
-            countPredicates.add(cb.or(titleMatch, bodyMatch));
+            spec = spec.and(matchesQuery(query.trim()));
         }
 
-        countQuery.select(cb.count(countRoot));
-        countQuery.where(countPredicates.toArray(new Predicate[0]));
-        Long totalCount = entityManager.createQuery(countQuery).getSingleResult();
+        Pageable sortedPageable = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        Sort.by(Sort.Order.desc("isPinned"), Sort.Order.desc("createdAt"))
+                );
 
-        // Execute paginated query
-        TypedQuery<Question> typedQuery = entityManager.createQuery(cq);
-        typedQuery.setFirstResult((int) pageable.getOffset());
-        typedQuery.setMaxResults(pageable.getPageSize());
+        return questionRepository.findAll(spec, sortedPageable)
+                .map(question -> {
+                    Role role = whiteboardRoles.get(question.getWhiteboard().getId());
+                    boolean includeModerationData = role == Role.FACULTY;
+                    return questionMapper.toResponse(question, userId, includeModerationData);
+                });
+    }
 
-        List<Question> results = typedQuery.getResultList();
+    private Specification<com.ghost.model.Question> notHidden() {
+        return (root, query, cb) -> cb.isFalse(root.get("isHidden"));
+    }
 
-        return new PageImpl<>(results, pageable, totalCount);
+    private Specification<com.ghost.model.Question> inWhiteboard(UUID whiteboardId) {
+        return (root, query, cb) -> cb.equal(root.get("whiteboard").get("id"), whiteboardId);
+    }
+
+    private Specification<com.ghost.model.Question> inWhiteboards(Iterable<UUID> whiteboardIds) {
+        return (root, query, cb) -> root.get("whiteboard").get("id").in(whiteboardIds);
+    }
+
+    private Specification<com.ghost.model.Question> hasTopic(UUID topicId) {
+        return (root, query, cb) -> cb.equal(root.get("topic").get("id"), topicId);
+    }
+
+    private Specification<com.ghost.model.Question> hasStatus(QuestionStatus status) {
+        return (root, query, cb) -> cb.equal(root.get("status"), status);
+    }
+
+    private Specification<com.ghost.model.Question> matchesQuery(String queryText) {
+        return (root, query, cb) -> {
+            String likePattern = "%" + queryText.toLowerCase() + "%";
+            return cb.or(
+                    cb.like(cb.lower(root.get("title")), likePattern),
+                    cb.like(cb.lower(root.get("body")), likePattern)
+            );
+        };
     }
 }

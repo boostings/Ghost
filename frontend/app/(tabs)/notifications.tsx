@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,12 +8,11 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -44,71 +43,123 @@ function getNotificationIcon(type: string): string {
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const {
-    notifications,
-    setNotifications,
-    markAsRead,
-    markAllAsRead: storeMarkAllAsRead,
-    setLoading,
-    isLoading,
-  } = useNotificationStore();
+  const notifications = useNotificationStore((state) => state.notifications);
+  const setNotifications = useNotificationStore((state) => state.setNotifications);
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const storeMarkAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+  const setLoading = useNotificationStore((state) => state.setLoading);
+  const isLoading = useNotificationStore((state) => state.isLoading);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastFetchRef = useRef(0);
+  const PAGE_SIZE = 20;
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await notificationService.list(0, 50);
-      setNotifications(response.content);
-    } catch {
-      setNotifications([]);
+  const fetchNotifications = useCallback(async (options?: { page?: number; replace?: boolean }) => {
+    const nextPage = options?.page ?? 0;
+    const replace = options?.replace ?? true;
+
+    if (!replace && (!hasMore || loadingMore)) {
+      return;
     }
-  }, []);
+
+    try {
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await notificationService.list(nextPage, PAGE_SIZE);
+      const current = replace ? [] : useNotificationStore.getState().notifications;
+      const merged = [...current, ...response.content];
+      setNotifications(merged);
+      setPage(nextPage);
+      setHasMore(nextPage + 1 < response.totalPages);
+      lastFetchRef.current = Date.now();
+      setLoadError(null);
+    } catch {
+      setLoadError('Failed to load notifications. Pull down to retry.');
+      if (replace) {
+        setNotifications([]);
+      }
+      setHasMore(false);
+    } finally {
+      if (replace) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [hasMore, loadingMore, setLoading, setNotifications]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchNotifications();
-    }, [fetchNotifications])
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (notifications.length === 0 || isStale) {
+        fetchNotifications({ page: 0, replace: true });
+      }
+    }, [fetchNotifications, notifications.length])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchNotifications();
+    await fetchNotifications({ page: 0, replace: true });
     setRefreshing(false);
   };
 
-  const handleNotificationPress = async (notification: NotificationResponse) => {
+  const handleLoadMore = async () => {
+    if (!hasMore || loadingMore || isLoading) {
+      return;
+    }
+    await fetchNotifications({ page: page + 1, replace: false });
+  };
+
+  const handleNotificationPress = useCallback(async (notification: NotificationResponse) => {
     if (!notification.isRead) {
       markAsRead(notification.id);
       try {
         await notificationService.markAsRead(notification.id);
       } catch {
-        // Ignore
+        // Keep optimistic UI and avoid interrupting navigation.
+        console.warn('[Notifications] Failed to mark notification as read');
       }
     }
 
     if (notification.referenceType === 'QUESTION' && notification.referenceId) {
-      router.push(`/question/${notification.referenceId}`);
+      router.push({
+        pathname: '/question/[id]',
+        params: { id: notification.referenceId },
+      });
     } else if (notification.referenceType === 'WHITEBOARD' && notification.referenceId) {
-      router.push(`/whiteboard/${notification.referenceId}`);
+      router.push({
+        pathname: '/whiteboard/[id]',
+        params: { id: notification.referenceId },
+      });
     }
-  };
+  }, [markAsRead, router]);
 
   const handleMarkAllAsRead = async () => {
     storeMarkAllAsRead();
     try {
       await notificationService.markAllAsRead();
     } catch {
-      // Ignore
+      console.warn('[Notifications] Failed to mark all as read');
     }
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const renderNotification = ({ item }: { item: NotificationResponse }) => (
+  const renderNotification = useCallback(({ item }: { item: NotificationResponse }) => (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => handleNotificationPress(item)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open notification: ${item.title}`}
     >
       <GlassCard
         style={[
@@ -143,19 +194,19 @@ export default function NotificationsScreen() {
         </View>
       </GlassCard>
     </TouchableOpacity>
-  );
+  ), [handleNotificationPress]);
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Notifications</Text>
           {unreadCount > 0 && (
-            <TouchableOpacity onPress={handleMarkAllAsRead}>
+            <TouchableOpacity
+              onPress={handleMarkAllAsRead}
+              accessibilityRole="button"
+              accessibilityLabel="Mark all notifications as read"
+            >
               <Text style={styles.markAllText}>Mark all as read</Text>
             </TouchableOpacity>
           )}
@@ -187,13 +238,21 @@ export default function NotificationsScreen() {
               <EmptyState
                 icon={"\u{1F514}"}
                 title="No Notifications"
-                subtitle="You're all caught up! Notifications will appear here when there's activity on your questions."
+                subtitle={loadError || "You're all caught up! Notifications will appear here when there's activity on your questions."}
               />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
             }
           />
         )}
-      </SafeAreaView>
-    </LinearGradient>
+    </ScreenWrapper>
   );
 }
 
@@ -286,5 +345,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     marginTop: 6,
     marginLeft: 8,
+  },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

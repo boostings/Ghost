@@ -1,11 +1,17 @@
 package com.ghost.service;
 
 import com.ghost.dto.request.CreateWhiteboardRequest;
+import com.ghost.dto.response.InviteInfoResponse;
+import com.ghost.dto.response.JoinRequestResponse;
+import com.ghost.dto.response.UserResponse;
+import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
+import com.ghost.mapper.JoinRequestMapper;
+import com.ghost.mapper.UserMapper;
+import com.ghost.mapper.WhiteboardMapper;
 import com.ghost.model.JoinRequest;
-import com.ghost.model.Topic;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
@@ -13,21 +19,20 @@ import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.JoinRequestRepository;
-import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.repository.WhiteboardRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,15 +42,17 @@ public class WhiteboardService {
     private final WhiteboardRepository whiteboardRepository;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final UserRepository userRepository;
-    private final TopicRepository topicRepository;
     private final JoinRequestRepository joinRequestRepository;
     private final AuditLogService auditLogService;
+    private final TopicService topicService;
+    private final WhiteboardMapper whiteboardMapper;
+    private final JoinRequestMapper joinRequestMapper;
+    private final UserMapper userMapper;
 
-    private static final String INVITE_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final String INVITE_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int INVITE_CODE_LENGTH = 8;
-    private static final List<String> DEFAULT_TOPIC_NAMES = Arrays.asList(
-            "Homework", "Exam", "Lecture", "General"
-    );
+    private static final int INVITE_CODE_MAX_ATTEMPTS = 10;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public Whiteboard createWhiteboard(UUID facultyId, CreateWhiteboardRequest req) {
@@ -56,21 +63,45 @@ public class WhiteboardService {
             throw new UnauthorizedException("Only faculty members can create whiteboards");
         }
 
+        String normalizedCourseCode = normalizeCourseCode(req.getCourseCode());
+        String normalizedSemester = normalizeSemester(req.getSemester());
+        String normalizedCourseName = req.getCourseName().trim();
+        String normalizedSection = normalizeSection(req.getSection());
+
         // Auto-merge: return existing whiteboard if one already exists for this courseCode+semester
         Optional<Whiteboard> existing = whiteboardRepository.findByCourseCodeAndSemester(
-                req.getCourseCode(), req.getSemester());
+                normalizedCourseCode, normalizedSemester);
         if (existing.isPresent()) {
-            return existing.get();
+            Whiteboard existingWhiteboard = existing.get();
+            if (!whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(existingWhiteboard.getId(), facultyId)) {
+                WhiteboardMembership facultyMembership = WhiteboardMembership.builder()
+                        .whiteboard(existingWhiteboard)
+                        .user(faculty)
+                        .role(Role.FACULTY)
+                        .build();
+                whiteboardMembershipRepository.save(facultyMembership);
+
+                auditLogService.logAction(
+                        existingWhiteboard.getId(),
+                        facultyId,
+                        AuditAction.USER_ENLISTED,
+                        "User",
+                        facultyId,
+                        null,
+                        "Auto-merged into existing whiteboard as faculty"
+                );
+            }
+            return existingWhiteboard;
         }
 
         // Generate random 8-char invite code
         String inviteCode = generateInviteCode();
 
         Whiteboard whiteboard = Whiteboard.builder()
-                .courseCode(req.getCourseCode())
-                .courseName(req.getCourseName())
-                .section(req.getSection())
-                .semester(req.getSemester())
+                .courseCode(normalizedCourseCode)
+                .courseName(normalizedCourseName)
+                .section(normalizedSection)
+                .semester(normalizedSemester)
                 .owner(faculty)
                 .inviteCode(inviteCode)
                 .build();
@@ -86,7 +117,7 @@ public class WhiteboardService {
         whiteboardMembershipRepository.save(membership);
 
         // Create default topics
-        createDefaultTopics(whiteboard);
+        topicService.createDefaultTopics(whiteboard.getId(), facultyId);
 
         // Log audit
         auditLogService.logAction(
@@ -98,9 +129,28 @@ public class WhiteboardService {
     }
 
     @Transactional
+    public WhiteboardResponse createWhiteboardResponse(UUID facultyId, CreateWhiteboardRequest req) {
+        Whiteboard whiteboard = createWhiteboard(facultyId, req);
+        return whiteboardMapper.toResponse(whiteboard, true);
+    }
+
+    @Transactional
+    public void joinByInviteCode(UUID userId, UUID whiteboardId, String inviteCode) {
+        Whiteboard whiteboard = findWhiteboardByInviteCode(inviteCode);
+        if (!whiteboard.getId().equals(whiteboardId)) {
+            throw new BadRequestException("Invite code does not match whiteboard");
+        }
+        joinWhiteboard(userId, whiteboard);
+    }
+
+    @Transactional
     public void joinByInviteCode(UUID userId, String inviteCode) {
-        Whiteboard whiteboard = whiteboardRepository.findByInviteCode(inviteCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Whiteboard", "inviteCode", inviteCode));
+        Whiteboard whiteboard = findWhiteboardByInviteCode(inviteCode);
+        joinWhiteboard(userId, whiteboard);
+    }
+
+    private void joinWhiteboard(UUID userId, Whiteboard whiteboard) {
+        UUID whiteboardId = whiteboard.getId();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
@@ -116,6 +166,16 @@ public class WhiteboardService {
                 .role(Role.STUDENT)
                 .build();
         whiteboardMembershipRepository.save(membership);
+
+        auditLogService.logAction(
+                whiteboardId,
+                userId,
+                AuditAction.USER_ENLISTED,
+                "User",
+                userId,
+                null,
+                "Joined via invite code"
+        );
     }
 
     @Transactional
@@ -144,33 +204,71 @@ public class WhiteboardService {
                 .status(JoinRequestStatus.PENDING)
                 .build();
 
-        return joinRequestRepository.save(joinRequest);
+        JoinRequest saved = joinRequestRepository.save(joinRequest);
+        auditLogService.logAction(
+                whiteboardId,
+                userId,
+                AuditAction.JOIN_REQUEST_SUBMITTED,
+                "JoinRequest",
+                saved.getId(),
+                null,
+                JoinRequestStatus.PENDING.name()
+        );
+        return saved;
     }
 
     @Transactional
-    public void handleJoinRequest(UUID facultyId, UUID requestId, JoinRequestStatus status) {
+    public JoinRequestResponse requestToJoinResponse(UUID userId, UUID whiteboardId) {
+        return joinRequestMapper.toResponse(requestToJoin(userId, whiteboardId));
+    }
+
+    @Transactional
+    public void handleJoinRequest(UUID facultyId, UUID whiteboardId, UUID requestId, JoinRequestStatus status) {
         JoinRequest joinRequest = joinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("JoinRequest", "id", requestId));
+        if (!joinRequest.getWhiteboard().getId().equals(whiteboardId)) {
+            throw new ResourceNotFoundException("JoinRequest", "id", requestId);
+        }
 
         // Verify faculty has FACULTY role in the whiteboard
-        verifyFacultyRole(facultyId, joinRequest.getWhiteboard().getId());
+        verifyFacultyRole(facultyId, whiteboardId);
 
         User reviewer = userRepository.findById(facultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", facultyId));
+        if (joinRequest.getStatus() != JoinRequestStatus.PENDING) {
+            throw new BadRequestException("Only pending join requests can be reviewed");
+        }
+        if (status == JoinRequestStatus.PENDING) {
+            throw new BadRequestException("Join request status must be APPROVED or REJECTED");
+        }
+        JoinRequestStatus oldStatus = joinRequest.getStatus();
 
         if (status == JoinRequestStatus.APPROVED) {
-            // Add membership
-            WhiteboardMembership membership = WhiteboardMembership.builder()
-                    .whiteboard(joinRequest.getWhiteboard())
-                    .user(joinRequest.getUser())
-                    .role(Role.STUDENT)
-                    .build();
-            whiteboardMembershipRepository.save(membership);
+            UUID requestWhiteboardId = joinRequest.getWhiteboard().getId();
+            UUID targetUserId = joinRequest.getUser().getId();
+            if (!whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(requestWhiteboardId, targetUserId)) {
+                WhiteboardMembership membership = WhiteboardMembership.builder()
+                        .whiteboard(joinRequest.getWhiteboard())
+                        .user(joinRequest.getUser())
+                        .role(Role.STUDENT)
+                        .build();
+                whiteboardMembershipRepository.save(membership);
+            }
         }
 
         joinRequest.setStatus(status);
         joinRequest.setReviewedByUser(reviewer);
         joinRequestRepository.save(joinRequest);
+
+        auditLogService.logAction(
+                whiteboardId,
+                facultyId,
+                AuditAction.JOIN_REQUEST_REVIEWED,
+                "JoinRequest",
+                joinRequest.getId(),
+                oldStatus.name(),
+                status.name()
+        );
     }
 
     @Transactional
@@ -179,7 +277,8 @@ public class WhiteboardService {
 
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
 
-        User user = userRepository.findByEmail(userEmail.toLowerCase())
+        String normalizedEmail = normalizeEmail(userEmail);
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         // Check not already a member
@@ -196,7 +295,7 @@ public class WhiteboardService {
 
         auditLogService.logAction(
                 whiteboardId, facultyId, AuditAction.USER_ENLISTED,
-                "User", user.getId(), null, userEmail
+                "User", user.getId(), null, normalizedEmail
         );
     }
 
@@ -225,7 +324,7 @@ public class WhiteboardService {
             throw new UnauthorizedException("Only the owner can transfer ownership");
         }
 
-        User newOwner = userRepository.findByEmail(newOwnerEmail.toLowerCase())
+        User newOwner = userRepository.findByEmail(normalizeEmail(newOwnerEmail))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", newOwnerEmail));
 
         // Verify new owner has FACULTY role
@@ -266,7 +365,7 @@ public class WhiteboardService {
             throw new UnauthorizedException("Only the owner can invite faculty");
         }
 
-        User faculty = userRepository.findByEmail(facultyEmail.toLowerCase())
+        User faculty = userRepository.findByEmail(normalizeEmail(facultyEmail))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", facultyEmail));
 
         // Verify user has FACULTY role
@@ -285,6 +384,16 @@ public class WhiteboardService {
                 .role(Role.FACULTY)
                 .build();
         whiteboardMembershipRepository.save(membership);
+
+        auditLogService.logAction(
+                whiteboardId,
+                ownerId,
+                AuditAction.FACULTY_INVITED,
+                "User",
+                faculty.getId(),
+                null,
+                faculty.getEmail()
+        );
     }
 
     @Transactional
@@ -317,14 +426,48 @@ public class WhiteboardService {
                 .orElseThrow(() -> new ResourceNotFoundException("WhiteboardMembership", "userId", userId));
 
         whiteboardMembershipRepository.delete(membership);
+
+        auditLogService.logAction(
+                whiteboardId,
+                userId,
+                AuditAction.USER_LEFT_WHITEBOARD,
+                "User",
+                userId,
+                "member",
+                "left"
+        );
     }
 
     @Transactional(readOnly = true)
     public List<Whiteboard> getWhiteboardsForUser(UUID userId) {
-        List<WhiteboardMembership> memberships = whiteboardMembershipRepository.findByUserId(userId);
-        return memberships.stream()
+        return whiteboardMembershipRepository.findByUserId(userId).stream()
                 .map(WhiteboardMembership::getWhiteboard)
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WhiteboardResponse> getWhiteboardResponsesForUser(UUID userId, Pageable pageable) {
+        return whiteboardMembershipRepository.findByUserId(userId, pageable)
+                .map(membership -> whiteboardMapper.toResponse(
+                        membership.getWhiteboard(),
+                        membership.getRole() == Role.FACULTY
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WhiteboardResponse> getDiscoverableWhiteboards(UUID userId, Pageable pageable) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        return whiteboardRepository.findDiscoverableForUser(userId, pageable)
+                .map(whiteboard -> whiteboardMapper.toResponse(whiteboard, false));
+    }
+
+    @Transactional(readOnly = true)
+    public WhiteboardResponse getWhiteboardResponse(UUID userId, UUID whiteboardId) {
+        WhiteboardMembership membership = verifyMembership(userId, whiteboardId);
+        Whiteboard whiteboard = getWhiteboardById(whiteboardId);
+        return whiteboardMapper.toResponse(whiteboard, membership.getRole() == Role.FACULTY);
     }
 
     @Transactional(readOnly = true)
@@ -336,6 +479,34 @@ public class WhiteboardService {
     @Transactional(readOnly = true)
     public List<WhiteboardMembership> getMembers(UUID whiteboardId) {
         return whiteboardMembershipRepository.findByWhiteboardId(whiteboardId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserResponse> getMemberResponses(UUID userId, UUID whiteboardId, Pageable pageable) {
+        verifyMembership(userId, whiteboardId);
+        return whiteboardMembershipRepository.findByWhiteboardId(whiteboardId, pageable)
+                .map(WhiteboardMembership::getUser)
+                .map(userMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<JoinRequestResponse> getJoinRequestResponses(UUID facultyId, UUID whiteboardId, Pageable pageable) {
+        verifyFacultyRole(facultyId, whiteboardId);
+        return joinRequestRepository.findByWhiteboardIdAndStatusOrderByCreatedAtDesc(
+                whiteboardId,
+                JoinRequestStatus.PENDING,
+                pageable
+        ).map(joinRequestMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public InviteInfoResponse getInviteInfo(UUID facultyId, UUID whiteboardId) {
+        verifyFacultyRole(facultyId, whiteboardId);
+        Whiteboard whiteboard = getWhiteboardById(whiteboardId);
+        return InviteInfoResponse.builder()
+                .inviteCode(whiteboard.getInviteCode())
+                .qrData("ghost://join/" + whiteboard.getInviteCode())
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -354,22 +525,45 @@ public class WhiteboardService {
     }
 
     private String generateInviteCode() {
-        SecureRandom random = new SecureRandom();
-        StringBuilder code = new StringBuilder(INVITE_CODE_LENGTH);
-        for (int i = 0; i < INVITE_CODE_LENGTH; i++) {
-            code.append(INVITE_CODE_CHARS.charAt(random.nextInt(INVITE_CODE_CHARS.length())));
+        int attempts = 0;
+        while (attempts++ < INVITE_CODE_MAX_ATTEMPTS) {
+            StringBuilder code = new StringBuilder(INVITE_CODE_LENGTH);
+            for (int i = 0; i < INVITE_CODE_LENGTH; i++) {
+                code.append(INVITE_CODE_CHARS.charAt(secureRandom.nextInt(INVITE_CODE_CHARS.length())));
+            }
+            String inviteCode = code.toString();
+            if (!whiteboardRepository.existsByInviteCodeIgnoreCase(inviteCode)) {
+                return inviteCode;
+            }
         }
-        return code.toString();
+        throw new IllegalStateException("Failed to generate a unique invite code");
     }
 
-    private void createDefaultTopics(Whiteboard whiteboard) {
-        for (String topicName : DEFAULT_TOPIC_NAMES) {
-            Topic topic = Topic.builder()
-                    .whiteboard(whiteboard)
-                    .name(topicName)
-                    .isDefault(true)
-                    .build();
-            topicRepository.save(topic);
+    private Whiteboard findWhiteboardByInviteCode(String inviteCode) {
+        if (inviteCode == null || inviteCode.isBlank()) {
+            throw new BadRequestException("Invite code is required");
         }
+        return whiteboardRepository.findByInviteCodeIgnoreCase(inviteCode.trim())
+                .orElseThrow(() -> new BadRequestException("Invalid invite code"));
+    }
+
+    private String normalizeCourseCode(String courseCode) {
+        return courseCode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeSemester(String semester) {
+        return semester.trim();
+    }
+
+    private String normalizeSection(String section) {
+        if (section == null) {
+            return null;
+        }
+        String trimmed = section.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

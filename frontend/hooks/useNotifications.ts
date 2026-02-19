@@ -38,11 +38,10 @@ Notifications.setNotificationHandler({
  * ```
  */
 export function useNotifications() {
-  const { isAuthenticated, user } = useAuthStore();
-  const {
-    setUnreadCount,
-    addNotification,
-  } = useNotificationStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
+  const addNotification = useNotificationStore((state) => state.addNotification);
 
   const notificationListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
@@ -150,20 +149,35 @@ export function useNotifications() {
       switch (referenceType) {
         case 'QUESTION':
           if (whiteboardId) {
-            router.push(`/question/${referenceId}?whiteboardId=${whiteboardId}`);
+            router.push({
+              pathname: '/question/[id]',
+              params: { id: referenceId, whiteboardId },
+            });
           } else {
-            router.push(`/question/${referenceId}`);
+            router.push({
+              pathname: '/question/[id]',
+              params: { id: referenceId },
+            });
           }
           break;
 
         case 'WHITEBOARD':
-          router.push(`/whiteboard/${referenceId}`);
+          router.push({
+            pathname: '/whiteboard/[id]',
+            params: { id: referenceId },
+          });
           break;
 
         case 'COMMENT':
           // Navigate to the parent question
           if (data.questionId) {
-            router.push(`/question/${data.questionId as string}`);
+            router.push({
+              pathname: '/question/[id]',
+              params: {
+                id: data.questionId as string,
+                whiteboardId: whiteboardId ?? undefined,
+              },
+            });
           }
           break;
 
@@ -177,7 +191,7 @@ export function useNotifications() {
       const notificationId = data.notificationId as string | undefined;
       if (notificationId) {
         notificationService.markAsRead(notificationId).catch(() => {
-          // Silently fail - the notification will still appear as unread
+          console.warn('[Notifications] Failed to mark notification as read');
         });
       }
     },
@@ -192,7 +206,7 @@ export function useNotifications() {
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
     } catch {
-      // Silently fail - unread count will be 0
+      console.warn('[Notifications] Failed to fetch unread count');
     }
   }, [setUnreadCount]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { questionService } from '../../services/questionService';
@@ -35,59 +34,111 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<QuestionResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const PAGE_SIZE = 20;
 
   const performSearch = useCallback(
-    async (searchQuery: string, status: FilterStatus) => {
+    async (
+      searchQuery: string,
+      status: FilterStatus,
+      nextPage = 0,
+      replace = true
+    ) => {
       if (!searchQuery.trim()) {
         setResults([]);
         setHasSearched(false);
+        setPage(0);
+        setHasMore(false);
         return;
       }
 
-      setLoading(true);
+      if (!replace && (!hasMore || loadingMore)) {
+        return;
+      }
+
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setHasSearched(true);
       try {
         const params: Record<string, string | number | undefined> = {
           q: searchQuery.trim(),
-          page: 0,
-          size: 20,
+          page: nextPage,
+          size: PAGE_SIZE,
         };
         if (status !== 'ALL') {
           params.status = status;
         }
         const response = await questionService.search(params);
-        setResults(response.content);
+        setResults((prev) => (replace ? response.content : [...prev, ...response.content]));
+        setPage(nextPage);
+        setHasMore(nextPage + 1 < response.totalPages);
+        setLoadError(null);
       } catch {
-        setResults([]);
+        if (replace) {
+          setResults([]);
+        }
+        setHasMore(false);
+        setLoadError('Search failed. Please try again.');
       } finally {
-        setLoading(false);
+        if (replace) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
       }
     },
-    []
+    [hasMore, loadingMore]
   );
 
   const handleQueryChange = (text: string) => {
     setQuery(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      performSearch(text, statusFilter);
+      performSearch(text, statusFilter, 0, true);
     }, 400);
   };
 
   const handleStatusFilter = (status: FilterStatus) => {
     setStatusFilter(status);
     if (query.trim()) {
-      performSearch(query, status);
+      performSearch(query, status, 0, true);
     }
   };
 
-  const renderQuestionItem = ({ item }: { item: QuestionResponse }) => (
+  const handleLoadMore = async () => {
+    if (!query.trim() || !hasMore || loading || loadingMore) {
+      return;
+    }
+    await performSearch(query, statusFilter, page + 1, false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  const renderQuestionItem = useCallback(({ item }: { item: QuestionResponse }) => (
     <GlassCard
       style={styles.questionCard}
-      onPress={() => router.push(`/question/${item.id}?whiteboardId=${item.whiteboardId}`)}
+      accessibilityLabel={`Open question: ${item.title}`}
+      onPress={() =>
+        router.push({
+          pathname: '/question/[id]',
+          params: { id: item.id, whiteboardId: item.whiteboardId },
+        })
+      }
     >
       <View style={styles.questionHeader}>
         {item.topicName && (
@@ -118,14 +169,10 @@ export default function SearchScreen() {
         </View>
       </View>
     </GlassCard>
-  );
+  ), [router]);
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Search</Text>
@@ -138,7 +185,7 @@ export default function SearchScreen() {
             value={query}
             onChangeText={handleQueryChange}
             returnKeyType="search"
-            onSubmitEditing={() => performSearch(query, statusFilter)}
+            onSubmitEditing={() => performSearch(query, statusFilter, 0, true)}
             style={styles.searchInput}
           />
         </View>
@@ -153,6 +200,8 @@ export default function SearchScreen() {
                 statusFilter === filter.value && styles.filterChipActive,
               ]}
               onPress={() => handleStatusFilter(filter.value)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${filter.label}`}
             >
               <Text
                 style={[
@@ -186,7 +235,7 @@ export default function SearchScreen() {
                 <EmptyState
                   icon={"\u{1F50D}"}
                   title="No Results"
-                  subtitle="Try different keywords or adjust your filters"
+                  subtitle={loadError || 'Try different keywords or adjust your filters'}
                 />
               ) : (
                 <EmptyState
@@ -196,10 +245,18 @@ export default function SearchScreen() {
                 />
               )
             }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
+            }
           />
         )}
-      </SafeAreaView>
-    </LinearGradient>
+    </ScreenWrapper>
   );
 }
 
@@ -234,11 +291,13 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: 'rgba(108,99,255,0.25)',
@@ -313,5 +372,9 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
+  },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
   },
 });

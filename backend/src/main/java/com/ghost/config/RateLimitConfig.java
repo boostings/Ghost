@@ -3,10 +3,12 @@ package com.ghost.config;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -14,14 +16,27 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Configuration
 public class RateLimitConfig {
 
-    private final Map<String, Bucket> authBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> generalBuckets = new ConcurrentHashMap<>();
+    private static final Duration BUCKET_TTL = Duration.ofMinutes(15);
+    private static final Duration CLEANUP_INTERVAL = Duration.ofMinutes(5);
+
+    private final Map<String, BucketHolder> authBuckets = new ConcurrentHashMap<>();
+    private final Map<String, BucketHolder> generalBuckets = new ConcurrentHashMap<>();
+    private final AtomicLong lastCleanupMs = new AtomicLong(System.currentTimeMillis());
+
+    @Value("${rate-limit.trust-proxy-headers:false}")
+    private boolean trustProxyHeaders;
+    @Value("${rate-limit.trusted-proxies:}")
+    private String trustedProxiesConfig;
+    private Set<String> trustedProxies = Set.of();
 
     private Bucket createAuthBucket() {
         return Bucket.builder()
@@ -35,16 +50,57 @@ public class RateLimitConfig {
                 .build();
     }
 
+    @PostConstruct
+    public void initTrustedProxies() {
+        trustedProxies = Arrays.stream(trustedProxiesConfig.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    private boolean shouldTrustForwardedHeaders(HttpServletRequest request) {
+        return trustProxyHeaders && trustedProxies.contains(request.getRemoteAddr());
+    }
+
     private String resolveClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
+        if (shouldTrustForwardedHeaders(request)) {
+            String xForwardedFor = request.getHeader("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+                return xForwardedFor.split(",")[0].trim();
+            }
+            String xRealIp = request.getHeader("X-Real-IP");
+            if (xRealIp != null && !xRealIp.isEmpty()) {
+                return xRealIp;
+            }
         }
         return request.getRemoteAddr();
+    }
+
+    private Bucket resolveBucket(Map<String, BucketHolder> bucketMap, String clientIp, BucketType bucketType) {
+        cleanupExpiredBucketsIfNeeded();
+        long now = System.currentTimeMillis();
+        BucketHolder bucketHolder = bucketMap.compute(clientIp, (key, existing) -> {
+            if (existing == null || existing.isExpired(now)) {
+                Bucket bucket = bucketType == BucketType.AUTH ? createAuthBucket() : createGeneralBucket();
+                return new BucketHolder(bucket, now);
+            }
+            existing.touch(now);
+            return existing;
+        });
+        return bucketHolder.bucket();
+    }
+
+    private void cleanupExpiredBucketsIfNeeded() {
+        long now = System.currentTimeMillis();
+        long lastCleanup = lastCleanupMs.get();
+        if ((now - lastCleanup) < CLEANUP_INTERVAL.toMillis()) {
+            return;
+        }
+        if (!lastCleanupMs.compareAndSet(lastCleanup, now)) {
+            return;
+        }
+        authBuckets.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
+        generalBuckets.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
     }
 
     @Bean
@@ -61,9 +117,9 @@ public class RateLimitConfig {
 
                 Bucket bucket;
                 if (requestUri.startsWith("/api/auth/")) {
-                    bucket = authBuckets.computeIfAbsent(clientIp, k -> createAuthBucket());
+                    bucket = resolveBucket(authBuckets, clientIp, BucketType.AUTH);
                 } else {
-                    bucket = generalBuckets.computeIfAbsent(clientIp, k -> createGeneralBucket());
+                    bucket = resolveBucket(generalBuckets, clientIp, BucketType.GENERAL);
                 }
 
                 if (bucket.tryConsume(1)) {
@@ -77,5 +133,32 @@ public class RateLimitConfig {
                 }
             }
         };
+    }
+
+    private enum BucketType {
+        AUTH,
+        GENERAL
+    }
+
+    private static final class BucketHolder {
+        private final Bucket bucket;
+        private volatile long lastSeenAtMs;
+
+        private BucketHolder(Bucket bucket, long nowMs) {
+            this.bucket = bucket;
+            this.lastSeenAtMs = nowMs;
+        }
+
+        private Bucket bucket() {
+            return bucket;
+        }
+
+        private void touch(long nowMs) {
+            this.lastSeenAtMs = nowMs;
+        }
+
+        private boolean isExpired(long nowMs) {
+            return (nowMs - lastSeenAtMs) > BUCKET_TTL.toMillis();
+        }
     }
 }

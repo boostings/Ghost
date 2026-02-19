@@ -5,6 +5,7 @@ import com.ghost.model.Comment;
 import com.ghost.model.KarmaVote;
 import com.ghost.model.Question;
 import com.ghost.model.User;
+import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.VoteType;
 import com.ghost.repository.CommentRepository;
 import com.ghost.repository.KarmaVoteRepository;
@@ -27,11 +28,14 @@ public class KarmaService {
     private final QuestionRepository questionRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final WhiteboardService whiteboardService;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public void voteOnQuestion(UUID userId, UUID questionId, VoteType voteType) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
+        whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
 
         User voter = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
@@ -63,12 +67,23 @@ public class KarmaService {
 
         // Update author's total karma
         updateUserTotalKarma(question.getAuthor());
+
+        auditLogService.logAction(
+                question.getWhiteboard().getId(),
+                userId,
+                AuditAction.KARMA_VOTE_UPDATED,
+                "Question",
+                questionId,
+                null,
+                voteType.name()
+        );
     }
 
     @Transactional
     public void voteOnComment(UUID userId, UUID commentId, VoteType voteType) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+        whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         User voter = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
@@ -100,12 +115,23 @@ public class KarmaService {
 
         // Update author's total karma
         updateUserTotalKarma(comment.getAuthor());
+
+        auditLogService.logAction(
+                comment.getQuestion().getWhiteboard().getId(),
+                userId,
+                AuditAction.KARMA_VOTE_UPDATED,
+                "Comment",
+                commentId,
+                null,
+                voteType.name()
+        );
     }
 
     @Transactional
     public void removeQuestionVote(UUID userId, UUID questionId) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
+        whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
 
         KarmaVote vote = karmaVoteRepository.findByUserIdAndQuestionId(userId, questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("KarmaVote", "questionId", questionId));
@@ -115,12 +141,23 @@ public class KarmaService {
         // Recalculate
         recalculateQuestionKarma(question);
         updateUserTotalKarma(question.getAuthor());
+
+        auditLogService.logAction(
+                question.getWhiteboard().getId(),
+                userId,
+                AuditAction.KARMA_VOTE_REMOVED,
+                "Question",
+                questionId,
+                "voted",
+                null
+        );
     }
 
     @Transactional
     public void removeCommentVote(UUID userId, UUID commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+        whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         KarmaVote vote = karmaVoteRepository.findByUserIdAndCommentId(userId, commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("KarmaVote", "commentId", commentId));
@@ -130,6 +167,16 @@ public class KarmaService {
         // Recalculate
         recalculateCommentKarma(comment);
         updateUserTotalKarma(comment.getAuthor());
+
+        auditLogService.logAction(
+                comment.getQuestion().getWhiteboard().getId(),
+                userId,
+                AuditAction.KARMA_VOTE_REMOVED,
+                "Comment",
+                commentId,
+                "voted",
+                null
+        );
     }
 
     private void recalculateQuestionKarma(Question question) {
@@ -147,17 +194,8 @@ public class KarmaService {
     }
 
     private void updateUserTotalKarma(User author) {
-        // Sum karma from all the author's questions
-        int totalKarma = questionRepository.findByAuthorId(author.getId())
-                .stream()
-                .mapToInt(Question::getKarmaScore)
-                .sum();
-
-        // Sum karma from all the author's comments
-        totalKarma += commentRepository.findByAuthorId(author.getId())
-                .stream()
-                .mapToInt(Comment::getKarmaScore)
-                .sum();
+        int totalKarma = questionRepository.sumKarmaByAuthorId(author.getId())
+                + commentRepository.sumKarmaByAuthorId(author.getId());
 
         author.setKarmaScore(totalKarma);
         userRepository.save(author);

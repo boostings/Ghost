@@ -1,13 +1,21 @@
 package com.ghost.service;
 
+import com.ghost.dto.response.TopicResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
+import com.ghost.exception.UnauthorizedException;
+import com.ghost.mapper.TopicMapper;
 import com.ghost.model.Topic;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.Role;
 import com.ghost.repository.TopicRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
+import com.ghost.repository.WhiteboardRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,27 +29,35 @@ import java.util.UUID;
 public class TopicService {
 
     private final TopicRepository topicRepository;
-    private final WhiteboardService whiteboardService;
+    private final WhiteboardRepository whiteboardRepository;
+    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final AuditLogService auditLogService;
+    private final TopicMapper topicMapper;
 
     private static final List<String> DEFAULT_TOPIC_NAMES = Arrays.asList(
             "Homework", "Exam", "Lecture", "General"
     );
 
     @Transactional(readOnly = true)
-    public List<Topic> getTopics(UUID whiteboardId) {
-        return topicRepository.findByWhiteboardId(whiteboardId);
+    public Page<TopicResponse> getTopics(UUID userId, UUID whiteboardId, Pageable pageable) {
+        verifyMembership(userId, whiteboardId);
+        return topicRepository.findByWhiteboardIdOrderByNameAsc(whiteboardId, pageable)
+                .map(topicMapper::toResponse);
     }
 
     @Transactional
-    public Topic createTopic(UUID facultyId, UUID whiteboardId, String name) {
-        whiteboardService.verifyFacultyRole(facultyId, whiteboardId);
+    public TopicResponse createTopic(UUID facultyId, UUID whiteboardId, String name) {
+        verifyFacultyRole(facultyId, whiteboardId);
+        Whiteboard whiteboard = getWhiteboard(whiteboardId);
+        String normalizedName = name.trim();
 
-        Whiteboard whiteboard = whiteboardService.getWhiteboardById(whiteboardId);
+        if (topicRepository.findByWhiteboardIdAndName(whiteboardId, normalizedName).isPresent()) {
+            throw new BadRequestException("Topic already exists in this whiteboard");
+        }
 
         Topic topic = Topic.builder()
                 .whiteboard(whiteboard)
-                .name(name)
+                .name(normalizedName)
                 .isDefault(false)
                 .build();
 
@@ -49,25 +65,28 @@ public class TopicService {
 
         auditLogService.logAction(
                 whiteboardId, facultyId, AuditAction.TOPIC_CREATED,
-                "Topic", topic.getId(), null, name
+                "Topic", topic.getId(), null, normalizedName
         );
 
-        return topic;
+        return topicMapper.toResponse(topic);
     }
 
     @Transactional
-    public void deleteTopic(UUID facultyId, UUID topicId) {
+    public void deleteTopic(UUID facultyId, UUID whiteboardId, UUID topicId) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", topicId));
 
-        whiteboardService.verifyFacultyRole(facultyId, topic.getWhiteboard().getId());
+        if (!topic.getWhiteboard().getId().equals(whiteboardId)) {
+            throw new ResourceNotFoundException("Topic", "id", topicId);
+        }
+        verifyFacultyRole(facultyId, whiteboardId);
 
         if (topic.isDefault()) {
             throw new BadRequestException("Cannot delete default topics");
         }
 
         auditLogService.logAction(
-                topic.getWhiteboard().getId(), facultyId, AuditAction.TOPIC_DELETED,
+                whiteboardId, facultyId, AuditAction.TOPIC_DELETED,
                 "Topic", topicId, topic.getName(), null
         );
 
@@ -75,8 +94,8 @@ public class TopicService {
     }
 
     @Transactional
-    public void createDefaultTopics(UUID whiteboardId) {
-        Whiteboard whiteboard = whiteboardService.getWhiteboardById(whiteboardId);
+    public void createDefaultTopics(UUID whiteboardId, UUID actorId) {
+        Whiteboard whiteboard = getWhiteboard(whiteboardId);
 
         for (String topicName : DEFAULT_TOPIC_NAMES) {
             Topic topic = Topic.builder()
@@ -84,9 +103,36 @@ public class TopicService {
                     .name(topicName)
                     .isDefault(true)
                     .build();
-            topicRepository.save(topic);
+            Topic saved = topicRepository.save(topic);
+            auditLogService.logAction(
+                    whiteboardId,
+                    actorId,
+                    AuditAction.TOPIC_CREATED,
+                    "Topic",
+                    saved.getId(),
+                    null,
+                    topicName
+            );
         }
 
         log.debug("Default topics created for whiteboard: {}", whiteboardId);
+    }
+
+    private Whiteboard getWhiteboard(UUID whiteboardId) {
+        return whiteboardRepository.findById(whiteboardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Whiteboard", "id", whiteboardId));
+    }
+
+    private void verifyMembership(UUID userId, UUID whiteboardId) {
+        whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId)
+                .orElseThrow(() -> new UnauthorizedException("You are not a member of this whiteboard"));
+    }
+
+    private void verifyFacultyRole(UUID userId, UUID whiteboardId) {
+        var membership = whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId)
+                .orElseThrow(() -> new UnauthorizedException("You are not a member of this whiteboard"));
+        if (membership.getRole() != Role.FACULTY) {
+            throw new UnauthorizedException("Only faculty members can perform this action");
+        }
     }
 }

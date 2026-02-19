@@ -5,13 +5,16 @@ import com.ghost.model.enums.ReportStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Check;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "reports")
-@Data
+@Check(constraints = "(question_id IS NULL) <> (comment_id IS NULL)")
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

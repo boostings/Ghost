@@ -40,6 +40,8 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         onPress={onUpvote}
         hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}
         style={styles.arrowButton}
+        accessibilityRole="button"
+        accessibilityLabel="Upvote"
       >
         <Text style={[styles.arrow, { fontSize: arrowSize, color: upvoteColor }]}>
           ▲
@@ -59,6 +61,8 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         onPress={onDownvote}
         hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
         style={styles.arrowButton}
+        accessibilityRole="button"
+        accessibilityLabel="Downvote"
       >
         <Text style={[styles.arrow, { fontSize: arrowSize, color: downvoteColor }]}>
           ▼

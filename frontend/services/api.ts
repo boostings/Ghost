@@ -93,7 +93,7 @@ api.interceptors.response.use(
     originalRequest._retry = true;
     isRefreshing = true;
 
-    const { refreshToken, logout, setAccessToken } = useAuthStore.getState();
+    const { refreshToken, logout, setTokens } = useAuthStore.getState();
 
     if (!refreshToken) {
       isRefreshing = false;
@@ -108,9 +108,12 @@ api.interceptors.response.use(
         requestData
       );
 
-      const { accessToken: newAccessToken } = response.data;
+      const {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      } = response.data;
 
-      setAccessToken(newAccessToken);
+      setTokens(newAccessToken, newRefreshToken);
       processQueue(null, newAccessToken);
 
       // Retry the original request with the new token

@@ -9,7 +9,43 @@ import type {
   JoinRequestActionRequest,
   MemberResponse,
   PaginationParams,
+  UserResponse,
+  JoinRequestStatus,
 } from '../types';
+
+type InviteInfoResponse = {
+  inviteCode: string;
+  inviteUrl?: string;
+  qrData?: string;
+};
+
+function toPageResponse<T>(
+  data: PageResponse<T> | T[],
+  params?: PaginationParams
+): PageResponse<T> {
+  if (Array.isArray(data)) {
+    return {
+      content: data,
+      page: params?.page ?? 0,
+      size: params?.size ?? data.length,
+      totalElements: data.length,
+      totalPages: 1,
+    };
+  }
+  return data;
+}
+
+function toMemberResponse(user: UserResponse): MemberResponse {
+  return {
+    id: user.id,
+    userId: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    role: user.role,
+    joinedAt: user.createdAt,
+  };
+}
 
 /**
  * Whiteboard service - handles CRUD operations for whiteboards,
@@ -23,7 +59,7 @@ export const whiteboardService = {
   getWhiteboards: async (
     params?: PaginationParams
   ): Promise<PageResponse<WhiteboardResponse>> => {
-    const response = await api.get<PageResponse<WhiteboardResponse>>(
+    const response = await api.get<PageResponse<WhiteboardResponse> | WhiteboardResponse[]>(
       '/whiteboards',
       {
         params: {
@@ -32,7 +68,26 @@ export const whiteboardService = {
         },
       }
     );
-    return response.data;
+    return toPageResponse(response.data, params);
+  },
+
+  /**
+   * Get discoverable classes that the current user has not joined yet.
+   * GET /whiteboards/discover
+   */
+  getDiscoverableWhiteboards: async (
+    params?: PaginationParams
+  ): Promise<PageResponse<WhiteboardResponse>> => {
+    const response = await api.get<PageResponse<WhiteboardResponse> | WhiteboardResponse[]>(
+      '/whiteboards/discover',
+      {
+        params: {
+          page: params?.page ?? 0,
+          size: params?.size ?? Config.PAGE_SIZE,
+        },
+      }
+    );
+    return toPageResponse(response.data, params);
   },
 
   /**
@@ -65,13 +120,18 @@ export const whiteboardService = {
 
   /**
    * Join a whiteboard using an invite code.
-   * POST /whiteboards/{id}/join
+   * POST /whiteboards/join-by-invite
    */
   joinByInviteCode: async (
-    id: string,
-    code: string
+    inviteCode: string,
+    whiteboardId?: string
   ): Promise<void> => {
-    await api.post(`/whiteboards/${id}/join`, { inviteCode: code });
+    const trimmedCode = inviteCode.trim();
+    if (whiteboardId) {
+      await api.post(`/whiteboards/${whiteboardId}/join`, { inviteCode: trimmedCode });
+      return;
+    }
+    await api.post('/whiteboards/join-by-invite', { inviteCode: trimmedCode });
   },
 
   /**
@@ -89,8 +149,8 @@ export const whiteboardService = {
   getJoinRequests: async (
     id: string,
     params?: PaginationParams
-  ): Promise<PageResponse<JoinRequestResponse>> => {
-    const response = await api.get<PageResponse<JoinRequestResponse>>(
+  ): Promise<JoinRequestResponse[]> => {
+    const response = await api.get<PageResponse<JoinRequestResponse> | JoinRequestResponse[]>(
       `/whiteboards/${id}/join-requests`,
       {
         params: {
@@ -99,7 +159,7 @@ export const whiteboardService = {
         },
       }
     );
-    return response.data;
+    return toPageResponse(response.data, params).content;
   },
 
   /**
@@ -121,8 +181,8 @@ export const whiteboardService = {
   getMembers: async (
     id: string,
     params?: PaginationParams
-  ): Promise<PageResponse<MemberResponse>> => {
-    const response = await api.get<PageResponse<MemberResponse>>(
+  ): Promise<MemberResponse[]> => {
+    const response = await api.get<PageResponse<UserResponse> | UserResponse[]>(
       `/whiteboards/${id}/members`,
       {
         params: {
@@ -131,7 +191,8 @@ export const whiteboardService = {
         },
       }
     );
-    return response.data;
+    const pageData = toPageResponse(response.data, params);
+    return pageData.content.map(toMemberResponse);
   },
 
   /**
@@ -149,9 +210,12 @@ export const whiteboardService = {
    */
   transferOwnership: async (
     id: string,
-    data: TransferOwnershipRequest
+    data: TransferOwnershipRequest | string
   ): Promise<void> => {
-    await api.put(`/whiteboards/${id}/transfer-ownership`, data);
+    const payload: TransferOwnershipRequest = typeof data === 'string'
+      ? { newOwnerEmail: data }
+      : data;
+    await api.put(`/whiteboards/${id}/transfer-ownership`, payload);
   },
 
   /**
@@ -168,10 +232,51 @@ export const whiteboardService = {
    */
   getInviteInfo: async (
     id: string
-  ): Promise<{ inviteCode: string; inviteUrl: string }> => {
-    const response = await api.get<{ inviteCode: string; inviteUrl: string }>(
+  ): Promise<{ inviteCode: string; inviteUrl: string; qrData: string }> => {
+    const response = await api.get<InviteInfoResponse>(
       `/whiteboards/${id}/invite-info`
     );
-    return response.data;
+    return {
+      inviteCode: response.data.inviteCode,
+      inviteUrl: response.data.inviteUrl ?? response.data.qrData ?? '',
+      qrData: response.data.qrData ?? response.data.inviteUrl ?? '',
+    };
+  },
+
+  /**
+   * Legacy aliases kept for backward compatibility while screens migrate.
+   */
+  list: async (
+    page = 0,
+    size: number = Config.PAGE_SIZE
+  ): Promise<PageResponse<WhiteboardResponse>> => {
+    return whiteboardService.getWhiteboards({ page, size });
+  },
+
+  listDiscoverable: async (
+    page = 0,
+    size: number = Config.PAGE_SIZE
+  ): Promise<PageResponse<WhiteboardResponse>> => {
+    return whiteboardService.getDiscoverableWhiteboards({ page, size });
+  },
+
+  getById: async (id: string): Promise<WhiteboardResponse> => {
+    return whiteboardService.getWhiteboard(id);
+  },
+
+  create: async (data: CreateWhiteboardRequest): Promise<WhiteboardResponse> => {
+    return whiteboardService.createWhiteboard(data);
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await whiteboardService.deleteWhiteboard(id);
+  },
+
+  reviewJoinRequest: async (
+    wbId: string,
+    reqId: string,
+    status: JoinRequestStatus
+  ): Promise<void> => {
+    await whiteboardService.handleJoinRequest(wbId, reqId, { status });
   },
 };

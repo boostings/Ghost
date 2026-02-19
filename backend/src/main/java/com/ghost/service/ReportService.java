@@ -2,8 +2,10 @@ package com.ghost.service;
 
 import com.ghost.dto.request.ReportRequest;
 import com.ghost.dto.request.ReviewReportRequest;
+import com.ghost.dto.response.ReportResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
+import com.ghost.mapper.ReportMapper;
 import com.ghost.model.Comment;
 import com.ghost.model.Question;
 import com.ghost.model.Report;
@@ -40,14 +42,17 @@ public class ReportService {
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
     private final WhiteboardService whiteboardService;
+    private final ReportMapper reportMapper;
 
     @Transactional
-    public Report reportContent(UUID userId, ReportRequest req) {
+    public ReportResponse reportContent(UUID userId, ReportRequest req) {
         User reporter = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        if (req.getQuestionId() == null && req.getCommentId() == null) {
-            throw new BadRequestException("Either questionId or commentId must be provided");
+        boolean hasQuestion = req.getQuestionId() != null;
+        boolean hasComment = req.getCommentId() != null;
+        if (hasQuestion == hasComment) {
+            throw new BadRequestException("Provide exactly one of questionId or commentId");
         }
 
         Report.ReportBuilder reportBuilder = Report.builder()
@@ -63,6 +68,11 @@ public class ReportService {
         if (req.getQuestionId() != null) {
             Question question = questionRepository.findById(req.getQuestionId())
                     .orElseThrow(() -> new ResourceNotFoundException("Question", "id", req.getQuestionId()));
+
+            whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
+            if (reportRepository.existsByReporterIdAndQuestionId(userId, question.getId())) {
+                throw new BadRequestException("You have already reported this question");
+            }
 
             reportBuilder.question(question);
             whiteboardId = question.getWhiteboard().getId();
@@ -91,6 +101,11 @@ public class ReportService {
         } else {
             Comment comment = commentRepository.findById(req.getCommentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", req.getCommentId()));
+
+            whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
+            if (reportRepository.existsByReporterIdAndCommentId(userId, comment.getId())) {
+                throw new BadRequestException("You have already reported this comment");
+            }
 
             reportBuilder.comment(comment);
             whiteboardId = comment.getQuestion().getWhiteboard().getId();
@@ -126,16 +141,17 @@ public class ReportService {
                 targetType, targetId, null, req.getReason().name()
         );
 
-        return report;
+        return reportMapper.toResponse(report);
     }
 
     @Transactional(readOnly = true)
-    public Page<Report> getReportsForWhiteboard(UUID whiteboardId, Pageable pageable) {
-        return reportRepository.findByWhiteboardIdPaged(whiteboardId, pageable);
+    public Page<ReportResponse> getReportsForWhiteboard(UUID whiteboardId, Pageable pageable) {
+        return reportRepository.findByWhiteboardIdPaged(whiteboardId, pageable)
+                .map(reportMapper::toResponse);
     }
 
     @Transactional
-    public void reviewReport(UUID facultyId, UUID reportId, ReviewReportRequest req) {
+    public ReportResponse reviewReport(UUID facultyId, UUID reportId, ReviewReportRequest req) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Report", "id", reportId));
 
@@ -151,14 +167,28 @@ public class ReportService {
 
         // Verify faculty role
         whiteboardService.verifyFacultyRole(facultyId, whiteboardId);
+        if (report.getStatus() != ReportStatus.PENDING) {
+            throw new BadRequestException("Only pending reports can be reviewed");
+        }
 
         User reviewer = userRepository.findById(facultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", facultyId));
 
+        ReportStatus oldStatus = report.getStatus();
         report.setStatus(req.getStatus());
         report.setReviewedByUser(reviewer);
         report.setReviewedAt(LocalDateTime.now());
-        reportRepository.save(report);
+        report = reportRepository.save(report);
+
+        auditLogService.logAction(
+                whiteboardId,
+                facultyId,
+                AuditAction.REPORT_REVIEWED,
+                "Report",
+                report.getId(),
+                oldStatus.name(),
+                req.getStatus().name()
+        );
 
         // If dismissed, optionally restore hidden content
         if (req.getStatus() == ReportStatus.DISMISSED) {
@@ -182,6 +212,7 @@ public class ReportService {
                 );
             }
         }
+        return reportMapper.toResponse(report);
     }
 
     private void notifyFacultyOfHiddenContent(UUID whiteboardId, String contentType, UUID contentId, String contentPreview) {

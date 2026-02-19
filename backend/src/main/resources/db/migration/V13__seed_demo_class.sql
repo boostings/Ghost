@@ -51,7 +51,7 @@ INSERT INTO questions (id, whiteboard_id, author_id, topic_id, title, body, stat
         'd0000000-0000-0000-0000-000000000001',
         'How do I submit Homework 1?',
         'I am having trouble finding the submission link for Homework 1. Can someone point me in the right direction?',
-        'ANSWERED'
+        'CLOSED'
     ),
     (
         'e0000000-0000-0000-0000-000000000002',

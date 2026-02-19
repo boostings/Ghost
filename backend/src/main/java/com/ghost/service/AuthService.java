@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -31,16 +32,19 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
-    public AuthResponse register(RegisterRequest req) {
+    public void register(RegisterRequest req) {
+        String normalizedEmail = normalizeEmail(req.getEmail());
+
         // Validate email ends with @ilstu.edu
-        if (!req.getEmail().toLowerCase().endsWith("@ilstu.edu")) {
+        if (!normalizedEmail.endsWith("@ilstu.edu")) {
             throw new BadRequestException("Email must end with @ilstu.edu");
         }
 
         // Check if email already exists
-        if (userRepository.existsByEmail(req.getEmail())) {
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BadRequestException("Email is already registered");
         }
 
@@ -49,10 +53,10 @@ public class AuthService {
 
         // Create user with BCrypt hashed password
         User user = User.builder()
-                .email(req.getEmail().toLowerCase())
+                .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
-                .firstName(req.getFirstName())
-                .lastName(req.getLastName())
+                .firstName(req.getFirstName().trim())
+                .lastName(req.getLastName().trim())
                 .role(Role.STUDENT)
                 .emailVerified(false)
                 .verificationCode(verificationCode)
@@ -64,28 +68,40 @@ public class AuthService {
         // Log verification code to console
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
 
-        // Generate tokens
-        String accessToken = jwtTokenProvider.generateAccessToken(
-                user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+    }
 
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .user(mapToUserResponse(user))
-                .build();
+    @Transactional
+    public void resendVerificationCode(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        if (user.isEmailVerified()) {
+            throw new BadRequestException("Email is already verified");
+        }
+
+        String verificationCode = generateVerificationCode();
+        user.setVerificationCode(verificationCode);
+        user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        // Log verification code to console in development.
+        log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
     }
 
     @Transactional
     public void verifyEmail(VerifyEmailRequest req) {
-        User user = userRepository.findByEmail(req.getEmail().toLowerCase())
+        String normalizedEmail = normalizeEmail(req.getEmail());
+        String submittedCode = req.getCode().trim();
+
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", req.getEmail()));
 
         if (user.isEmailVerified()) {
             throw new BadRequestException("Email is already verified");
         }
 
-        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(req.getCode())) {
+        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(submittedCode)) {
             throw new BadRequestException("Invalid verification code");
         }
 
@@ -102,7 +118,9 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
-        User user = userRepository.findByEmail(req.getEmail().toLowerCase())
+        String normalizedEmail = normalizeEmail(req.getEmail());
+
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
@@ -113,19 +131,13 @@ public class AuthService {
             throw new BadRequestException("Email is not verified. Please verify your email first.");
         }
 
-        String accessToken = jwtTokenProvider.generateAccessToken(
-                user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .user(mapToUserResponse(user))
-                .build();
+        return createAuthResponse(user);
     }
 
     public AuthResponse refreshToken(RefreshTokenRequest req) {
-        if (!jwtTokenProvider.validateToken(req.getRefreshToken())) {
+        if (!jwtTokenProvider.validateToken(req.getRefreshToken())
+                || !jwtTokenProvider.validateTokenType(
+                        req.getRefreshToken(), jwtTokenProvider.getRefreshTokenType())) {
             throw new UnauthorizedException("Invalid or expired refresh token");
         }
 
@@ -134,15 +146,7 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        String accessToken = jwtTokenProvider.generateAccessToken(
-                user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-        return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .user(mapToUserResponse(user))
-                .build();
+        return createAuthResponse(user);
     }
 
     @Transactional
@@ -155,9 +159,24 @@ public class AuthService {
     }
 
     private String generateVerificationCode() {
-        SecureRandom random = new SecureRandom();
-        int code = 100000 + random.nextInt(900000); // generates 6-digit code
+        int code = 100000 + secureRandom.nextInt(900000); // generates 6-digit code
         return String.valueOf(code);
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private AuthResponse createAuthResponse(User user) {
+        String accessToken = jwtTokenProvider.generateAccessToken(
+                user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(mapToUserResponse(user))
+                .build();
     }
 
     private UserResponse mapToUserResponse(User user) {

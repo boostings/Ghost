@@ -2,9 +2,11 @@ package com.ghost.service;
 
 import com.ghost.dto.request.CreateCommentRequest;
 import com.ghost.dto.request.EditCommentRequest;
+import com.ghost.dto.response.CommentResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
+import com.ghost.mapper.CommentMapper;
 import com.ghost.model.Bookmark;
 import com.ghost.model.Comment;
 import com.ghost.model.Question;
@@ -17,6 +19,8 @@ import com.ghost.repository.CommentRepository;
 import com.ghost.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,15 +39,19 @@ public class CommentService {
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final CommentMapper commentMapper;
 
     @Transactional
-    public Comment createComment(UUID userId, UUID questionId, CreateCommentRequest req) {
+    public CommentResponse createComment(UUID userId, UUID questionId, CreateCommentRequest req) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
 
         // Check question status
         if (question.getStatus() == QuestionStatus.CLOSED) {
             throw new BadRequestException("Cannot add comments to a closed question");
+        }
+        if (question.isHidden()) {
+            throw new BadRequestException("Cannot add comments to hidden content");
         }
 
         // Verify user is member of the whiteboard
@@ -77,13 +85,13 @@ public class CommentService {
             );
         }
 
-        return comment;
+        return commentMapper.toResponse(comment, userId);
     }
 
     @Transactional
-    public Comment editComment(UUID userId, UUID commentId, EditCommentRequest req) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+    public CommentResponse editComment(UUID userId, UUID questionId, UUID commentId, EditCommentRequest req) {
+        Comment comment = getCommentByIdAndQuestion(commentId, questionId);
+        whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         // Verify author
         if (!comment.getAuthor().getId().equals(userId)) {
@@ -106,13 +114,13 @@ public class CommentService {
                 "Comment", commentId, oldBody, comment.getBody()
         );
 
-        return comment;
+        return commentMapper.toResponse(comment, userId);
     }
 
     @Transactional
-    public void deleteComment(UUID userId, UUID commentId) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+    public void deleteComment(UUID userId, UUID questionId, UUID commentId) {
+        Comment comment = getCommentByIdAndQuestion(commentId, questionId);
+        whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         // Verify author or faculty
         boolean isAuthor = comment.getAuthor().getId().equals(userId);
@@ -134,14 +142,25 @@ public class CommentService {
     }
 
     @Transactional
-    public void markAsVerifiedAnswer(UUID facultyId, UUID commentId) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+    public void markAsVerifiedAnswer(UUID facultyId, UUID questionId, UUID commentId) {
+        Comment comment = getCommentByIdAndQuestion(commentId, questionId);
 
         Question question = comment.getQuestion();
 
         // Verify faculty in whiteboard
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        if (question.getStatus() == QuestionStatus.CLOSED) {
+            throw new BadRequestException("Question is already closed");
+        }
+        if (question.getVerifiedAnswerId() != null) {
+            throw new BadRequestException("Question already has a verified answer");
+        }
+        if (comment.isVerifiedAnswer()) {
+            throw new BadRequestException("Comment is already marked as verified answer");
+        }
+        if (comment.isHidden()) {
+            throw new BadRequestException("Cannot verify a hidden comment");
+        }
 
         // Set comment as verified answer
         comment.setVerifiedAnswer(true);
@@ -190,7 +209,23 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public List<Comment> getCommentsByQuestion(UUID questionId) {
-        return commentRepository.findByQuestionIdOrderByCreatedAtAsc(questionId);
+    public Page<CommentResponse> getCommentsByQuestion(UUID userId, UUID questionId, Pageable pageable) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
+        whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
+        if (question.isHidden()) {
+            throw new ResourceNotFoundException("Question", "id", questionId);
+        }
+        return commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(questionId, pageable)
+                .map(comment -> commentMapper.toResponse(comment, userId));
+    }
+
+    private Comment getCommentByIdAndQuestion(UUID commentId, UUID questionId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+        if (!comment.getQuestion().getId().equals(questionId)) {
+            throw new ResourceNotFoundException("Comment", "id", commentId);
+        }
+        return comment;
     }
 }

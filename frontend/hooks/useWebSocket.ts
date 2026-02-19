@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Config } from '../constants/config';
 import { useAuthStore } from '../stores/authStore';
 
@@ -98,6 +98,7 @@ function parseFrame(data: string): StompFrame {
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const isConnectedRef = useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
   const subscriptionIdRef = useRef(0);
   const subscriptionsRef = useRef<
     Map<string, { destination: string; callback: (frame: StompFrame) => void }>
@@ -109,7 +110,8 @@ export function useWebSocket() {
     Array<{ id: string; destination: string; callback: (frame: StompFrame) => void }>
   >([]);
 
-  const { accessToken, isAuthenticated } = useAuthStore();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   /**
    * Send a raw STOMP frame over the WebSocket connection.
@@ -133,6 +135,7 @@ export function useWebSocket() {
     switch (frame.command) {
       case 'CONNECTED':
         isConnectedRef.current = true;
+        setIsConnected(true);
         reconnectAttemptRef.current = 0;
 
         // Re-subscribe any pending subscriptions
@@ -213,6 +216,7 @@ export function useWebSocket() {
 
       ws.onclose = () => {
         isConnectedRef.current = false;
+        setIsConnected(false);
 
         // Attempt reconnection with exponential backoff
         if (
@@ -226,7 +230,9 @@ export function useWebSocket() {
           reconnectAttemptRef.current++;
 
           reconnectTimerRef.current = setTimeout(() => {
-            connect();
+            if (useAuthStore.getState().isAuthenticated) {
+              connect();
+            }
           }, delay);
         }
       };
@@ -296,6 +302,7 @@ export function useWebSocket() {
     }
 
     isConnectedRef.current = false;
+    setIsConnected(false);
     subscriptionsRef.current.clear();
     pendingSubscriptionsRef.current = [];
   }, [sendFrame]);
@@ -317,7 +324,7 @@ export function useWebSocket() {
   return {
     subscribe,
     disconnect,
-    isConnected: isConnectedRef.current,
+    isConnected,
   };
 }
 

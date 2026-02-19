@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,59 +6,64 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as Clipboard from 'expo-linking';
+import * as Clipboard from 'expo-clipboard';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassModal from '../../components/ui/GlassModal';
+import QRCodeModal from '../../components/QRCodeModal';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
+import { extractErrorMessage } from '../../hooks/useApi';
 import type { WhiteboardResponse } from '../../types';
 
 export default function WhiteboardSettingsScreen() {
   const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
 
   const [whiteboard, setWhiteboard] = useState<WhiteboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [transferEmail, setTransferEmail] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = whiteboard?.ownerId === user?.id;
 
-  useEffect(() => {
-    if (whiteboardId) {
-      fetchWhiteboard();
-    }
-  }, [whiteboardId]);
-
-  const fetchWhiteboard = async () => {
+  const fetchWhiteboard = useCallback(async () => {
     if (!whiteboardId) return;
     try {
       const wb = await whiteboardService.getById(whiteboardId);
       setWhiteboard(wb);
     } catch {
-      // Ignore
+      Alert.alert('Error', 'Failed to load whiteboard settings.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [whiteboardId]);
+
+  useEffect(() => {
+    fetchWhiteboard();
+  }, [fetchWhiteboard]);
 
   const handleCopyInviteCode = () => {
     if (whiteboard?.inviteCode) {
-      // Use Alert as clipboard API may not be available
-      Alert.alert('Invite Code', `The invite code is: ${whiteboard.inviteCode}`, [
-        { text: 'OK' },
-      ]);
+      Clipboard.setStringAsync(whiteboard.inviteCode).then(() => {
+        Alert.alert('Copied', 'Invite code copied to clipboard.');
+      }).catch(() => {
+        Alert.alert('Invite Code', `The invite code is: ${whiteboard.inviteCode}`, [
+          { text: 'OK' },
+        ]);
+      });
     }
   };
 
@@ -71,9 +76,8 @@ export default function WhiteboardSettingsScreen() {
       Alert.alert('Success', 'Ownership has been transferred. You have been removed from this whiteboard.');
       setShowTransferModal(false);
       router.back();
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Failed to transfer ownership.';
-      Alert.alert('Error', message);
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setTransferring(false);
     }
@@ -106,6 +110,27 @@ export default function WhiteboardSettingsScreen() {
     );
   };
 
+  const handleOpenQrModal = () => {
+    if (!whiteboard?.inviteCode) {
+      Alert.alert('Unavailable', 'Invite code is not available yet. Please try again.');
+      return;
+    }
+    setShowQrModal(true);
+  };
+
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={['#1A1A2E', '#16213E', '#0F3460']}
+        style={styles.gradient}
+      >
+        <SafeAreaView style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={['#1A1A2E', '#16213E', '#0F3460']}
@@ -114,7 +139,12 @@ export default function WhiteboardSettingsScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backArrow}>{"\u2190"}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Whiteboard Settings</Text>
@@ -157,6 +187,8 @@ export default function WhiteboardSettingsScreen() {
               style={styles.inviteCodeBox}
               onPress={handleCopyInviteCode}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Copy invite code"
             >
               <Text style={styles.inviteCodeText}>
                 {whiteboard?.inviteCode || '------'}
@@ -164,11 +196,15 @@ export default function WhiteboardSettingsScreen() {
               <Text style={styles.copyText}>Tap to copy</Text>
             </TouchableOpacity>
 
-            <View style={styles.qrPlaceholder}>
+            <TouchableOpacity
+              style={styles.qrPlaceholder}
+              onPress={handleOpenQrModal}
+              activeOpacity={0.8}
+            >
               <Text style={styles.qrIcon}>{"\u{1F4F1}"}</Text>
               <Text style={styles.qrText}>QR Code</Text>
               <Text style={styles.qrSubtext}>Students can scan this to join</Text>
-            </View>
+            </TouchableOpacity>
           </GlassCard>
 
           {/* Manage Links */}
@@ -177,7 +213,14 @@ export default function WhiteboardSettingsScreen() {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => router.push(`/whiteboard/topics?whiteboardId=${whiteboardId}`)}
+              onPress={() =>
+                router.push({
+                  pathname: '/whiteboard/topics',
+                  params: { whiteboardId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Manage topics"
             >
               <Text style={styles.menuIcon}>{"\u{1F3F7}\uFE0F"}</Text>
               <View style={styles.menuContent}>
@@ -193,7 +236,14 @@ export default function WhiteboardSettingsScreen() {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => router.push(`/whiteboard/members?whiteboardId=${whiteboardId}`)}
+              onPress={() =>
+                router.push({
+                  pathname: '/whiteboard/members',
+                  params: { whiteboardId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Manage members"
             >
               <Text style={styles.menuIcon}>{"\u{1F465}"}</Text>
               <View style={styles.menuContent}>
@@ -209,7 +259,14 @@ export default function WhiteboardSettingsScreen() {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => router.push(`/whiteboard/audit-log?whiteboardId=${whiteboardId}`)}
+              onPress={() =>
+                router.push({
+                  pathname: '/whiteboard/audit-log',
+                  params: { whiteboardId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Open audit log"
             >
               <Text style={styles.menuIcon}>{"\u{1F4CB}"}</Text>
               <View style={styles.menuContent}>
@@ -225,7 +282,14 @@ export default function WhiteboardSettingsScreen() {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => router.push(`/moderation/reports?whiteboardId=${whiteboardId}`)}
+              onPress={() =>
+                router.push({
+                  pathname: '/moderation/reports',
+                  params: { whiteboardId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Open moderation reports"
             >
               <Text style={styles.menuIcon}>{"\u{1F6A9}"}</Text>
               <View style={styles.menuContent}>
@@ -292,6 +356,13 @@ export default function WhiteboardSettingsScreen() {
             disabled={transferring || !transferEmail.trim()}
           />
         </GlassModal>
+
+        <QRCodeModal
+          visible={showQrModal}
+          onClose={() => setShowQrModal(false)}
+          inviteCode={whiteboard?.inviteCode ?? ''}
+          whiteboardName={whiteboard ? `${whiteboard.courseCode} - ${whiteboard.courseName}` : 'Whiteboard'}
+        />
       </SafeAreaView>
     </LinearGradient>
   );
@@ -304,6 +375,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,9 +389,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',

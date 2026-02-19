@@ -1,19 +1,20 @@
 package com.ghost.controller;
 
+import com.ghost.dto.request.CreateTopicRequest;
+import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.TopicResponse;
-import com.ghost.model.Topic;
 import com.ghost.service.TopicService;
-import com.ghost.service.WhiteboardService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/whiteboards/{wbId}/topics")
@@ -21,29 +22,27 @@ import java.util.stream.Collectors;
 public class TopicController {
 
     private final TopicService topicService;
-    private final WhiteboardService whiteboardService;
 
     @GetMapping
-    public ResponseEntity<List<TopicResponse>> getTopics(
+    public ResponseEntity<PageResponse<TopicResponse>> getTopics(
             @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID wbId) {
+            @PathVariable UUID wbId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
-        whiteboardService.verifyMembership(userId, wbId);
-        List<Topic> topics = topicService.getTopics(wbId);
-        List<TopicResponse> response = topics.stream()
-                .map(this::mapToTopicResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<TopicResponse> topics = topicService.getTopics(userId, wbId, pageable);
+        return ResponseEntity.ok(PageResponse.from(topics));
     }
 
     @PostMapping
     public ResponseEntity<TopicResponse> createTopic(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID wbId,
-            @RequestBody Map<String, String> body) {
+            @Valid @RequestBody CreateTopicRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        Topic topic = topicService.createTopic(userId, wbId, body.get("name"));
-        return ResponseEntity.status(HttpStatus.CREATED).body(mapToTopicResponse(topic));
+        TopicResponse topic = topicService.createTopic(userId, wbId, request.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(topic);
     }
 
     @DeleteMapping("/{id}")
@@ -52,15 +51,7 @@ public class TopicController {
             @PathVariable UUID wbId,
             @PathVariable UUID id) {
         UUID userId = UUID.fromString(userIdStr);
-        topicService.deleteTopic(userId, id);
+        topicService.deleteTopic(userId, wbId, id);
         return ResponseEntity.noContent().build();
-    }
-
-    private TopicResponse mapToTopicResponse(Topic topic) {
-        return TopicResponse.builder()
-                .id(topic.getId())
-                .name(topic.getName())
-                .isDefault(topic.isDefault())
-                .build();
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,18 +7,17 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { formatDate } from '../../utils/formatDate';
-import api from '../../services/api';
+import { bookmarkService } from '../../services/bookmarkService';
 import type { BookmarkResponse } from '../../types';
 
 export default function BookmarksScreen() {
@@ -27,28 +26,69 @@ export default function BookmarksScreen() {
   const [bookmarks, setBookmarks] = useState<BookmarkResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastFetchRef = useRef(0);
+  const PAGE_SIZE = 20;
 
-  const fetchBookmarks = useCallback(async () => {
-    try {
-      const response = await api.get('/bookmarks', { params: { page: 0, size: 50 } });
-      setBookmarks(response.data.content || response.data || []);
-    } catch {
-      setBookmarks([]);
-    } finally {
-      setLoading(false);
+  const fetchBookmarks = useCallback(async (options?: { page?: number; replace?: boolean }) => {
+    const nextPage = options?.page ?? 0;
+    const replace = options?.replace ?? true;
+    if (!replace && (!hasMore || loadingMore)) {
+      return;
     }
-  }, []);
+
+    try {
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await bookmarkService.list(nextPage, PAGE_SIZE);
+      setBookmarks((prev) => (replace ? response.content : [...prev, ...response.content]));
+      setPage(nextPage);
+      setHasMore(nextPage + 1 < response.totalPages);
+      setLoadError(null);
+      lastFetchRef.current = Date.now();
+    } catch {
+      if (replace) {
+        setBookmarks([]);
+      }
+      setHasMore(false);
+      setLoadError('Failed to load bookmarks. Pull down to retry.');
+    } finally {
+      if (replace) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [hasMore, loadingMore]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchBookmarks();
-    }, [fetchBookmarks])
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (bookmarks.length === 0 || isStale) {
+        fetchBookmarks({ page: 0, replace: true });
+      }
+    }, [bookmarks.length, fetchBookmarks])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchBookmarks();
+    await fetchBookmarks({ page: 0, replace: true });
     setRefreshing(false);
+  };
+
+  const handleLoadMore = async () => {
+    if (!hasMore || loading || loadingMore) {
+      return;
+    }
+    await fetchBookmarks({ page: page + 1, replace: false });
   };
 
   const renderBookmark = ({ item }: { item: BookmarkResponse }) => {
@@ -56,10 +96,12 @@ export default function BookmarksScreen() {
     return (
       <GlassCard
         style={styles.bookmarkCard}
+        accessibilityLabel={`Open bookmarked question: ${question.title}`}
         onPress={() =>
-          router.push(
-            `/question/${question.id}?whiteboardId=${question.whiteboardId}`
-          )
+          router.push({
+            pathname: '/question/[id]',
+            params: { id: question.id, whiteboardId: question.whiteboardId },
+          })
         }
       >
         <View style={styles.cardHeader}>
@@ -101,11 +143,7 @@ export default function BookmarksScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Bookmarks</Text>
@@ -142,13 +180,21 @@ export default function BookmarksScreen() {
               <EmptyState
                 icon={"\u2606"}
                 title="No Saved Questions"
-                subtitle="Bookmark questions you want to revisit. They'll appear here for easy access."
+                subtitle={loadError || "Bookmark questions you want to revisit. They'll appear here for easy access."}
               />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
             }
           />
         )}
-      </SafeAreaView>
-    </LinearGradient>
+    </ScreenWrapper>
   );
 }
 
@@ -247,5 +293,10 @@ const styles = StyleSheet.create({
   bookmarkedText: {
     fontSize: Fonts.sizes.xs,
     color: Colors.textMuted,
+  },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

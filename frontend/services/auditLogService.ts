@@ -1,0 +1,29 @@
+import api from './api';
+import type { AuditAction, AuditLogResponse, PageResponse } from '../types';
+
+export const auditLogService = {
+  list: async (
+    whiteboardId: string,
+    params?: {
+      action?: AuditAction;
+      page?: number;
+      size?: number;
+    }
+  ): Promise<PageResponse<AuditLogResponse>> => {
+    const response = await api.get<PageResponse<AuditLogResponse>>(
+      `/whiteboards/${whiteboardId}/audit-logs`,
+      {
+        params: {
+          action: params?.action,
+          page: params?.page ?? 0,
+          size: params?.size ?? 20,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  exportCsv: async (whiteboardId: string): Promise<void> => {
+    await api.get(`/whiteboards/${whiteboardId}/audit-logs/export`);
+  },
+};

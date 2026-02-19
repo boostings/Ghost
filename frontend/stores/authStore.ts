@@ -1,7 +1,19 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+import * as SecureStore from 'expo-secure-store';
 import type { UserResponse } from '../types';
+
+const secureStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    return SecureStore.getItemAsync(name);
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await SecureStore.setItemAsync(name, value);
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await SecureStore.deleteItemAsync(name);
+  },
+};
 
 interface AuthState {
   user: UserResponse | null;
@@ -13,7 +25,7 @@ interface AuthState {
 
 interface AuthActions {
   setAuth: (user: UserResponse, accessToken: string, refreshToken: string) => void;
-  setAccessToken: (accessToken: string) => void;
+  setTokens: (accessToken: string, refreshToken?: string) => void;
   updateUser: (user: UserResponse) => void;
   logout: () => void;
   setLoading: (isLoading: boolean) => void;
@@ -44,8 +56,11 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      setAccessToken: (accessToken: string) => {
-        set({ accessToken });
+      setTokens: (accessToken: string, refreshToken?: string) => {
+        set((state) => ({
+          accessToken,
+          refreshToken: refreshToken ?? state.refreshToken,
+        }));
       },
 
       updateUser: (user: UserResponse) => {
@@ -68,7 +83,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'ghost-auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => secureStorage),
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,

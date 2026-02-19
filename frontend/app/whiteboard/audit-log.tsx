@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,8 +17,8 @@ import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { formatDate, formatFullDate } from '../../utils/formatDate';
-import api from '../../services/api';
+import { formatFullDate } from '../../utils/formatDate';
+import { auditLogService } from '../../services/auditLogService';
 import type { AuditLogResponse, AuditAction } from '../../types';
 
 const ACTION_ICONS: Record<string, string> = {
@@ -70,41 +70,91 @@ export default function AuditLogScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [exporting, setExporting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastFetchRef = useRef(0);
+  const lastFilterRef = useRef(actionFilter);
+  const PAGE_SIZE = 20;
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (options?: { page?: number; replace?: boolean }) => {
     if (!whiteboardId) return;
-    try {
-      const params: Record<string, string | number> = { page: 0, size: 50 };
-      if (actionFilter !== 'ALL') {
-        params.action = actionFilter;
-      }
-      const response = await api.get(`/whiteboards/${whiteboardId}/audit-logs`, {
-        params,
-      });
-      setLogs(response.data.content || response.data || []);
-    } catch {
-      setLogs([]);
-    } finally {
-      setLoading(false);
+    const nextPage = options?.page ?? 0;
+    const replace = options?.replace ?? true;
+    if (!replace && (!hasMore || loadingMore)) {
+      return;
     }
-  }, [whiteboardId, actionFilter]);
+
+    try {
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await auditLogService.list(whiteboardId, {
+        action: actionFilter === 'ALL' ? undefined : actionFilter as AuditAction,
+        page: nextPage,
+        size: PAGE_SIZE,
+      });
+      setLogs((prev) => (replace ? response.content : [...prev, ...response.content]));
+      setPage(nextPage);
+      setHasMore(nextPage + 1 < response.totalPages);
+      setLoadError(null);
+      lastFetchRef.current = Date.now();
+    } catch {
+      if (replace) {
+        setLogs([]);
+      }
+      setHasMore(false);
+      setLoadError('Failed to load audit logs.');
+    } finally {
+      if (replace) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [actionFilter, hasMore, loadingMore, whiteboardId]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchLogs();
-    }, [fetchLogs])
+      const filterChanged = lastFilterRef.current !== actionFilter;
+      if (filterChanged) {
+        lastFilterRef.current = actionFilter;
+        fetchLogs({ page: 0, replace: true });
+        return;
+      }
+
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (logs.length === 0 || isStale) {
+        fetchLogs({ page: 0, replace: true });
+      }
+    }, [actionFilter, fetchLogs, logs.length])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchLogs();
+    await fetchLogs({ page: 0, replace: true });
     setRefreshing(false);
   };
 
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+    await fetchLogs({ page: page + 1, replace: false });
+  };
+
   const handleExport = async () => {
+    if (!whiteboardId) {
+      return;
+    }
     setExporting(true);
     try {
-      await api.get(`/whiteboards/${whiteboardId}/audit-logs/export`);
+      await auditLogService.exportCsv(whiteboardId);
       Alert.alert('Export', 'Audit log CSV has been prepared for download.');
     } catch {
       Alert.alert('Error', 'Failed to export audit logs.');
@@ -165,7 +215,12 @@ export default function AuditLogScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backArrow}>{"\u2190"}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Audit Log</Text>
@@ -173,6 +228,8 @@ export default function AuditLogScreen() {
             onPress={handleExport}
             style={styles.exportButton}
             disabled={exporting}
+            accessibilityRole="button"
+            accessibilityLabel="Export audit log as CSV"
           >
             <Text style={styles.exportText}>
               {exporting ? '...' : 'CSV'}
@@ -197,6 +254,8 @@ export default function AuditLogScreen() {
                 setActionFilter(item);
                 setLoading(true);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter audit log by ${item === 'ALL' ? 'all actions' : formatAction(item)}`}
             >
               <Text
                 style={[
@@ -236,8 +295,17 @@ export default function AuditLogScreen() {
               <EmptyState
                 icon={"\u{1F4CB}"}
                 title="No Audit Entries"
-                subtitle="Activity will be recorded here as changes are made"
+                subtitle={loadError || 'Activity will be recorded here as changes are made'}
               />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
             }
           />
         )}
@@ -267,9 +335,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -298,6 +366,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.primary,
   },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filterList: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -305,11 +378,13 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 8,
   },
   filterChipActive: {

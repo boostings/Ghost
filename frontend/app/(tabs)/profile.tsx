@@ -4,16 +4,14 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
 import Avatar from '../../components/ui/Avatar';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,7 +19,8 @@ import { authService } from '../../services/authService';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -73,11 +72,7 @@ export default function ProfileScreen() {
   const karmaScore = user?.karmaScore || 0;
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper edges={['top']}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -181,8 +176,7 @@ export default function ProfileScreen() {
           {/* Version */}
           <Text style={styles.versionText}>Ghost v1.0.0</Text>
         </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+    </ScreenWrapper>
   );
 }
 

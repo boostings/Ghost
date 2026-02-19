@@ -11,7 +11,8 @@ import java.util.UUID;
 @Table(name = "bookmarks", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "question_id"})
 })
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

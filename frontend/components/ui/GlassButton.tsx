@@ -20,6 +20,7 @@ interface GlassButtonProps {
   disabled?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
+  accessibilityLabel?: string;
 }
 
 const GlassButton: React.FC<GlassButtonProps> = ({
@@ -29,6 +30,7 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   disabled = false,
   loading = false,
   icon,
+  accessibilityLabel,
 }) => {
   const containerStyle = getContainerStyle(variant);
   const textStyle = getTextStyle(variant);
@@ -43,6 +45,8 @@ const GlassButton: React.FC<GlassButtonProps> = ({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
     >
       {loading ? (
         <ActivityIndicator

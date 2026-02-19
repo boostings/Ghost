@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -27,15 +27,28 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
 }) => {
   const deepLink = `ghost://join/${inviteCode}`;
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleCopyCode = useCallback(async () => {
     try {
       // Use Share as a cross-platform fallback when expo-clipboard is not available
       await Share.share({ message: inviteCode });
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Silently fail if share is unavailable
+      // Share sheet may be unavailable on some devices.
+      setCopied(false);
     }
   }, [inviteCode]);
 
@@ -81,6 +94,8 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
             onPress={handleCopyCode}
             style={styles.codeBox}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Share invite code"
           >
             <Text style={styles.codeText}>{inviteCode}</Text>
             <Text style={styles.copyHint}>

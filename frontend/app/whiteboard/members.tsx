@@ -15,7 +15,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import Avatar from '../../components/ui/Avatar';
-import GlassButton from '../../components/ui/GlassButton';
 import EmptyState from '../../components/ui/EmptyState';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -27,26 +26,29 @@ import type { MemberResponse, JoinRequestResponse } from '../../types';
 export default function MembersScreen() {
   const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const isFaculty = user?.role === 'FACULTY';
 
   const [members, setMembers] = useState<MemberResponse[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequestResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!whiteboardId) return;
     try {
       const membersData = await whiteboardService.getMembers(whiteboardId);
-      setMembers(membersData as unknown as MemberResponse[]);
+      setMembers(membersData);
       if (isFaculty) {
         const requests = await whiteboardService.getJoinRequests(whiteboardId);
-        setJoinRequests(requests as unknown as JoinRequestResponse[]);
+        setJoinRequests(requests);
       }
+      setLoadError(null);
     } catch {
       setMembers([]);
       setJoinRequests([]);
+      setLoadError('Failed to load members. Pull down to retry.');
     } finally {
       setLoading(false);
     }
@@ -74,8 +76,11 @@ export default function MembersScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
+            if (!whiteboardId) {
+              return;
+            }
             try {
-              await whiteboardService.removeMember(whiteboardId!, member.userId);
+              await whiteboardService.removeMember(whiteboardId, member.userId);
               setMembers((prev) => prev.filter((m) => m.userId !== member.userId));
             } catch {
               Alert.alert('Error', 'Failed to remove member.');
@@ -87,8 +92,11 @@ export default function MembersScreen() {
   };
 
   const handleReviewRequest = async (requestId: string, status: 'APPROVED' | 'REJECTED') => {
+    if (!whiteboardId) {
+      return;
+    }
     try {
-      await whiteboardService.reviewJoinRequest(whiteboardId!, requestId, status);
+      await whiteboardService.reviewJoinRequest(whiteboardId, requestId, status);
       setJoinRequests((prev) => prev.filter((r) => r.id !== requestId));
       if (status === 'APPROVED') {
         await fetchData(); // Refresh members
@@ -125,6 +133,8 @@ export default function MembersScreen() {
         <TouchableOpacity
           onPress={() => handleRemoveMember(member)}
           style={styles.removeButton}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${member.firstName} ${member.lastName}`}
         >
           <Text style={styles.removeText}>{"\u2715"}</Text>
         </TouchableOpacity>
@@ -153,7 +163,12 @@ export default function MembersScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backArrow}>{"\u2190"}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Members</Text>
@@ -194,12 +209,16 @@ export default function MembersScreen() {
                           <TouchableOpacity
                             style={styles.approveButton}
                             onPress={() => handleReviewRequest(request.id, 'APPROVED')}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Approve ${request.userName}`}
                           >
                             <Text style={styles.approveText}>{"\u2713"}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.rejectButton}
                             onPress={() => handleReviewRequest(request.id, 'REJECTED')}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Reject ${request.userName}`}
                           >
                             <Text style={styles.rejectText}>{"\u2715"}</Text>
                           </TouchableOpacity>
@@ -235,7 +254,7 @@ export default function MembersScreen() {
                   <EmptyState
                     icon={"\u{1F465}"}
                     title="No Students"
-                    subtitle="Share the invite code to get students to join"
+                    subtitle={loadError || 'Share the invite code to get students to join'}
                   />
                 )}
               </View>
@@ -268,9 +287,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -353,9 +372,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108,99,255,0.15)',
   },
   removeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,68,68,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -395,9 +414,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   approveButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(0,200,81,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -408,9 +427,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   rejectButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,68,68,0.15)',
     alignItems: 'center',
     justifyContent: 'center',

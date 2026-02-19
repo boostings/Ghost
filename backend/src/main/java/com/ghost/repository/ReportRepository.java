@@ -15,6 +15,10 @@ import java.util.UUID;
 @Repository
 public interface ReportRepository extends JpaRepository<Report, UUID> {
 
+    boolean existsByReporterIdAndQuestionId(UUID reporterId, UUID questionId);
+
+    boolean existsByReporterIdAndCommentId(UUID reporterId, UUID commentId);
+
     List<Report> findByQuestionId(UUID questionId);
 
     List<Report> findByCommentId(UUID commentId);

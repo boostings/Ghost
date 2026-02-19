@@ -28,7 +28,7 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Validates that a name contains only letters, spaces, hyphens, and apostrophes.
+ * Validates that a name contains letters only.
  * Must be at least 1 character and at most 100 characters.
  *
  * @param name - The name to validate.
@@ -45,23 +45,28 @@ export function isValidName(name: string): boolean {
     return false;
   }
 
-  // Letters (including accented), spaces, hyphens, and apostrophes
-  const nameRegex = /^[a-zA-Z\u00C0-\u024F\s'-]+$/;
+  // Letters (including accented) only
+  const nameRegex = /^[a-zA-Z\u00C0-\u024F]+$/;
   return nameRegex.test(trimmed);
 }
 
 /**
- * Validates that a password is at least 8 characters long.
+ * Validates that a password is at least 8 characters and includes
+ * at least one letter and one number.
  *
  * @param password - The password to validate.
- * @returns true if the password meets the minimum length requirement.
+ * @returns true if the password meets the minimum strength requirement.
  */
 export function isValidPassword(password: string): boolean {
   if (!password || typeof password !== 'string') {
     return false;
   }
 
-  return password.length >= 8;
+  if (password.length < 8) {
+    return false;
+  }
+
+  return /^(?=.*[A-Za-z])(?=.*\d).+$/.test(password);
 }
 
 /**
@@ -92,7 +97,7 @@ export function getNameError(name: string, fieldName: string = 'Name'): string |
   }
 
   if (!isValidName(name)) {
-    return `${fieldName} can only contain letters, spaces, and hyphens`;
+    return `${fieldName} can only contain letters`;
   }
 
   return null;
@@ -107,7 +112,7 @@ export function getPasswordError(password: string): string | null {
   }
 
   if (!isValidPassword(password)) {
-    return 'Password must be at least 8 characters';
+    return 'Password must be at least 8 characters and include a letter and number';
   }
 
   return null;

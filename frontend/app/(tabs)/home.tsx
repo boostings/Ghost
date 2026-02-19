@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,76 +7,169 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
+import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
 import GlassModal from '../../components/ui/GlassModal';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
+import { parseInviteCode } from '../../utils/inviteCode';
 import type { WhiteboardResponse } from '../../types';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { whiteboards, setWhiteboards, setLoading, isLoading } = useWhiteboardStore();
-  const { user } = useAuthStore();
+  const whiteboards = useWhiteboardStore((state) => state.whiteboards);
+  const setWhiteboards = useWhiteboardStore((state) => state.setWhiteboards);
+  const setLoading = useWhiteboardStore((state) => state.setLoading);
+  const isLoading = useWhiteboardStore((state) => state.isLoading);
+  const user = useAuthStore((state) => state.user);
   const isFaculty = user?.role === 'FACULTY';
 
   const [refreshing, setRefreshing] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [joining, setJoining] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannerLocked, setScannerLocked] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastFetchRef = useRef(0);
+  const PAGE_SIZE = 20;
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  const fetchWhiteboards = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await whiteboardService.list(0, 50);
-      setWhiteboards(response.content);
-    } catch {
-      // Use mock data if API is not available
-      setWhiteboards([]);
+  const fetchWhiteboards = useCallback(async (options?: { page?: number; replace?: boolean }) => {
+    const nextPage = options?.page ?? 0;
+    const replace = options?.replace ?? true;
+    if (!replace && (!hasMore || loadingMore)) {
+      return;
     }
-  }, []);
+
+    try {
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await whiteboardService.list(nextPage, PAGE_SIZE);
+      const current = replace ? [] : useWhiteboardStore.getState().whiteboards;
+      const merged = [...current, ...response.content];
+      setWhiteboards(merged);
+      setPage(nextPage);
+      setHasMore(nextPage + 1 < response.totalPages);
+      lastFetchRef.current = Date.now();
+      setLoadError(null);
+    } catch {
+      setLoadError('Failed to load your classes. Pull down to retry.');
+      if (replace) {
+        setWhiteboards([]);
+      }
+      setHasMore(false);
+    } finally {
+      if (replace) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [hasMore, loadingMore, setLoading, setWhiteboards]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchWhiteboards();
-    }, [fetchWhiteboards])
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (whiteboards.length === 0 || isStale) {
+        fetchWhiteboards({ page: 0, replace: true });
+      }
+    }, [fetchWhiteboards, whiteboards.length])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchWhiteboards();
+    await fetchWhiteboards({ page: 0, replace: true });
     setRefreshing(false);
   };
 
-  const handleJoin = async () => {
-    if (!inviteCode.trim()) return;
+  const handleLoadMore = async () => {
+    if (!hasMore || loadingMore || isLoading) {
+      return;
+    }
+    await fetchWhiteboards({ page: page + 1, replace: false });
+  };
+
+  const joinWithInviteCode = async (code: string) => {
     setJoining(true);
     try {
-      await whiteboardService.joinByInviteCode(inviteCode.trim());
+      await whiteboardService.joinByInviteCode(code);
       setShowJoinModal(false);
       setInviteCode('');
-      await fetchWhiteboards();
+      await fetchWhiteboards({ page: 0, replace: true });
     } catch {
-      // Handle error silently or show alert
+      Alert.alert('Join Failed', 'Unable to join with this invite code.');
     } finally {
       setJoining(false);
     }
   };
 
-  const renderWhiteboardCard = ({ item }: { item: WhiteboardResponse }) => (
+  const handleJoin = async () => {
+    if (!inviteCode.trim()) return;
+    await joinWithInviteCode(inviteCode.trim());
+  };
+
+  const openScanner = async () => {
+    if (!cameraPermission?.granted) {
+      const permissionResponse = await requestCameraPermission();
+      if (!permissionResponse.granted) {
+        Alert.alert('Camera Permission Needed', 'Enable camera access to scan class QR codes.');
+        return;
+      }
+    }
+
+    setScannerLocked(false);
+    setShowScannerModal(true);
+  };
+
+  const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
+    if (scannerLocked || joining) {
+      return;
+    }
+
+    setScannerLocked(true);
+    const parsedCode = parseInviteCode(data);
+    if (!parsedCode) {
+      Alert.alert('Invalid QR Code', 'This QR code does not contain a valid invite code.');
+      setTimeout(() => setScannerLocked(false), 600);
+      return;
+    }
+
+    setShowScannerModal(false);
+    setInviteCode(parsedCode);
+    await joinWithInviteCode(parsedCode);
+    setScannerLocked(false);
+  };
+
+  const renderWhiteboardCard = useCallback(({ item }: { item: WhiteboardResponse }) => (
     <GlassCard
       style={styles.whiteboardCard}
-      onPress={() => router.push(`/whiteboard/${item.id}`)}
+      accessibilityLabel={`Open ${item.courseCode} whiteboard`}
+      onPress={() =>
+        router.push({
+          pathname: '/whiteboard/[id]',
+          params: { id: item.id },
+        })
+      }
     >
       <View style={styles.cardHeader}>
         <View style={styles.codeContainer}>
@@ -106,14 +199,10 @@ export default function HomeScreen() {
         </View>
       </View>
     </GlassCard>
-  );
+  ), [router]);
 
   return (
-    <LinearGradient
-      colors={['#1A1A2E', '#16213E', '#0F3460']}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -150,10 +239,19 @@ export default function HomeScreen() {
               <EmptyState
                 icon={"\u{1F4DA}"}
                 title="No Classes Yet"
-                subtitle="Join a class to start asking and answering questions"
+                subtitle={loadError || 'Join a class to start asking and answering questions'}
                 actionLabel="Join a Class"
                 onAction={() => setShowJoinModal(true)}
               />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
             }
           />
         )}
@@ -163,6 +261,8 @@ export default function HomeScreen() {
           style={styles.fab}
           activeOpacity={0.8}
           onPress={() => setShowJoinModal(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Join a class"
         >
           <Text style={styles.fabIcon}>+</Text>
         </TouchableOpacity>
@@ -191,6 +291,15 @@ export default function HomeScreen() {
             disabled={joining || !inviteCode.trim()}
           />
 
+          <View style={styles.modalSpacing} />
+
+          <GlassButton
+            title="Scan QR Code"
+            onPress={openScanner}
+            variant="secondary"
+            disabled={joining}
+          />
+
           {isFaculty && (
             <>
               <View style={styles.modalDivider}>
@@ -202,15 +311,31 @@ export default function HomeScreen() {
                 title="Create New Whiteboard"
                 onPress={() => {
                   setShowJoinModal(false);
-                  // Navigate to create whiteboard flow
+                  router.push('/whiteboard/create');
                 }}
                 variant="secondary"
               />
             </>
           )}
         </GlassModal>
-      </SafeAreaView>
-    </LinearGradient>
+
+        <GlassModal
+          visible={showScannerModal}
+          onClose={() => setShowScannerModal(false)}
+          title="Scan Class QR"
+        >
+          <View style={styles.scannerContainer}>
+            <CameraView
+              style={styles.scanner}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={handleBarcodeScanned}
+            />
+          </View>
+          <Text style={styles.scannerHint}>
+            Point your camera at the QR code shared by faculty.
+          </Text>
+        </GlassModal>
+    </ScreenWrapper>
   );
 }
 
@@ -306,6 +431,11 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     color: Colors.textSecondary,
   },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   fab: {
     position: 'absolute',
     right: 24,
@@ -343,5 +473,25 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     paddingHorizontal: 12,
     fontWeight: '600',
+  },
+  modalSpacing: {
+    height: 10,
+  },
+  scannerContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  scanner: {
+    width: '100%',
+    height: 260,
+  },
+  scannerHint: {
+    marginTop: 12,
+    textAlign: 'center',
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.sm,
   },
 });

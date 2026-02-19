@@ -46,6 +46,8 @@ const GlassModal: React.FC<GlassModalProps> = ({
             style={styles.overlayTouchable}
             activeOpacity={1}
             onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close modal"
           />
           <View style={styles.modalContainer}>
             <View style={styles.cardWrapper}>
@@ -60,6 +62,8 @@ const GlassModal: React.FC<GlassModalProps> = ({
                       onPress={onClose}
                       style={styles.closeButton}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Close modal"
                     >
                       <Text style={styles.closeIcon}>✕</Text>
                     </TouchableOpacity>

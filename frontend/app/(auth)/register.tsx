@@ -18,7 +18,7 @@ import GlassButton from '../../components/ui/GlassButton';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { authService } from '../../services/authService';
-import { useAuthStore } from '../../stores/authStore';
+import { extractErrorMessage } from '../../hooks/useApi';
 import {
   getEmailError,
   getNameError,
@@ -36,7 +36,6 @@ interface FormErrors {
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { setAuth } = useAuthStore();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -83,10 +82,8 @@ export default function RegisterScreen() {
         pathname: '/(auth)/verify-email',
         params: { email: email.trim().toLowerCase() },
       });
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.message || 'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', message);
+    } catch (error: unknown) {
+      Alert.alert('Registration Failed', extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -207,7 +204,11 @@ export default function RegisterScreen() {
             {/* Login Link */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                accessibilityRole="button"
+                accessibilityLabel="Go back to sign in"
+              >
                 <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>

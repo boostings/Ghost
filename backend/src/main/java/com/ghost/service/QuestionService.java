@@ -3,19 +3,20 @@ package com.ghost.service;
 import com.ghost.dto.request.CreateQuestionRequest;
 import com.ghost.dto.request.EditQuestionRequest;
 import com.ghost.dto.request.ForwardQuestionRequest;
+import com.ghost.dto.response.QuestionResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
+import com.ghost.mapper.QuestionMapper;
 import com.ghost.model.Question;
 import com.ghost.model.Topic;
-import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
-import com.ghost.repository.CommentRepository;
 import com.ghost.repository.QuestionRepository;
+import com.ghost.repository.TopicRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,15 +32,17 @@ import java.util.UUID;
 public class QuestionService {
 
     private final QuestionRepository questionRepository;
-    private final CommentRepository commentRepository;
+    private final TopicRepository topicRepository;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final QuestionMapper questionMapper;
+    private final SearchService searchService;
 
     @Transactional
-    public Question createQuestion(UUID userId, UUID whiteboardId, CreateQuestionRequest req) {
+    public QuestionResponse createQuestion(UUID userId, UUID whiteboardId, CreateQuestionRequest req) {
         // Verify membership
-        WhiteboardMembership membership = whiteboardService.verifyMembership(userId, whiteboardId);
+        var membership = whiteboardService.verifyMembership(userId, whiteboardId);
         Whiteboard whiteboard = whiteboardService.getWhiteboardById(whiteboardId);
 
         Question question = Question.builder()
@@ -52,7 +55,9 @@ public class QuestionService {
 
         // Set topic if provided
         if (req.getTopicId() != null) {
-            question.setTopic(Topic.builder().id(req.getTopicId()).build());
+            Topic topic = topicRepository.findByIdAndWhiteboardId(req.getTopicId(), whiteboardId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", req.getTopicId()));
+            question.setTopic(topic);
         }
 
         question = questionRepository.save(question);
@@ -62,12 +67,13 @@ public class QuestionService {
                 "Question", question.getId(), null, question.getTitle()
         );
 
-        return question;
+        return questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
     }
 
     @Transactional
-    public Question editQuestion(UUID userId, UUID questionId, EditQuestionRequest req) {
-        Question question = getQuestionById(questionId);
+    public QuestionResponse editQuestion(UUID userId, UUID whiteboardId, UUID questionId, EditQuestionRequest req) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
+        whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
 
         // Verify author
         if (!question.getAuthor().getId().equals(userId)) {
@@ -96,7 +102,10 @@ public class QuestionService {
             question.setBody(req.getBody());
         }
         if (req.getTopicId() != null) {
-            question.setTopic(Topic.builder().id(req.getTopicId()).build());
+            Topic topic = topicRepository.findByIdAndWhiteboardId(
+                            req.getTopicId(), question.getWhiteboard().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", req.getTopicId()));
+            question.setTopic(topic);
         }
 
         question = questionRepository.save(question);
@@ -108,21 +117,19 @@ public class QuestionService {
                 "title=" + question.getTitle() + "; body=" + question.getBody()
         );
 
-        return question;
+        return questionMapper.toResponse(question, userId, isFaculty(userId, whiteboardId));
     }
 
     @Transactional
-    public void deleteQuestion(UUID userId, UUID questionId) {
-        Question question = getQuestionById(questionId);
+    public void deleteQuestion(UUID userId, UUID whiteboardId, UUID questionId) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
+        whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
 
         // Verify author or faculty in whiteboard
         boolean isAuthor = question.getAuthor().getId().equals(userId);
-        boolean isFaculty = false;
-
         if (!isAuthor) {
             try {
                 whiteboardService.verifyFacultyRole(userId, question.getWhiteboard().getId());
-                isFaculty = true;
             } catch (UnauthorizedException e) {
                 throw new UnauthorizedException("Only the author or faculty can delete this question");
             }
@@ -139,9 +146,14 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Question> getQuestions(UUID whiteboardId, Pageable pageable) {
-        return questionRepository.findByWhiteboardIdAndIsHiddenFalseOrderByIsPinnedDescCreatedAtDesc(
-                whiteboardId, pageable);
+    public Page<QuestionResponse> getQuestions(
+            UUID userId,
+            UUID whiteboardId,
+            UUID topicId,
+            String status,
+            Pageable pageable
+    ) {
+        return searchService.search(userId, null, whiteboardId, topicId, status, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -150,11 +162,32 @@ public class QuestionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
     }
 
-    @Transactional
-    public void closeQuestion(UUID facultyId, UUID questionId) {
+    @Transactional(readOnly = true)
+    public QuestionResponse getQuestionByIdAndWhiteboard(UUID userId, UUID questionId, UUID whiteboardId) {
+        var membership = whiteboardService.verifyMembership(userId, whiteboardId);
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
+        return questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+    }
+
+    private Question getQuestionEntityByIdAndWhiteboard(UUID questionId, UUID whiteboardId) {
         Question question = getQuestionById(questionId);
+        if (!question.getWhiteboard().getId().equals(whiteboardId)) {
+            throw new ResourceNotFoundException("Question", "id", questionId);
+        }
+        if (question.isHidden()) {
+            throw new ResourceNotFoundException("Question", "id", questionId);
+        }
+        return question;
+    }
+
+    @Transactional
+    public void closeQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        if (question.getStatus() == QuestionStatus.CLOSED) {
+            throw new BadRequestException("Question is already closed");
+        }
 
         question.setStatus(QuestionStatus.CLOSED);
         questionRepository.save(question);
@@ -166,10 +199,13 @@ public class QuestionService {
     }
 
     @Transactional
-    public void pinQuestion(UUID facultyId, UUID questionId) {
-        Question question = getQuestionById(questionId);
+    public void pinQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        if (question.isPinned()) {
+            throw new BadRequestException("Question is already pinned");
+        }
 
         // Check pinned count < 3
         long pinnedCount = questionRepository.countByWhiteboardIdAndIsPinnedTrue(
@@ -180,23 +216,47 @@ public class QuestionService {
 
         question.setPinned(true);
         questionRepository.save(question);
+
+        auditLogService.logAction(
+                whiteboardId,
+                facultyId,
+                AuditAction.QUESTION_PINNED,
+                "Question",
+                questionId,
+                "false",
+                "true"
+        );
     }
 
     @Transactional
-    public void unpinQuestion(UUID facultyId, UUID questionId) {
-        Question question = getQuestionById(questionId);
+    public void unpinQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        if (!question.isPinned()) {
+            throw new BadRequestException("Question is not pinned");
+        }
 
         question.setPinned(false);
         questionRepository.save(question);
+
+        auditLogService.logAction(
+                whiteboardId,
+                facultyId,
+                AuditAction.QUESTION_UNPINNED,
+                "Question",
+                questionId,
+                "true",
+                "false"
+        );
     }
 
     @Transactional
-    public void forwardQuestion(UUID facultyId, UUID questionId, ForwardQuestionRequest req) {
-        Question question = getQuestionById(questionId);
+    public void forwardQuestion(UUID facultyId, UUID whiteboardId, UUID questionId, ForwardQuestionRequest req) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        whiteboardService.verifyFacultyRole(req.getTargetFacultyId(), question.getWhiteboard().getId());
 
         // Create notification for target faculty
         notificationService.createAndSend(
@@ -212,5 +272,9 @@ public class QuestionService {
                 question.getWhiteboard().getId(), facultyId, AuditAction.QUESTION_FORWARDED,
                 "Question", questionId, null, "Forwarded to: " + req.getTargetFacultyId()
         );
+    }
+
+    private boolean isFaculty(UUID userId, UUID whiteboardId) {
+        return whiteboardService.verifyMembership(userId, whiteboardId).getRole() == Role.FACULTY;
     }
 }

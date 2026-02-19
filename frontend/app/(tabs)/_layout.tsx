@@ -2,17 +2,17 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { Fonts } from '../../constants/fonts';
 import { useNotificationStore } from '../../stores/notificationStore';
 
 function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    home: '\u2302',
-    search: '\u2315',
-    notifications: '\u2407',
-    bookmarks: '\u2606',
-    profile: '\u263A',
+  const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+    home: focused ? 'home' : 'home-outline',
+    search: focused ? 'search' : 'search-outline',
+    notifications: focused ? 'notifications' : 'notifications-outline',
+    bookmarks: focused ? 'bookmark' : 'bookmark-outline',
+    profile: focused ? 'person' : 'person-outline',
   };
 
   const labels: Record<string, string> = {
@@ -26,12 +26,13 @@ function TabBarIcon({ name, focused }: { name: string; focused: boolean }) {
   return (
     <View style={tabIconStyles.container}>
       <Text
-        style={[
-          tabIconStyles.icon,
-          { color: focused ? Colors.primary : Colors.textMuted },
-        ]}
+        style={tabIconStyles.icon}
       >
-        {icons[name] || '?'}
+        <Ionicons
+          name={icons[name] || 'help-circle-outline'}
+          size={20}
+          color={focused ? Colors.primary : Colors.textMuted}
+        />
       </Text>
       <Text
         style={[
@@ -63,7 +64,7 @@ const tabIconStyles = StyleSheet.create({
 });
 
 function NotificationBadge() {
-  const { unreadCount } = useNotificationStore();
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   if (unreadCount === 0) return null;
 
@@ -126,12 +127,14 @@ export default function TabLayout() {
         name="home"
         options={{
           tabBarIcon: ({ focused }) => <TabBarIcon name="home" focused={focused} />,
+          tabBarAccessibilityLabel: 'Home tab',
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           tabBarIcon: ({ focused }) => <TabBarIcon name="search" focused={focused} />,
+          tabBarAccessibilityLabel: 'Search tab',
         }}
       />
       <Tabs.Screen
@@ -143,18 +146,21 @@ export default function TabLayout() {
               <NotificationBadge />
             </View>
           ),
+          tabBarAccessibilityLabel: 'Notifications tab',
         }}
       />
       <Tabs.Screen
         name="bookmarks"
         options={{
           tabBarIcon: ({ focused }) => <TabBarIcon name="bookmarks" focused={focused} />,
+          tabBarAccessibilityLabel: 'Bookmarks tab',
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           tabBarIcon: ({ focused }) => <TabBarIcon name="profile" focused={focused} />,
+          tabBarAccessibilityLabel: 'Profile tab',
         }}
       />
     </Tabs>

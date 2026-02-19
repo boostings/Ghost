@@ -4,13 +4,16 @@ import com.ghost.model.enums.VoteType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Check;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "karma_votes")
-@Data
+@Check(constraints = "(question_id IS NULL) <> (comment_id IS NULL)")
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

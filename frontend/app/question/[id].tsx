@@ -19,21 +19,23 @@ import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
-import Avatar from '../../components/ui/Avatar';
 import KarmaDisplay from '../../components/ui/KarmaDisplay';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
 import { commentService } from '../../services/commentService';
+import { bookmarkService } from '../../services/bookmarkService';
+import { reportService } from '../../services/reportService';
 import { formatDate, formatFullDate } from '../../utils/formatDate';
-import api from '../../services/api';
-import type { QuestionResponse, CommentResponse, VoteType } from '../../types';
+import { extractErrorMessage } from '../../hooks/useApi';
+import { sanitizeText } from '../../utils/sanitize';
+import type { QuestionResponse, CommentResponse, VoteType, ReportReason } from '../../types';
 
 export default function QuestionDetailScreen() {
   const router = useRouter();
   const { id, whiteboardId } = useLocalSearchParams<{ id: string; whiteboardId: string }>();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const isFaculty = user?.role === 'FACULTY';
   const commentInputRef = useRef<TextInput>(null);
 
@@ -44,19 +46,33 @@ export default function QuestionDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const lastFetchRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setQuestion(null);
+      setComments([]);
+      setLoading(false);
+      setLoadError('Missing question id.');
+      return;
+    }
+
     try {
-      const wbId = whiteboardId || '';
+      const resolvedQuestion = whiteboardId
+        ? questionService.getById(whiteboardId, id)
+        : questionService.getByIdGlobal(id);
       const [q, c] = await Promise.all([
-        wbId ? questionService.getById(wbId, id) : api.get(`/questions/${id}`).then((r) => r.data),
+        resolvedQuestion,
         commentService.list(id),
       ]);
       setQuestion(q);
       setComments(c);
       setIsBookmarked(q.isBookmarked || false);
+      setLoadError(null);
+      lastFetchRef.current = Date.now();
     } catch {
+      setLoadError('Failed to load this question.');
       setQuestion(null);
       setComments([]);
     } finally {
@@ -66,8 +82,12 @@ export default function QuestionDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
-    }, [fetchData])
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (!question || isStale) {
+        fetchData();
+      }
+    }, [fetchData, question])
   );
 
   const handleRefresh = async () => {
@@ -77,15 +97,16 @@ export default function QuestionDetailScreen() {
   };
 
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || !id) return;
+    const sanitizedComment = sanitizeText(commentText);
+    if (!sanitizedComment || !id) return;
     setSubmitting(true);
     try {
-      const newComment = await commentService.create(id, { body: commentText.trim() });
+      const newComment = await commentService.create(id, { body: sanitizedComment });
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
       commentInputRef.current?.blur();
-    } catch (error: any) {
-      Alert.alert('Error', error?.response?.data?.message || 'Failed to post comment.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +139,7 @@ export default function QuestionDetailScreen() {
         );
       }
     } catch {
-      // Ignore
+      Alert.alert('Error', 'Could not record your vote. Please try again.');
     }
   };
 
@@ -148,7 +169,7 @@ export default function QuestionDetailScreen() {
         );
       }
     } catch {
-      // Ignore
+      Alert.alert('Error', 'Could not record your vote. Please try again.');
     }
   };
 
@@ -178,14 +199,14 @@ export default function QuestionDetailScreen() {
     if (!id) return;
     try {
       if (isBookmarked) {
-        await api.delete(`/bookmarks/questions/${id}`);
+        await bookmarkService.remove(id);
         setIsBookmarked(false);
       } else {
-        await api.post(`/bookmarks/questions/${id}`);
+        await bookmarkService.add(id);
         setIsBookmarked(true);
       }
     } catch {
-      // Ignore
+      Alert.alert('Error', 'Failed to update bookmark.');
     }
   };
 
@@ -207,9 +228,10 @@ export default function QuestionDetailScreen() {
     ]);
   };
 
-  const submitReport = async (reason: string) => {
+  const submitReport = async (reason: ReportReason) => {
+    if (!id) return;
     try {
-      await api.post('/reports', { questionId: id, reason });
+      await reportService.create({ questionId: id, reason });
       Alert.alert('Reported', 'Thank you for your report. It will be reviewed by faculty.');
     } catch {
       Alert.alert('Error', 'Failed to submit report.');
@@ -223,9 +245,16 @@ export default function QuestionDetailScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          if (!id) {
+            return;
+          }
           try {
-            const wbId = whiteboardId || question?.whiteboardId || '';
-            await questionService.delete(wbId, id!);
+            const wbId = whiteboardId || question?.whiteboardId;
+            if (!wbId) {
+              Alert.alert('Error', 'Missing whiteboard context.');
+              return;
+            }
+            await questionService.delete(wbId, id);
             router.back();
           } catch {
             Alert.alert('Error', 'Failed to delete question.');
@@ -275,12 +304,18 @@ export default function QuestionDetailScreen() {
               <TouchableOpacity
                 onPress={() => handleVerifyAnswer(item.id)}
                 style={styles.actionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Verify this answer"
               >
                 <Text style={styles.actionButtonText}>{"\u2713 Verify"}</Text>
               </TouchableOpacity>
             )}
             {item.canEdit && (
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Edit comment"
+              >
                 <Text style={styles.actionButtonText}>Edit</Text>
               </TouchableOpacity>
             )}
@@ -316,19 +351,34 @@ export default function QuestionDetailScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
               <Text style={styles.backArrow}>{"\u2190"}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle} numberOfLines={1}>
               Question
             </Text>
             <View style={styles.headerActions}>
-              <TouchableOpacity onPress={handleBookmark} style={styles.headerButton}>
+              <TouchableOpacity
+                onPress={handleBookmark}
+                style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              >
                 <Text style={styles.headerButtonIcon}>
                   {isBookmarked ? '\u2605' : '\u2606'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleReport} style={styles.headerButton}>
+              <TouchableOpacity
+                onPress={handleReport}
+                style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel="Report question"
+              >
                 <Text style={styles.headerButtonIcon}>{"\u{1F6A9}"}</Text>
               </TouchableOpacity>
             </View>
@@ -386,11 +436,17 @@ export default function QuestionDetailScreen() {
                         {canEdit && (
                           <TouchableOpacity
                             onPress={() =>
-                              router.push(
-                                `/question/edit?questionId=${id}&whiteboardId=${whiteboardId || question.whiteboardId}`
-                              )
+                              router.push({
+                                pathname: '/question/edit',
+                                params: {
+                                  questionId: id,
+                                  whiteboardId: whiteboardId || question.whiteboardId,
+                                },
+                              })
                             }
                             style={styles.questionAction}
+                            accessibilityRole="button"
+                            accessibilityLabel="Edit question"
                           >
                             <Text style={styles.questionActionText}>Edit</Text>
                           </TouchableOpacity>
@@ -399,6 +455,8 @@ export default function QuestionDetailScreen() {
                           <TouchableOpacity
                             onPress={handleDeleteQuestion}
                             style={styles.questionAction}
+                            accessibilityRole="button"
+                            accessibilityLabel="Delete question"
                           >
                             <Text style={styles.questionActionTextDanger}>
                               Delete
@@ -408,15 +466,20 @@ export default function QuestionDetailScreen() {
                         {isFaculty && !isClosed && (
                           <TouchableOpacity
                             onPress={async () => {
+                              if (!id) {
+                                return;
+                              }
                               try {
                                 const wbId = whiteboardId || question.whiteboardId;
-                                await questionService.close(wbId, id!);
+                                await questionService.close(wbId, id);
                                 await fetchData();
                               } catch {
                                 Alert.alert('Error', 'Failed to close question.');
                               }
                             }}
                             style={styles.questionAction}
+                            accessibilityRole="button"
+                            accessibilityLabel="Close question"
                           >
                             <Text style={styles.questionActionText}>Close</Text>
                           </TouchableOpacity>
@@ -424,12 +487,15 @@ export default function QuestionDetailScreen() {
                         {isFaculty && (
                           <TouchableOpacity
                             onPress={async () => {
+                              if (!id) {
+                                return;
+                              }
                               try {
                                 const wbId = whiteboardId || question.whiteboardId;
                                 if (question.isPinned) {
-                                  await questionService.unpin(wbId, id!);
+                                  await questionService.unpin(wbId, id);
                                 } else {
-                                  await questionService.pin(wbId, id!);
+                                  await questionService.pin(wbId, id);
                                 }
                                 await fetchData();
                               } catch {
@@ -437,6 +503,8 @@ export default function QuestionDetailScreen() {
                               }
                             }}
                             style={styles.questionAction}
+                            accessibilityRole="button"
+                            accessibilityLabel={question.isPinned ? 'Unpin question' : 'Pin question'}
                           >
                             <Text style={styles.questionActionText}>
                               {question.isPinned ? 'Unpin' : 'Pin'}
@@ -468,7 +536,7 @@ export default function QuestionDetailScreen() {
               !loading ? (
                 <View style={styles.noComments}>
                   <Text style={styles.noCommentsText}>
-                    No comments yet. Be the first to respond!
+                    {loadError || 'No comments yet. Be the first to respond!'}
                   </Text>
                 </View>
               ) : null
@@ -497,6 +565,8 @@ export default function QuestionDetailScreen() {
                   ]}
                   onPress={handleSubmitComment}
                   disabled={!commentText.trim() || submitting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Post comment"
                 >
                   {submitting ? (
                     <ActivityIndicator size="small" color={Colors.text} />
@@ -537,9 +607,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -560,9 +630,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -635,9 +705,11 @@ const styles = StyleSheet.create({
   },
   questionAction: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   questionActionText: {
     fontSize: Fonts.sizes.sm,
@@ -734,9 +806,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    minHeight: 44,
     borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButtonText: {
     fontSize: Fonts.sizes.sm,
@@ -778,9 +852,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

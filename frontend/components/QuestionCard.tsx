@@ -15,7 +15,6 @@ interface QuestionCardProps {
   onUpvote: () => void;
   onDownvote: () => void;
   onBookmark?: () => void;
-  showWhiteboardName?: boolean;
 }
 
 function formatTimestamp(dateString: string): string {
@@ -50,7 +49,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   onUpvote,
   onDownvote,
   onBookmark,
-  showWhiteboardName = false,
 }) => {
   const { firstName, lastName } = parseAuthorName(question.authorName);
 
@@ -115,7 +113,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
           {/* Bookmark */}
           {onBookmark && (
-            <TouchableOpacity onPress={onBookmark} style={styles.bookmarkButton}>
+            <TouchableOpacity
+              onPress={onBookmark}
+              style={styles.bookmarkButton}
+              accessibilityRole="button"
+              accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+            >
               <Text style={styles.bookmarkIcon}>
                 {question.isBookmarked ? '🔖' : '🏷️'}
               </Text>

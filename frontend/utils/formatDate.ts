@@ -9,9 +9,16 @@
  * - "Jan 15" for the same year
  * - "Jan 15, 2025" for a different year
  */
-export function formatDate(date: string): string {
+export function formatDate(date?: string | null): string {
+  if (!date) {
+    return 'Just now';
+  }
+
   const now = new Date();
   const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Just now';
+  }
   const diffMs = now.getTime() - parsed.getTime();
 
   if (diffMs < 0) {
@@ -59,8 +66,15 @@ export function formatDate(date: string): string {
  *
  * Returns: "January 15, 2026 at 3:45 PM"
  */
-export function formatFullDate(date: string): string {
+export function formatFullDate(date?: string | null): string {
+  if (!date) {
+    return 'Unknown date';
+  }
+
   const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Unknown date';
+  }
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',

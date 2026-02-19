@@ -1,11 +1,17 @@
 package com.ghost.service;
 
+import com.ghost.dto.response.NotificationResponse;
+import com.ghost.mapper.NotificationMapper;
+import com.ghost.model.WhiteboardMembership;
+import com.ghost.model.enums.AuditAction;
 import com.ghost.model.Notification;
 import com.ghost.model.User;
+import com.ghost.model.enums.NotificationReferenceType;
 import com.ghost.model.enums.NotificationType;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.repository.NotificationRepository;
 import com.ghost.repository.UserRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,6 +35,9 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
+    private final AuditLogService auditLogService;
+    private final NotificationMapper notificationMapper;
     private final SimpMessagingTemplate messagingTemplate;
 
     private static final String EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -44,7 +53,7 @@ public class NotificationService {
                 .type(type)
                 .title(title)
                 .body(body)
-                .referenceType(refType)
+                .referenceType(NotificationReferenceType.from(refType))
                 .referenceId(refId)
                 .build();
 
@@ -52,8 +61,9 @@ public class NotificationService {
 
         // Send via WebSocket
         try {
-            messagingTemplate.convertAndSend(
-                    "/topic/user/" + recipientId + "/notifications",
+            messagingTemplate.convertAndSendToUser(
+                    recipientId.toString(),
+                    "/queue/notifications",
                     notification
             );
         } catch (Exception e) {
@@ -67,8 +77,9 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Notification> getNotifications(UUID userId, Pageable pageable) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable);
+    public Page<NotificationResponse> getNotifications(UUID userId, Pageable pageable) {
+        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable)
+                .map(notificationMapper::toResponse);
     }
 
     @Transactional
@@ -80,13 +91,26 @@ public class NotificationService {
             throw new ResourceNotFoundException("Notification", "id", notificationId);
         }
 
-        notification.setRead(true);
-        notificationRepository.save(notification);
+        if (!notification.isRead()) {
+            notification.setRead(true);
+            notificationRepository.save(notification);
+            logNotificationAction(userId, notificationId, AuditAction.NOTIFICATION_READ, "unread", "read");
+        }
     }
 
     @Transactional
     public void markAllAsRead(UUID userId) {
+        long unreadBefore = notificationRepository.countByRecipientIdAndIsReadFalse(userId);
         notificationRepository.markAllAsReadByRecipientId(userId);
+        if (unreadBefore > 0) {
+            logNotificationAction(
+                    userId,
+                    null,
+                    AuditAction.NOTIFICATIONS_MARKED_READ,
+                    String.valueOf(unreadBefore),
+                    "0"
+            );
+        }
     }
 
     @Transactional(readOnly = true)
@@ -110,9 +134,23 @@ public class NotificationService {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
             restTemplate.postForEntity(EXPO_PUSH_URL, request, String.class);
 
-            log.debug("Expo push notification sent to token: {}", expoPushToken);
+            log.debug("Expo push notification sent successfully");
         } catch (Exception e) {
             log.error("Failed to send Expo push notification: {}", e.getMessage());
+        }
+    }
+
+    private void logNotificationAction(UUID actorId, UUID targetId, AuditAction action, String oldValue, String newValue) {
+        for (WhiteboardMembership membership : whiteboardMembershipRepository.findByUserId(actorId)) {
+            auditLogService.logAction(
+                    membership.getWhiteboard().getId(),
+                    actorId,
+                    action,
+                    "Notification",
+                    targetId,
+                    oldValue,
+                    newValue
+            );
         }
     }
 }

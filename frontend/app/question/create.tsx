@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -18,7 +18,9 @@ import GlassButton from '../../components/ui/GlassButton';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { questionService } from '../../services/questionService';
-import api from '../../services/api';
+import { topicService } from '../../services/topicService';
+import { extractErrorMessage } from '../../hooks/useApi';
+import { sanitizeSingleLine, sanitizeText } from '../../utils/sanitize';
 import type { TopicResponse } from '../../types';
 
 export default function CreateQuestionScreen() {
@@ -32,33 +34,36 @@ export default function CreateQuestionScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; body?: string }>({});
 
-  useEffect(() => {
-    if (whiteboardId) {
-      fetchTopics();
+  const fetchTopics = useCallback(async () => {
+    if (!whiteboardId) {
+      return;
     }
-  }, [whiteboardId]);
-
-  const fetchTopics = async () => {
     try {
-      const response = await api.get(`/whiteboards/${whiteboardId}/topics`);
-      setTopics(response.data || []);
+      const response = await topicService.list(whiteboardId);
+      setTopics(response);
     } catch {
       setTopics([]);
     }
-  };
+  }, [whiteboardId]);
+
+  useEffect(() => {
+    fetchTopics();
+  }, [fetchTopics]);
 
   const validate = (): boolean => {
     const newErrors: { title?: string; body?: string } = {};
+    const normalizedTitle = sanitizeSingleLine(title);
+    const normalizedBody = sanitizeText(body);
 
-    if (!title.trim()) {
+    if (!normalizedTitle) {
       newErrors.title = 'Title is required';
-    } else if (title.trim().length < 5) {
+    } else if (normalizedTitle.length < 5) {
       newErrors.title = 'Title must be at least 5 characters';
     }
 
-    if (!body.trim()) {
+    if (!normalizedBody) {
       newErrors.body = 'Question body is required';
-    } else if (body.trim().length < 10) {
+    } else if (normalizedBody.length < 10) {
       newErrors.body = 'Please provide more detail (at least 10 characters)';
     }
 
@@ -71,15 +76,16 @@ export default function CreateQuestionScreen() {
 
     setLoading(true);
     try {
+      const sanitizedTitle = sanitizeSingleLine(title);
+      const sanitizedBody = sanitizeText(body);
       await questionService.create(whiteboardId, {
-        title: title.trim(),
-        body: body.trim(),
+        title: sanitizedTitle,
+        body: sanitizedBody,
         topicId: selectedTopicId,
       });
       router.back();
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Failed to create question.';
-      Alert.alert('Error', message);
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -97,7 +103,12 @@ export default function CreateQuestionScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
               <Text style={styles.backArrow}>{"\u2190"}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Ask a Question</Text>
@@ -240,9 +251,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',

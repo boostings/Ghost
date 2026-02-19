@@ -4,6 +4,8 @@ import {
   View,
   Text,
   TextInput,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
@@ -17,7 +19,7 @@ import GlassButton from '../../components/ui/GlassButton';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { authService } from '../../services/authService';
-import { useAuthStore } from '../../stores/authStore';
+import { extractErrorMessage } from '../../hooks/useApi';
 
 const CODE_LENGTH = 6;
 
@@ -25,7 +27,6 @@ export default function VerifyEmailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email: string }>();
   const email = params.email || '';
-  const { setAuth } = useAuthStore();
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -59,7 +60,10 @@ export default function VerifyEmailScreen() {
     }
   };
 
-  const handleKeyPress = (e: any, index: number) => {
+  const handleKeyPress = (
+    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
+    index: number
+  ) => {
     if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
       const newCode = [...code];
       newCode[index - 1] = '';
@@ -69,6 +73,11 @@ export default function VerifyEmailScreen() {
   };
 
   const handleVerify = async () => {
+    if (!email) {
+      Alert.alert('Missing Email', 'Please return to registration and try again.');
+      return;
+    }
+
     const fullCode = code.join('');
     if (fullCode.length !== CODE_LENGTH) {
       Alert.alert('Invalid Code', 'Please enter the full 6-digit code.');
@@ -77,33 +86,34 @@ export default function VerifyEmailScreen() {
 
     setLoading(true);
     try {
-      const response = await authService.verifyEmail({
+      await authService.verifyEmail({
         email,
         code: fullCode,
       });
-      setAuth(response.user, response.accessToken, response.refreshToken);
-      router.replace('/(auth)/onboarding');
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.message || 'Invalid or expired code. Please try again.';
-      Alert.alert('Verification Failed', message);
+      Alert.alert('Email Verified', 'Your email is verified. Please sign in to continue.');
+      router.replace({
+        pathname: '/(auth)/login',
+        params: { email },
+      });
+    } catch (error: unknown) {
+      Alert.alert('Verification Failed', extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
+    if (!email) {
+      Alert.alert('Missing Email', 'Please return to registration and try again.');
+      return;
+    }
+
     setResending(true);
     try {
-      await authService.register({
-        firstName: '',
-        lastName: '',
-        email,
-        password: '',
-      });
+      await authService.resendVerificationCode(email);
       Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
-    } catch {
-      Alert.alert('Success', 'If the email exists, a new code has been sent.');
+    } catch (error: unknown) {
+      Alert.alert('Unable to Resend', extractErrorMessage(error));
     } finally {
       setResending(false);
     }

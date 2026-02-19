@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -18,7 +18,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { formatDate } from '../../utils/formatDate';
-import api from '../../services/api';
+import { reportService } from '../../services/reportService';
 import type { ReportResponse, ReportStatus } from '../../types';
 
 const REASON_LABELS: Record<string, string> = {
@@ -45,38 +45,86 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReportStatus>('ALL');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastFetchRef = useRef(0);
+  const lastFilterRef = useRef(statusFilter);
+  const PAGE_SIZE = 20;
 
-  const fetchReports = useCallback(async () => {
+  const fetchReports = useCallback(async (options?: { page?: number; replace?: boolean }) => {
     if (!whiteboardId) return;
-    try {
-      const params: Record<string, string | number> = { page: 0, size: 50 };
-      if (statusFilter !== 'ALL') {
-        params.status = statusFilter;
-      }
-      const response = await api.get(`/reports/whiteboard/${whiteboardId}`, { params });
-      setReports(response.data.content || response.data || []);
-    } catch {
-      setReports([]);
-    } finally {
-      setLoading(false);
+    const nextPage = options?.page ?? 0;
+    const replace = options?.replace ?? true;
+    if (!replace && (!hasMore || loadingMore)) {
+      return;
     }
-  }, [whiteboardId, statusFilter]);
+
+    try {
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await reportService.list(whiteboardId, nextPage, PAGE_SIZE);
+      const filtered = statusFilter === 'ALL'
+        ? response.content
+        : response.content.filter((report) => report.status === statusFilter);
+      setReports((prev) => (replace ? filtered : [...prev, ...filtered]));
+      setPage(nextPage);
+      setHasMore(nextPage + 1 < response.totalPages);
+      setLoadError(null);
+      lastFetchRef.current = Date.now();
+    } catch {
+      if (replace) {
+        setReports([]);
+      }
+      setHasMore(false);
+      setLoadError('Failed to load reports.');
+    } finally {
+      if (replace) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [hasMore, loadingMore, statusFilter, whiteboardId]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchReports();
-    }, [fetchReports])
+      const filterChanged = lastFilterRef.current !== statusFilter;
+      if (filterChanged) {
+        lastFilterRef.current = statusFilter;
+        fetchReports({ page: 0, replace: true });
+        return;
+      }
+
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (reports.length === 0 || isStale) {
+        fetchReports({ page: 0, replace: true });
+      }
+    }, [fetchReports, reports.length, statusFilter])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchReports();
+    await fetchReports({ page: 0, replace: true });
     setRefreshing(false);
+  };
+
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+    await fetchReports({ page: page + 1, replace: false });
   };
 
   const handleDismiss = async (reportId: string) => {
     try {
-      await api.put(`/reports/${reportId}`, { status: 'DISMISSED' });
+      await reportService.review(reportId, { status: 'DISMISSED' });
       setReports((prev) => prev.filter((r) => r.id !== reportId));
       Alert.alert('Dismissed', 'Report has been dismissed.');
     } catch {
@@ -95,7 +143,7 @@ export default function ReportsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.put(`/reports/${report.id}`, { status: 'REVIEWED' });
+              await reportService.review(report.id, { status: 'REVIEWED' });
               setReports((prev) => prev.filter((r) => r.id !== report.id));
               Alert.alert('Removed', 'Content has been hidden.');
             } catch {
@@ -109,7 +157,7 @@ export default function ReportsScreen() {
 
   const handleRestore = async (reportId: string) => {
     try {
-      await api.put(`/reports/${reportId}`, { status: 'DISMISSED' });
+      await reportService.review(reportId, { status: 'DISMISSED' });
       setReports((prev) => prev.filter((r) => r.id !== reportId));
       Alert.alert('Restored', 'Content has been restored.');
     } catch {
@@ -189,6 +237,8 @@ export default function ReportsScreen() {
           <TouchableOpacity
             style={styles.dismissButton}
             onPress={() => handleDismiss(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss report"
           >
             <Text style={styles.dismissButtonText}>Dismiss</Text>
           </TouchableOpacity>
@@ -196,6 +246,8 @@ export default function ReportsScreen() {
           <TouchableOpacity
             style={styles.removeButton}
             onPress={() => handleRemoveContent(item)}
+            accessibilityRole="button"
+            accessibilityLabel="Remove reported content"
           >
             <Text style={styles.removeButtonText}>Remove Content</Text>
           </TouchableOpacity>
@@ -203,6 +255,8 @@ export default function ReportsScreen() {
           <TouchableOpacity
             style={styles.restoreButton}
             onPress={() => handleRestore(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Restore reported content"
           >
             <Text style={styles.restoreButtonText}>Restore</Text>
           </TouchableOpacity>
@@ -214,11 +268,14 @@ export default function ReportsScreen() {
         style={styles.viewLink}
         onPress={() => {
           if (item.questionId) {
-            router.push(
-              `/question/${item.questionId}?whiteboardId=${whiteboardId}`
-            );
+            router.push({
+              pathname: '/question/[id]',
+              params: { id: item.questionId, whiteboardId },
+            });
           }
         }}
+        accessibilityRole="button"
+        accessibilityLabel="View reported content"
       >
         <Text style={styles.viewLinkText}>View Content {"\u203A"}</Text>
       </TouchableOpacity>
@@ -233,7 +290,12 @@ export default function ReportsScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backArrow}>{"\u2190"}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Moderation</Text>
@@ -253,6 +315,8 @@ export default function ReportsScreen() {
                 setStatusFilter(filter.value);
                 setLoading(true);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${filter.label} reports`}
             >
               <Text
                 style={[
@@ -292,8 +356,17 @@ export default function ReportsScreen() {
               <EmptyState
                 icon={"\u{1F6A9}"}
                 title="No Reports"
-                subtitle="There are no reported items to review"
+                subtitle={loadError || 'There are no reported items to review'}
               />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null
             }
           />
         )}
@@ -323,9 +396,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -352,11 +425,13 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: 'rgba(108,99,255,0.25)',
@@ -467,10 +542,11 @@ const styles = StyleSheet.create({
   },
   dismissButton: {
     flex: 1,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   dismissButtonText: {
     fontSize: Fonts.sizes.sm,
@@ -479,10 +555,11 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     flex: 1,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: 'rgba(255,68,68,0.15)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   removeButtonText: {
     fontSize: Fonts.sizes.sm,
@@ -491,10 +568,11 @@ const styles = StyleSheet.create({
   },
   restoreButton: {
     flex: 1,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: 'rgba(0,200,81,0.15)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   restoreButtonText: {
     fontSize: Fonts.sizes.sm,
@@ -510,5 +588,10 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

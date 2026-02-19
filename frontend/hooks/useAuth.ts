@@ -76,15 +76,13 @@ export function useAuth() {
 
   /**
    * Verify email with a 6-digit code.
-   * On success, stores the auth tokens and user.
+   * On success, the user can proceed to login.
    */
   const verifyEmail = useCallback(
-    async (data: VerifyEmailRequest): Promise<UserResponse> => {
-      const response = await authService.verifyEmail(data);
-      setAuth(response.user, response.accessToken, response.refreshToken);
-      return response.user;
+    async (data: VerifyEmailRequest): Promise<void> => {
+      await authService.verifyEmail(data);
     },
-    [setAuth]
+    []
   );
 
   /**

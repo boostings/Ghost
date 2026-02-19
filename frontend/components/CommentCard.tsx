@@ -106,28 +106,48 @@ const CommentCard: React.FC<CommentCardProps> = ({
         <View style={styles.actions}>
           {/* Verify Button (faculty only) */}
           {onVerify && !comment.isVerifiedAnswer && (
-            <TouchableOpacity onPress={onVerify} style={styles.actionButton}>
+            <TouchableOpacity
+              onPress={onVerify}
+              style={styles.actionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Verify answer"
+            >
               <Text style={styles.verifyActionText}>✓ Verify</Text>
             </TouchableOpacity>
           )}
 
           {/* Edit Button (own comment, within edit window) */}
           {isCurrentUser && comment.canEdit && onEdit && (
-            <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
+            <TouchableOpacity
+              onPress={onEdit}
+              style={styles.actionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Edit comment"
+            >
               <Text style={styles.actionText}>Edit</Text>
             </TouchableOpacity>
           )}
 
           {/* Delete Button (own comment) */}
           {isCurrentUser && onDelete && (
-            <TouchableOpacity onPress={onDelete} style={styles.actionButton}>
+            <TouchableOpacity
+              onPress={onDelete}
+              style={styles.actionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Delete comment"
+            >
               <Text style={styles.dangerActionText}>Delete</Text>
             </TouchableOpacity>
           )}
 
           {/* Report Button (not own comment) */}
           {!isCurrentUser && onReport && (
-            <TouchableOpacity onPress={onReport} style={styles.actionButton}>
+            <TouchableOpacity
+              onPress={onReport}
+              style={styles.actionButton}
+              accessibilityRole="button"
+              accessibilityLabel="Report comment"
+            >
               <Text style={styles.actionText}>Report</Text>
             </TouchableOpacity>
           )}
@@ -219,9 +239,11 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionText: {
     color: Colors.textMuted,

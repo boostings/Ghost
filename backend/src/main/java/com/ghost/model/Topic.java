@@ -8,8 +8,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "topics")
-@Data
+@Table(
+        name = "topics",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_topics_whiteboard_name", columnNames = {"whiteboard_id", "name"})
+        }
+)
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -57,4 +57,14 @@ export const notificationService = {
   markAllAsRead: async (): Promise<void> => {
     await api.put('/notifications/read-all');
   },
+
+  /**
+   * Legacy alias kept for backward compatibility while screens migrate.
+   */
+  list: async (
+    page = 0,
+    size: number = Config.PAGE_SIZE
+  ): Promise<PageResponse<NotificationResponse>> => {
+    return notificationService.getNotifications({ page, size });
+  },
 };

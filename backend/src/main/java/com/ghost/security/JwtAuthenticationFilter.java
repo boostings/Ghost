@@ -35,17 +35,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractTokenFromRequest(request);
 
-            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+            if (StringUtils.hasText(token)
+                    && jwtTokenProvider.validateToken(token)
+                    && jwtTokenProvider.validateTokenType(token, jwtTokenProvider.getAccessTokenType())) {
                 UUID userId = jwtTokenProvider.getUserIdFromToken(token);
-                String email = jwtTokenProvider.getEmailFromToken(token);
                 String role = jwtTokenProvider.getRoleFromToken(token);
+                if (!StringUtils.hasText(role)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 List<SimpleGrantedAuthority> authorities = List.of(
                         new SimpleGrantedAuthority("ROLE_" + role)
                 );
 
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                        new UsernamePasswordAuthenticationToken(userId.toString(), null, authorities);
                 authentication.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
@@ -63,6 +68,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
+        }
+        if (request.getRequestURI() != null && request.getRequestURI().startsWith("/ws")) {
+            String wsToken = request.getParameter("access_token");
+            if (StringUtils.hasText(wsToken)) {
+                return wsToken;
+            }
         }
         return null;
     }

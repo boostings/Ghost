@@ -4,23 +4,19 @@ import com.ghost.model.enums.ReportReason;
 import com.ghost.model.enums.ReportStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReportResponse {
 
     private UUID id;
-
-    private UUID reporterId;
-
-    private String reporterName;
 
     private UUID questionId;
 

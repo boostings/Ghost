@@ -1,6 +1,7 @@
 package com.ghost.model;
 
 import com.ghost.model.enums.NotificationType;
+import com.ghost.model.enums.NotificationReferenceType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,7 +11,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "notifications")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,8 +39,10 @@ public class Notification {
     @Column(name = "body")
     private String body;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "reference_type")
-    private String referenceType;
+    @Builder.Default
+    private NotificationReferenceType referenceType = NotificationReferenceType.UNKNOWN;
 
     @Column(name = "reference_id")
     private UUID referenceId;

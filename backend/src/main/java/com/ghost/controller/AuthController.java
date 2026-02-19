@@ -3,6 +3,7 @@ package com.ghost.controller;
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RefreshTokenRequest;
 import com.ghost.dto.request.RegisterRequest;
+import com.ghost.dto.request.ResendVerificationRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.response.AuthResponse;
 import com.ghost.service.AuthService;
@@ -23,15 +24,22 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
+        authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PostMapping("/verify-email")
     public ResponseEntity<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         authService.verifyEmail(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request) {
+        authService.resendVerificationCode(request.getEmail());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/login")

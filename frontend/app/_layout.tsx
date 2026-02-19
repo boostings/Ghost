@@ -5,9 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/colors';
+import { ErrorBoundary, NetworkStatusBanner } from '../components';
+import { useNotifications } from '../hooks/useNotifications';
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
   const segments = useSegments();
   const router = useRouter();
 
@@ -21,7 +24,7 @@ function RootLayoutNav() {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)/home');
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, router, segments]);
 
   if (isLoading) {
     return (
@@ -48,6 +51,10 @@ function RootLayoutNav() {
       <Stack.Screen
         name="whiteboard/settings"
         options={{ headerShown: false, animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="whiteboard/create"
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="whiteboard/members"
@@ -82,10 +89,15 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  useNotifications();
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <RootLayoutNav />
+      <ErrorBoundary>
+        <NetworkStatusBanner />
+        <RootLayoutNav />
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

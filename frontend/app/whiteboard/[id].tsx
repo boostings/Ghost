@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -28,54 +28,117 @@ import type { QuestionResponse, WhiteboardResponse } from '../../types';
 export default function WhiteboardDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuthStore();
-  const { setCurrentWhiteboard } = useWhiteboardStore();
+  const user = useAuthStore((state) => state.user);
+  const setCurrentWhiteboard = useWhiteboardStore((state) => state.setCurrentWhiteboard);
 
   const [whiteboard, setWhiteboard] = useState<WhiteboardResponse | null>(null);
   const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const lastFetchRef = useRef(0);
+  const PAGE_SIZE = 20;
 
   const isFaculty = user?.role === 'FACULTY';
-  const isOwner = whiteboard?.ownerId === user?.id;
 
-  const fetchData = useCallback(async () => {
-    if (!id) return;
-    try {
-      const [wb, qs] = await Promise.all([
-        whiteboardService.getById(id),
-        questionService.list(id, { page: 0, size: 50, sort: 'recent' }),
-      ]);
-      setWhiteboard(wb);
-      setCurrentWhiteboard(wb);
-      setQuestions(qs.content);
-    } catch {
-      setWhiteboard(null);
-      setQuestions([]);
-    } finally {
+  const fetchData = useCallback(async (options?: { page?: number; replace?: boolean }) => {
+    if (!id) {
+      setLoadError('Missing whiteboard id.');
       setLoading(false);
+      return;
     }
-  }, [id]);
+
+    const nextPage = options?.page ?? 0;
+    const replace = options?.replace ?? true;
+    if (!replace && (!hasMore || loadingMore)) {
+      return;
+    }
+
+    try {
+      if (replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const [wb, qs] = await Promise.all([
+        replace ? whiteboardService.getById(id) : Promise.resolve(whiteboard),
+        questionService.list(id, { page: nextPage, size: PAGE_SIZE, sort: 'recent' }),
+      ]);
+      if (wb) {
+        setWhiteboard(wb);
+        setCurrentWhiteboard(wb);
+      }
+      setQuestions((prev) => (replace ? qs.content : [...prev, ...qs.content]));
+      setPage(nextPage);
+      setHasMore(nextPage + 1 < qs.totalPages);
+      lastFetchRef.current = Date.now();
+      setLoadError(null);
+    } catch {
+      setLoadError('Failed to load this whiteboard.');
+      if (replace) {
+        setWhiteboard(null);
+        setQuestions([]);
+      }
+      setHasMore(false);
+    } finally {
+      if (replace) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
+    }
+  }, [hasMore, id, loadingMore, setCurrentWhiteboard, whiteboard]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
-    }, [fetchData])
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
+      if (!whiteboard || questions.length === 0 || isStale) {
+        fetchData({ page: 0, replace: true });
+      }
+    }, [fetchData, questions.length, whiteboard])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData({ page: 0, replace: true });
     setRefreshing(false);
   };
 
-  const pinnedQuestions = questions.filter((q) => q.isPinned);
-  const regularQuestions = questions.filter((q) => !q.isPinned);
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+    await fetchData({ page: page + 1, replace: false });
+  };
 
-  const renderQuestionCard = ({ item }: { item: QuestionResponse }) => (
+  const pinnedQuestions = useMemo(
+    () => questions.filter((q) => q.isPinned),
+    [questions]
+  );
+  const regularQuestions = useMemo(
+    () => questions.filter((q) => !q.isPinned),
+    [questions]
+  );
+  const orderedQuestions = useMemo(
+    () => [...pinnedQuestions, ...regularQuestions],
+    [pinnedQuestions, regularQuestions]
+  );
+
+  const renderQuestionCard = useCallback(({ item }: { item: QuestionResponse }) => (
     <GlassCard
       style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
-      onPress={() => router.push(`/question/${item.id}?whiteboardId=${id}`)}
+      accessibilityLabel={`Open question: ${item.title}`}
+      onPress={() =>
+        router.push({
+          pathname: '/question/[id]',
+          params: { id: item.id, whiteboardId: id },
+        })
+      }
     >
       {item.isPinned && (
         <View style={styles.pinnedBanner}>
@@ -122,7 +185,7 @@ export default function WhiteboardDetailScreen() {
         </View>
       </View>
     </GlassCard>
-  );
+  ), [id, router]);
 
   if (loading) {
     return (
@@ -145,7 +208,12 @@ export default function WhiteboardDetailScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backArrow}>{"\u2190"}</Text>
           </TouchableOpacity>
 
@@ -158,15 +226,29 @@ export default function WhiteboardDetailScreen() {
 
           <View style={styles.headerActions}>
             <TouchableOpacity
-              onPress={() => router.push(`/whiteboard/members?whiteboardId=${id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: '/whiteboard/members',
+                  params: { whiteboardId: id },
+                })
+              }
               style={styles.headerButton}
+              accessibilityRole="button"
+              accessibilityLabel="View whiteboard members"
             >
               <Text style={styles.headerButtonIcon}>{"\u{1F465}"}</Text>
             </TouchableOpacity>
             {isFaculty && (
               <TouchableOpacity
-                onPress={() => router.push(`/whiteboard/settings?whiteboardId=${id}`)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/whiteboard/settings',
+                    params: { whiteboardId: id },
+                  })
+                }
                 style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel="Open whiteboard settings"
               >
                 <Text style={styles.headerButtonIcon}>{"\u2699\uFE0F"}</Text>
               </TouchableOpacity>
@@ -176,7 +258,7 @@ export default function WhiteboardDetailScreen() {
 
         {/* Question Feed */}
         <FlatList
-          data={[...pinnedQuestions, ...regularQuestions]}
+          data={orderedQuestions}
           renderItem={renderQuestionCard}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
@@ -202,10 +284,24 @@ export default function WhiteboardDetailScreen() {
             <EmptyState
               icon={"\u2753"}
               title="No Questions Yet"
-              subtitle="Be the first to ask a question in this class!"
+              subtitle={loadError || 'Be the first to ask a question in this class!'}
               actionLabel="Ask a Question"
-              onAction={() => router.push(`/question/create?whiteboardId=${id}`)}
+              onAction={() =>
+                router.push({
+                  pathname: '/question/create',
+                  params: { whiteboardId: id },
+                })
+              }
             />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+              </View>
+            ) : null
           }
         />
 
@@ -213,7 +309,14 @@ export default function WhiteboardDetailScreen() {
         <TouchableOpacity
           style={styles.fab}
           activeOpacity={0.8}
-          onPress={() => router.push(`/question/create?whiteboardId=${id}`)}
+          onPress={() =>
+            router.push({
+              pathname: '/question/create',
+              params: { whiteboardId: id },
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Ask a question"
         >
           <Text style={styles.fabIcon}>{"+ Ask"}</Text>
         </TouchableOpacity>
@@ -243,9 +346,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,9 +377,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -381,6 +484,11 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     fontSize: 14,
+  },
+  footerLoader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fab: {
     position: 'absolute',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
@@ -19,15 +19,23 @@ import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
+import { extractErrorMessage } from '../../hooks/useApi';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setAuth } = useAuthStore();
+  const params = useLocalSearchParams<{ email?: string }>();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  useEffect(() => {
+    if (params.email && typeof params.email === 'string') {
+      setEmail(params.email);
+    }
+  }, [params.email]);
 
   const validate = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
@@ -51,10 +59,8 @@ export default function LoginScreen() {
       const response = await authService.login({ email: email.trim().toLowerCase(), password });
       setAuth(response.user, response.accessToken, response.refreshToken);
       router.replace('/(tabs)/home');
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.message || 'Invalid email or password. Please try again.';
-      Alert.alert('Login Failed', message);
+    } catch (error: unknown) {
+      Alert.alert('Login Failed', extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -129,7 +135,11 @@ export default function LoginScreen() {
             {/* Register Link */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+              <TouchableOpacity
+                onPress={() => router.push('/(auth)/register')}
+                accessibilityRole="button"
+                accessibilityLabel="Register for a new account"
+              >
                 <Text style={styles.footerLink}>Register</Text>
               </TouchableOpacity>
             </View>

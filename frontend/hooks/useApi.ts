@@ -96,7 +96,7 @@ export function useApi<TData, TArgs extends unknown[] = []>(
  * Handles AxiosError with backend error response format,
  * standard Error objects, and unknown errors.
  */
-function extractErrorMessage(err: unknown): string {
+export function extractErrorMessage(err: unknown): string {
   if (err instanceof AxiosError) {
     const responseData = err.response?.data as ApiErrorResponse | undefined;
 

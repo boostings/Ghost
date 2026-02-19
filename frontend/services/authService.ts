@@ -18,18 +18,24 @@ export const authService = {
    * Register a new user account.
    * POST /auth/register
    */
-  register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/register', data);
-    return response.data;
+  register: async (data: RegisterRequest): Promise<void> => {
+    await api.post('/auth/register', data);
   },
 
   /**
    * Verify email address with a 6-digit code.
    * POST /auth/verify-email
    */
-  verifyEmail: async (data: VerifyEmailRequest): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/verify-email', data);
-    return response.data;
+  verifyEmail: async (data: VerifyEmailRequest): Promise<void> => {
+    await api.post('/auth/verify-email', data);
+  },
+
+  /**
+   * Resend a verification email code.
+   * POST /auth/resend-verification
+   */
+  resendVerificationCode: async (email: string): Promise<void> => {
+    await api.post('/auth/resend-verification', { email });
   },
 
   /**
@@ -82,6 +88,6 @@ export const authService = {
    * PUT /users/me/push-token
    */
   updatePushToken: async (expoPushToken: string): Promise<void> => {
-    await api.put('/users/me/push-token', { expoPushToken });
+    await api.put('/users/me/push-token', { token: expoPushToken });
   },
 };

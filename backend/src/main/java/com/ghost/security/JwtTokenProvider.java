@@ -13,13 +13,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
 @Slf4j
 @Component
 public class JwtTokenProvider {
+
+    private static final String CLAIM_TOKEN_TYPE = "type";
+    private static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    private static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -34,9 +38,15 @@ public class JwtTokenProvider {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = Base64.getDecoder().decode(
-                Base64.getEncoder().encodeToString(jwtSecret.getBytes())
-        );
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException("JWT secret must be configured");
+        }
+
+        byte[] keyBytes = jwtSecret.trim().getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT secret must be at least 256 bits");
+        }
+
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -48,6 +58,7 @@ public class JwtTokenProvider {
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim("role", role)
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(signingKey)
@@ -60,6 +71,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(userId.toString())
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(signingKey)
@@ -87,6 +99,15 @@ public class JwtTokenProvider {
         return false;
     }
 
+    public boolean validateTokenType(String token, String expectedType) {
+        try {
+            String actualType = getTokenType(token);
+            return actualType != null && expectedType.equalsIgnoreCase(actualType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public UUID getUserIdFromToken(String token) {
         Claims claims = parseClaims(token);
         return UUID.fromString(claims.getSubject());
@@ -100,6 +121,19 @@ public class JwtTokenProvider {
     public String getRoleFromToken(String token) {
         Claims claims = parseClaims(token);
         return claims.get("role", String.class);
+    }
+
+    public String getTokenType(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get(CLAIM_TOKEN_TYPE, String.class);
+    }
+
+    public String getAccessTokenType() {
+        return TOKEN_TYPE_ACCESS;
+    }
+
+    public String getRefreshTokenType() {
+        return TOKEN_TYPE_REFRESH;
     }
 
     private Claims parseClaims(String token) {

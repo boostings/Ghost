@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, Dimensions } from 'react-native';
+import { StyleSheet, View, Animated } from 'react-native';
 import { Colors } from '../../constants/colors';
 
 type SkeletonType = 'question' | 'comment' | 'notification';
@@ -9,36 +9,22 @@ interface LoadingSkeletonProps {
   type?: SkeletonType;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const ShimmerBlock: React.FC<{
+interface ShimmerBlockProps {
   width: number | string;
   height: number;
   borderRadius?: number;
   style?: object;
-}> = ({ width, height, borderRadius = 6, style }) => {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  shimmer: Animated.Value;
+}
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shimmerAnim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [shimmerAnim]);
-
-  const opacity = shimmerAnim.interpolate({
+const ShimmerBlock: React.FC<ShimmerBlockProps> = ({
+  width,
+  height,
+  borderRadius = 6,
+  style,
+  shimmer,
+}) => {
+  const opacity = shimmer.interpolate({
     inputRange: [0, 1],
     outputRange: [0.3, 0.7],
   });
@@ -59,57 +45,50 @@ const ShimmerBlock: React.FC<{
   );
 };
 
-const QuestionSkeleton: React.FC = () => (
+const QuestionSkeleton: React.FC<{ shimmer: Animated.Value }> = ({ shimmer }) => (
   <View style={styles.card}>
-    {/* Top row: badge + status */}
     <View style={styles.row}>
-      <ShimmerBlock width={80} height={22} borderRadius={8} />
-      <ShimmerBlock width={60} height={22} borderRadius={8} />
+      <ShimmerBlock width={80} height={22} borderRadius={8} shimmer={shimmer} />
+      <ShimmerBlock width={60} height={22} borderRadius={8} shimmer={shimmer} />
     </View>
-    {/* Title */}
-    <ShimmerBlock width="90%" height={20} style={styles.spacerSm} />
-    {/* Body lines */}
-    <ShimmerBlock width="100%" height={14} style={styles.spacerSm} />
-    <ShimmerBlock width="75%" height={14} style={styles.spacerXs} />
-    <ShimmerBlock width="60%" height={14} style={styles.spacerXs} />
-    {/* Bottom row */}
+    <ShimmerBlock width="90%" height={20} style={styles.spacerSm} shimmer={shimmer} />
+    <ShimmerBlock width="100%" height={14} style={styles.spacerSm} shimmer={shimmer} />
+    <ShimmerBlock width="75%" height={14} style={styles.spacerXs} shimmer={shimmer} />
+    <ShimmerBlock width="60%" height={14} style={styles.spacerXs} shimmer={shimmer} />
     <View style={[styles.row, styles.spacerMd]}>
       <View style={styles.row}>
-        <ShimmerBlock width={32} height={32} borderRadius={16} />
-        <ShimmerBlock width={100} height={14} style={styles.marginLeft} />
+        <ShimmerBlock width={32} height={32} borderRadius={16} shimmer={shimmer} />
+        <ShimmerBlock width={100} height={14} style={styles.marginLeft} shimmer={shimmer} />
       </View>
-      <ShimmerBlock width={60} height={14} />
+      <ShimmerBlock width={60} height={14} shimmer={shimmer} />
     </View>
   </View>
 );
 
-const CommentSkeleton: React.FC = () => (
+const CommentSkeleton: React.FC<{ shimmer: Animated.Value }> = ({ shimmer }) => (
   <View style={styles.card}>
-    {/* Avatar + name + time */}
     <View style={styles.row}>
-      <ShimmerBlock width={36} height={36} borderRadius={18} />
+      <ShimmerBlock width={36} height={36} borderRadius={18} shimmer={shimmer} />
       <View style={styles.marginLeft}>
-        <ShimmerBlock width={120} height={14} />
-        <ShimmerBlock width={80} height={10} style={styles.spacerXs} />
+        <ShimmerBlock width={120} height={14} shimmer={shimmer} />
+        <ShimmerBlock width={80} height={10} style={styles.spacerXs} shimmer={shimmer} />
       </View>
     </View>
-    {/* Body */}
-    <ShimmerBlock width="100%" height={14} style={styles.spacerSm} />
-    <ShimmerBlock width="85%" height={14} style={styles.spacerXs} />
-    {/* Bottom row */}
+    <ShimmerBlock width="100%" height={14} style={styles.spacerSm} shimmer={shimmer} />
+    <ShimmerBlock width="85%" height={14} style={styles.spacerXs} shimmer={shimmer} />
     <View style={[styles.row, styles.spacerSm]}>
-      <ShimmerBlock width={50} height={20} />
+      <ShimmerBlock width={50} height={20} shimmer={shimmer} />
     </View>
   </View>
 );
 
-const NotificationSkeleton: React.FC = () => (
+const NotificationSkeleton: React.FC<{ shimmer: Animated.Value }> = ({ shimmer }) => (
   <View style={styles.cardCompact}>
     <View style={styles.row}>
-      <ShimmerBlock width={40} height={40} borderRadius={20} />
+      <ShimmerBlock width={40} height={40} borderRadius={20} shimmer={shimmer} />
       <View style={[styles.marginLeft, { flex: 1 }]}>
-        <ShimmerBlock width="80%" height={14} />
-        <ShimmerBlock width="60%" height={12} style={styles.spacerXs} />
+        <ShimmerBlock width="80%" height={14} shimmer={shimmer} />
+        <ShimmerBlock width="60%" height={12} style={styles.spacerXs} shimmer={shimmer} />
       </View>
     </View>
   </View>
@@ -119,16 +98,39 @@ const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
   count = 3,
   type = 'question',
 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
   const items = Array.from({ length: count }, (_, i) => i);
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [shimmer]);
 
   const renderSkeleton = () => {
     switch (type) {
       case 'question':
-        return <QuestionSkeleton />;
+        return <QuestionSkeleton shimmer={shimmer} />;
       case 'comment':
-        return <CommentSkeleton />;
+        return <CommentSkeleton shimmer={shimmer} />;
       case 'notification':
-        return <NotificationSkeleton />;
+        return <NotificationSkeleton shimmer={shimmer} />;
+      default:
+        return <QuestionSkeleton shimmer={shimmer} />;
     }
   };
 

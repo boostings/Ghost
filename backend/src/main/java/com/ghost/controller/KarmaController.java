@@ -24,7 +24,7 @@ public class KarmaController {
             @Valid @RequestBody VoteRequest request) {
         UUID userId = UUID.fromString(userIdStr);
         karmaService.voteOnQuestion(userId, id, request.getVoteType());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/comments/{id}/vote")
@@ -34,7 +34,7 @@ public class KarmaController {
             @Valid @RequestBody VoteRequest request) {
         UUID userId = UUID.fromString(userIdStr);
         karmaService.voteOnComment(userId, id, request.getVoteType());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/questions/{id}/vote")

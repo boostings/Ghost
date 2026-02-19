@@ -6,6 +6,7 @@ import type {
   CreateCommentRequest,
   EditCommentRequest,
   PaginationParams,
+  VoteType,
 } from '../types';
 
 /**
@@ -20,8 +21,8 @@ export const commentService = {
   getComments: async (
     qId: string,
     params?: PaginationParams
-  ): Promise<PageResponse<CommentResponse>> => {
-    const response = await api.get<PageResponse<CommentResponse>>(
+  ): Promise<CommentResponse[]> => {
+    const response = await api.get<PageResponse<CommentResponse> | CommentResponse[]>(
       `/questions/${qId}/comments`,
       {
         params: {
@@ -30,7 +31,7 @@ export const commentService = {
         },
       }
     );
-    return response.data;
+    return Array.isArray(response.data) ? response.data : response.data.content;
   },
 
   /**
@@ -80,5 +81,56 @@ export const commentService = {
    */
   markVerifiedAnswer: async (qId: string, id: string): Promise<void> => {
     await api.post(`/questions/${qId}/comments/${id}/verify`);
+  },
+
+  /**
+   * Vote on a comment.
+   * POST /karma/comments/{id}/vote
+   */
+  voteOnComment: async (id: string, voteType: VoteType): Promise<void> => {
+    await api.post(`/karma/comments/${id}/vote`, { voteType });
+  },
+
+  /**
+   * Remove user's vote from a comment.
+   * DELETE /karma/comments/{id}/vote
+   */
+  removeCommentVote: async (id: string): Promise<void> => {
+    await api.delete(`/karma/comments/${id}/vote`);
+  },
+
+  /**
+   * Legacy aliases kept for backward compatibility while screens migrate.
+   */
+  list: async (qId: string, params?: PaginationParams): Promise<CommentResponse[]> => {
+    return commentService.getComments(qId, params);
+  },
+
+  create: async (qId: string, data: CreateCommentRequest): Promise<CommentResponse> => {
+    return commentService.createComment(qId, data);
+  },
+
+  update: async (
+    qId: string,
+    id: string,
+    data: EditCommentRequest
+  ): Promise<CommentResponse> => {
+    return commentService.editComment(qId, id, data);
+  },
+
+  delete: async (qId: string, id: string): Promise<void> => {
+    await commentService.deleteComment(qId, id);
+  },
+
+  verify: async (qId: string, id: string): Promise<void> => {
+    await commentService.markVerifiedAnswer(qId, id);
+  },
+
+  vote: async (id: string, voteType: VoteType): Promise<void> => {
+    await commentService.voteOnComment(id, voteType);
+  },
+
+  removeVote: async (id: string): Promise<void> => {
+    await commentService.removeCommentVote(id);
   },
 };

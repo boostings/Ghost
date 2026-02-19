@@ -13,6 +13,7 @@ interface GlassCardProps {
   style?: StyleProp<ViewStyle>;
   blurIntensity?: number;
   onPress?: () => void;
+  accessibilityLabel?: string;
 }
 
 const GlassCard: React.FC<GlassCardProps> = ({
@@ -20,6 +21,7 @@ const GlassCard: React.FC<GlassCardProps> = ({
   style,
   blurIntensity = 60,
   onPress,
+  accessibilityLabel,
 }) => {
   const content = (
     <View style={[styles.container, style]}>
@@ -31,7 +33,12 @@ const GlassCard: React.FC<GlassCardProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+      >
         {content}
       </TouchableOpacity>
     );

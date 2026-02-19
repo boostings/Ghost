@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -18,7 +18,9 @@ import GlassButton from '../../components/ui/GlassButton';
 import EmptyState from '../../components/ui/EmptyState';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import api from '../../services/api';
+import { topicService } from '../../services/topicService';
+import { extractErrorMessage } from '../../hooks/useApi';
+import { sanitizeSingleLine } from '../../utils/sanitize';
 import type { TopicResponse } from '../../types';
 
 export default function TopicsScreen() {
@@ -29,14 +31,17 @@ export default function TopicsScreen() {
   const [loading, setLoading] = useState(true);
   const [newTopicName, setNewTopicName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchTopics = useCallback(async () => {
     if (!whiteboardId) return;
     try {
-      const response = await api.get(`/whiteboards/${whiteboardId}/topics`);
-      setTopics(response.data || []);
+      const response = await topicService.list(whiteboardId);
+      setTopics(response);
+      setLoadError(null);
     } catch {
       setTopics([]);
+      setLoadError('Failed to load topics.');
     } finally {
       setLoading(false);
     }
@@ -49,18 +54,16 @@ export default function TopicsScreen() {
   );
 
   const handleCreateTopic = async () => {
-    if (!newTopicName.trim() || !whiteboardId) return;
+    const sanitizedTopicName = sanitizeSingleLine(newTopicName);
+    if (!sanitizedTopicName || !whiteboardId) return;
 
     setCreating(true);
     try {
-      const response = await api.post(`/whiteboards/${whiteboardId}/topics`, {
-        name: newTopicName.trim(),
-      });
-      setTopics((prev) => [...prev, response.data]);
+      const topic = await topicService.create(whiteboardId, sanitizedTopicName);
+      setTopics((prev) => [...prev, topic]);
       setNewTopicName('');
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Failed to create topic.';
-      Alert.alert('Error', message);
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setCreating(false);
     }
@@ -82,7 +85,10 @@ export default function TopicsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/whiteboards/${whiteboardId}/topics/${topic.id}`);
+              if (!whiteboardId) {
+                return;
+              }
+              await topicService.remove(whiteboardId, topic.id);
               setTopics((prev) => prev.filter((t) => t.id !== topic.id));
             } catch {
               Alert.alert('Error', 'Failed to delete topic.');
@@ -113,11 +119,18 @@ export default function TopicsScreen() {
         <TouchableOpacity
           onPress={() => handleDeleteTopic(item)}
           style={styles.deleteButton}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete topic ${item.name}`}
         >
           <Text style={styles.deleteText}>{"\u2715"}</Text>
         </TouchableOpacity>
       )}
     </View>
+  );
+
+  const orderedTopics = useMemo(
+    () => [...defaultTopics, ...customTopics],
+    [customTopics, defaultTopics]
   );
 
   if (loading) {
@@ -141,7 +154,12 @@ export default function TopicsScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backArrow}>{"\u2190"}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Topics</Text>
@@ -149,7 +167,7 @@ export default function TopicsScreen() {
         </View>
 
         <FlatList
-          data={[...defaultTopics, ...customTopics]}
+          data={orderedTopics}
           renderItem={renderTopicItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -189,7 +207,7 @@ export default function TopicsScreen() {
             <EmptyState
               icon={"\u{1F3F7}\uFE0F"}
               title="No Topics"
-              subtitle="Add topics to help organize questions"
+              subtitle={loadError || 'Add topics to help organize questions'}
             />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -220,9 +238,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',

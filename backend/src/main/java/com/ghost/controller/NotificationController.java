@@ -2,7 +2,6 @@ package com.ghost.controller;
 
 import com.ghost.dto.response.NotificationResponse;
 import com.ghost.dto.response.PageResponse;
-import com.ghost.model.Notification;
 import com.ghost.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -12,10 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -30,19 +27,9 @@ public class NotificationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Notification> notificationPage = notificationService.getNotifications(userId, pageable);
-        List<NotificationResponse> content = notificationPage.getContent().stream()
-                .map(this::mapToNotificationResponse)
-                .collect(Collectors.toList());
-        PageResponse<NotificationResponse> response = PageResponse.<NotificationResponse>builder()
-                .content(content)
-                .page(notificationPage.getNumber())
-                .size(notificationPage.getSize())
-                .totalElements(notificationPage.getTotalElements())
-                .totalPages(notificationPage.getTotalPages())
-                .build();
-        return ResponseEntity.ok(response);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<NotificationResponse> notificationPage = notificationService.getNotifications(userId, pageable);
+        return ResponseEntity.ok(PageResponse.from(notificationPage));
     }
 
     @GetMapping("/unread-count")
@@ -59,7 +46,7 @@ public class NotificationController {
             @PathVariable UUID id) {
         UUID userId = UUID.fromString(userIdStr);
         notificationService.markAsRead(userId, id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/read-all")
@@ -67,19 +54,6 @@ public class NotificationController {
             @AuthenticationPrincipal String userIdStr) {
         UUID userId = UUID.fromString(userIdStr);
         notificationService.markAllAsRead(userId);
-        return ResponseEntity.ok().build();
-    }
-
-    private NotificationResponse mapToNotificationResponse(Notification n) {
-        return NotificationResponse.builder()
-                .id(n.getId())
-                .type(n.getType())
-                .title(n.getTitle())
-                .body(n.getBody())
-                .referenceType(n.getReferenceType())
-                .referenceId(n.getReferenceId())
-                .isRead(n.isRead())
-                .createdAt(n.getCreatedAt())
-                .build();
+        return ResponseEntity.noContent().build();
     }
 }
