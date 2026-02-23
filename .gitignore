@@ -1,5 +1,6 @@
 f
 *.md
+!README.md
 
 # Backend
 backend/target/
