@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
+  Platform,
   View,
   Text,
   FlatList,
@@ -681,11 +682,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     marginBottom: 12,
     borderColor: 'rgba(255,255,255,0.35)',
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.24,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 12px 22px rgba(187,39,68,0.24)',
+      },
+      default: {
+        shadowColor: Colors.primary,
+        shadowOpacity: 0.24,
+        shadowRadius: 22,
+        shadowOffset: { width: 0, height: 12 },
+        elevation: 8,
+      },
+    }),
   },
   searchInputRow: {
     flexDirection: 'row',

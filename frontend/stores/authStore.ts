@@ -1,19 +1,78 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+import type { StateStorage } from 'zustand/middleware';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import type { UserResponse } from '../types';
 
+// Use CommonJS middleware resolution to avoid importing zustand's ESM build on web.
+const { persist, createJSONStorage } = require('zustand/middleware') as Pick<
+  typeof import('zustand/middleware'),
+  'persist' | 'createJSONStorage'
+>;
+
 const secureStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    return SecureStore.getItemAsync(name);
+    try {
+      return await SecureStore.getItemAsync(name);
+    } catch (error) {
+      console.warn('[AuthStore] Failed to read secure storage', error);
+      return null;
+    }
   },
   setItem: async (name: string, value: string): Promise<void> => {
-    await SecureStore.setItemAsync(name, value);
+    try {
+      await SecureStore.setItemAsync(name, value);
+    } catch (error) {
+      console.warn('[AuthStore] Failed to write secure storage', error);
+    }
   },
   removeItem: async (name: string): Promise<void> => {
-    await SecureStore.deleteItemAsync(name);
+    try {
+      await SecureStore.deleteItemAsync(name);
+    } catch (error) {
+      console.warn('[AuthStore] Failed to delete secure storage key', error);
+    }
   },
 };
+
+const webStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      return window.localStorage.getItem(name);
+    } catch (error) {
+      console.warn('[AuthStore] Failed to read web storage', error);
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(name, value);
+    } catch (error) {
+      console.warn('[AuthStore] Failed to write web storage', error);
+    }
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      window.localStorage.removeItem(name);
+    } catch (error) {
+      console.warn('[AuthStore] Failed to delete web storage key', error);
+    }
+  },
+};
+
+const authStorage = Platform.OS === 'web' ? webStorage : secureStorage;
 
 interface AuthState {
   user: UserResponse | null;
@@ -32,6 +91,7 @@ interface AuthActions {
 }
 
 type AuthStore = AuthState & AuthActions;
+let setAuthStoreState: ((partial: Partial<AuthStore>) => void) | null = null;
 
 const initialState: AuthState = {
   user: null,
@@ -43,47 +103,51 @@ const initialState: AuthState = {
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
-      ...initialState,
+    (set) => {
+      setAuthStoreState = (partial: Partial<AuthStore>) => set(partial);
 
-      setAuth: (user: UserResponse, accessToken: string, refreshToken: string) => {
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      },
+      return {
+        ...initialState,
 
-      setTokens: (accessToken: string, refreshToken?: string) => {
-        set((state) => ({
-          accessToken,
-          refreshToken: refreshToken ?? state.refreshToken,
-        }));
-      },
+        setAuth: (user: UserResponse, accessToken: string, refreshToken: string) => {
+          set({
+            user,
+            accessToken,
+            refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        },
 
-      updateUser: (user: UserResponse) => {
-        set({ user });
-      },
+        setTokens: (accessToken: string, refreshToken?: string) => {
+          set((state) => ({
+            accessToken,
+            refreshToken: refreshToken ?? state.refreshToken,
+          }));
+        },
 
-      logout: () => {
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      },
+        updateUser: (user: UserResponse) => {
+          set({ user });
+        },
 
-      setLoading: (isLoading: boolean) => {
-        set({ isLoading });
-      },
-    }),
+        logout: () => {
+          set({
+            user: null,
+            accessToken: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        },
+
+        setLoading: (isLoading: boolean) => {
+          set({ isLoading });
+        },
+      };
+    },
     {
       name: 'ghost-auth-storage',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => authStorage),
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
@@ -91,10 +155,17 @@ export const useAuthStore = create<AuthStore>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => {
-        return (state) => {
+        return (state, error) => {
+          if (error) {
+            console.warn('[AuthStore] Failed to rehydrate auth state', error);
+          }
+
           if (state) {
             state.setLoading(false);
+            return;
           }
+
+          setAuthStoreState?.({ isLoading: false });
         };
       },
     }

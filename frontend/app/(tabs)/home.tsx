@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
+  Platform,
   View,
   Text,
   FlatList,
@@ -445,11 +446,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 12px rgba(187,39,68,0.4)',
+      },
+      default: {
+        elevation: 8,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+    }),
   },
   fabIcon: {
     fontSize: 28,

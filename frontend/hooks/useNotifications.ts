@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
@@ -8,18 +7,40 @@ import { useNotificationStore } from '../stores/notificationStore';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
 import { useWebSocket } from './useWebSocket';
+import type {
+  EventSubscription,
+  Notification as ExpoNotification,
+  NotificationResponse as ExpoNotificationResponse,
+} from 'expo-notifications';
 import type { NotificationResponse } from '../types';
 
-// Configure how notifications appear when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let notificationsModule: typeof import('expo-notifications') | null = null;
+let isNotificationHandlerConfigured = false;
+
+function getNotificationsModule(): typeof import('expo-notifications') | null {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  if (!notificationsModule) {
+    notificationsModule = require('expo-notifications') as typeof import('expo-notifications');
+  }
+
+  if (!isNotificationHandlerConfigured) {
+    notificationsModule.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    isNotificationHandlerConfigured = true;
+  }
+
+  return notificationsModule;
+}
 
 /**
  * Hook for managing Expo push notifications.
@@ -46,8 +67,8 @@ export function useNotifications() {
   const addNotification = useNotificationStore((state) => state.addNotification);
   const { subscribe } = useWebSocket();
 
-  const notificationListenerRef = useRef<Notifications.EventSubscription | null>(null);
-  const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
+  const notificationListenerRef = useRef<EventSubscription | null>(null);
+  const responseListenerRef = useRef<EventSubscription | null>(null);
   const expoGoWarnedRef = useRef(false);
 
   /**
@@ -56,6 +77,10 @@ export function useNotifications() {
   const registerForPushNotifications = useCallback(async (): Promise<string | null> => {
     // Push notifications are not supported on web
     if (Platform.OS === 'web') {
+      return null;
+    }
+    const Notifications = getNotificationsModule();
+    if (!Notifications) {
       return null;
     }
 
@@ -123,7 +148,7 @@ export function useNotifications() {
    * Adds it to the notification store for display.
    */
   const handleNotificationReceived = useCallback(
-    (notification: Notifications.Notification) => {
+    (notification: ExpoNotification) => {
       const data = notification.request.content.data as Record<string, unknown> | undefined;
 
       if (data) {
@@ -148,7 +173,7 @@ export function useNotifications() {
    * Handle a notification tap - navigate to the relevant screen based on
    * the notification's reference type and ID.
    */
-  const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
+  const handleNotificationResponse = useCallback((response: ExpoNotificationResponse) => {
     const data = response.notification.request.content.data as Record<string, unknown> | undefined;
 
     if (!data) return;
@@ -227,6 +252,8 @@ export function useNotifications() {
       return;
     }
 
+    const Notifications = getNotificationsModule();
+
     // Register for push notifications and save token to backend
     registerForPushNotifications().then((token) => {
       if (token) {
@@ -238,6 +265,10 @@ export function useNotifications() {
 
     // Fetch initial unread count
     fetchUnreadCount();
+
+    if (!Notifications) {
+      return;
+    }
 
     // Listen for notifications received while app is in foreground
     notificationListenerRef.current = Notifications.addNotificationReceivedListener(
