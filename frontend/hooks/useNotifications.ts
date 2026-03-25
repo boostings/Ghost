@@ -1,46 +1,25 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Platform } from 'react-native';
-import * as Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { notificationService } from '../services/notificationService';
 import { authService } from '../services/authService';
+import {
+  getNativeNotificationsModule,
+  registerForPushNotifications,
+} from '../services/pushNotificationService';
 import { useWebSocket } from './useWebSocket';
+import {
+  getNotificationReadId,
+  parseRealtimeNotificationMessage,
+  resolveNotificationRoute,
+  toForegroundNotification,
+} from '../utils/notificationPayloads';
 import type {
   EventSubscription,
   Notification as ExpoNotification,
   NotificationResponse as ExpoNotificationResponse,
 } from 'expo-notifications';
-import type { NotificationResponse } from '../types';
-
-let notificationsModule: typeof import('expo-notifications') | null = null;
-let isNotificationHandlerConfigured = false;
-
-function getNotificationsModule(): typeof import('expo-notifications') | null {
-  if (Platform.OS === 'web') {
-    return null;
-  }
-
-  if (!notificationsModule) {
-    notificationsModule = require('expo-notifications') as typeof import('expo-notifications');
-  }
-
-  if (!isNotificationHandlerConfigured) {
-    notificationsModule.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
-    isNotificationHandlerConfigured = true;
-  }
-
-  return notificationsModule;
-}
 
 /**
  * Hook for managing Expo push notifications.
@@ -69,79 +48,6 @@ export function useNotifications() {
 
   const notificationListenerRef = useRef<EventSubscription | null>(null);
   const responseListenerRef = useRef<EventSubscription | null>(null);
-  const expoGoWarnedRef = useRef(false);
-
-  /**
-   * Register for push notifications and return the Expo push token.
-   */
-  const registerForPushNotifications = useCallback(async (): Promise<string | null> => {
-    // Push notifications are not supported on web
-    if (Platform.OS === 'web') {
-      return null;
-    }
-    const Notifications = getNotificationsModule();
-    if (!Notifications) {
-      return null;
-    }
-
-    // Expo Go does not support remote push token registration on SDK 53+.
-    if (Constants.default.appOwnership === 'expo') {
-      if (!expoGoWarnedRef.current) {
-        console.warn(
-          '[Notifications] Expo Go detected. Remote push notifications require a development build.'
-        );
-        expoGoWarnedRef.current = true;
-      }
-      return null;
-    }
-
-    try {
-      // Check current permission status
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      // Request permission if not already granted
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
-        console.warn('[Notifications] Permission not granted');
-        return null;
-      }
-
-      // Get the project ID from Constants
-      const projectId =
-        Constants.default.expoConfig?.extra?.eas?.projectId ??
-        Constants.default.easConfig?.projectId;
-
-      if (!projectId) {
-        console.warn('[Notifications] No project ID found for push token registration');
-        return null;
-      }
-
-      // Get the Expo push token
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
-
-      // Configure notification channel for Android
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'Ghost Notifications',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#BB2744',
-        });
-      }
-
-      return tokenData.data;
-    } catch (error) {
-      console.warn('[Notifications] Failed to register:', error);
-      return null;
-    }
-  }, []);
 
   /**
    * Handle a notification received while the app is in the foreground.
@@ -149,20 +55,14 @@ export function useNotifications() {
    */
   const handleNotificationReceived = useCallback(
     (notification: ExpoNotification) => {
-      const data = notification.request.content.data as Record<string, unknown> | undefined;
+      const notificationResponse = toForegroundNotification({
+        identifier: notification.request.identifier,
+        title: notification.request.content.title,
+        body: notification.request.content.body,
+        data: notification.request.content.data as Record<string, unknown> | undefined,
+      });
 
-      if (data) {
-        const notificationResponse: NotificationResponse = {
-          id: (data.notificationId as string) || notification.request.identifier,
-          type: (data.type as NotificationResponse['type']) || 'COMMENT_ADDED',
-          title: notification.request.content.title || '',
-          body: notification.request.content.body || null,
-          referenceType: (data.referenceType as string) || null,
-          referenceId: (data.referenceId as string) || null,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-        };
-
+      if (notificationResponse) {
         addNotification(notificationResponse);
       }
     },
@@ -176,57 +76,12 @@ export function useNotifications() {
   const handleNotificationResponse = useCallback((response: ExpoNotificationResponse) => {
     const data = response.notification.request.content.data as Record<string, unknown> | undefined;
 
-    if (!data) return;
-
-    const referenceType = data.referenceType as string | undefined;
-    const referenceId = data.referenceId as string | undefined;
-    const whiteboardId = data.whiteboardId as string | undefined;
-
-    if (!referenceType || !referenceId) return;
-
-    switch (referenceType) {
-      case 'QUESTION':
-        if (whiteboardId) {
-          router.push({
-            pathname: '/question/[id]',
-            params: { id: referenceId, whiteboardId },
-          });
-        } else {
-          router.push({
-            pathname: '/question/[id]',
-            params: { id: referenceId },
-          });
-        }
-        break;
-
-      case 'WHITEBOARD':
-        router.push({
-          pathname: '/whiteboard/[id]',
-          params: { id: referenceId },
-        });
-        break;
-
-      case 'COMMENT':
-        // Navigate to the parent question
-        if (data.questionId) {
-          router.push({
-            pathname: '/question/[id]',
-            params: {
-              id: data.questionId as string,
-              whiteboardId: whiteboardId ?? undefined,
-            },
-          });
-        }
-        break;
-
-      default:
-        // Navigate to the notifications tab
-        router.push('/(tabs)/notifications');
-        break;
+    const route = resolveNotificationRoute(data);
+    if (route) {
+      router.push(route);
     }
 
-    // Mark the notification as read
-    const notificationId = data.notificationId as string | undefined;
+    const notificationId = data ? getNotificationReadId(data) : null;
     if (notificationId) {
       notificationService.markAsRead(notificationId).catch(() => {
         console.warn('[Notifications] Failed to mark notification as read');
@@ -252,7 +107,7 @@ export function useNotifications() {
       return;
     }
 
-    const Notifications = getNotificationsModule();
+    const Notifications = getNativeNotificationsModule();
 
     // Register for push notifications and save token to backend
     registerForPushNotifications().then((token) => {
@@ -292,7 +147,6 @@ export function useNotifications() {
     accessToken,
     isAuthenticated,
     user,
-    registerForPushNotifications,
     fetchUnreadCount,
     handleNotificationReceived,
     handleNotificationResponse,
@@ -305,19 +159,13 @@ export function useNotifications() {
     }
 
     const subscription = subscribe(`/topic/user/${user.id}/notifications`, (frame) => {
-      try {
-        const parsed = JSON.parse(frame.body) as Record<string, unknown>;
-        const notification: NotificationResponse = {
-          id: String(parsed.id ?? ''),
-          type: (parsed.type as NotificationResponse['type']) ?? 'COMMENT_ADDED',
-          title: String(parsed.title ?? ''),
-          body: parsed.body ? String(parsed.body) : null,
-          referenceType: parsed.referenceType ? String(parsed.referenceType) : null,
-          referenceId: parsed.referenceId ? String(parsed.referenceId) : null,
-          isRead: Boolean(parsed.isRead),
-          createdAt: parsed.createdAt ? String(parsed.createdAt) : new Date().toISOString(),
-        };
+      const notification = parseRealtimeNotificationMessage(frame.body);
+      if (!notification) {
+        console.warn('[Notifications] Failed to parse WebSocket notification');
+        return;
+      }
 
+      try {
         if (notification.id) {
           const exists = useNotificationStore
             .getState()
@@ -327,7 +175,7 @@ export function useNotifications() {
           }
         }
       } catch (error) {
-        console.warn('[Notifications] Failed to parse WebSocket notification', error);
+        console.warn('[Notifications] Failed to store WebSocket notification', error);
       }
     });
 

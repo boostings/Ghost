@@ -108,6 +108,8 @@ export interface CommentResponse {
   authorName: string;
   body: string;
   isVerifiedAnswer: boolean;
+  verifiedById: string | null;
+  verifiedByName: string | null;
   karmaScore: number;
   userVote: VoteType | null;
   canEdit: boolean;

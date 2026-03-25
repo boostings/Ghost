@@ -226,7 +226,7 @@ public class QuestionService {
     }
 
     @Transactional
-    public void pinQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
+    public QuestionResponse pinQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
         Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
@@ -258,10 +258,11 @@ public class QuestionService {
                 "QUESTION_UPDATED",
                 questionMapper.toResponse(question, facultyId, true)
         );
+        return questionMapper.toResponse(question, facultyId, true);
     }
 
     @Transactional
-    public void unpinQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
+    public QuestionResponse unpinQuestion(UUID facultyId, UUID whiteboardId, UUID questionId) {
         Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
@@ -286,10 +287,11 @@ public class QuestionService {
                 "QUESTION_UPDATED",
                 questionMapper.toResponse(question, facultyId, true)
         );
+        return questionMapper.toResponse(question, facultyId, true);
     }
 
     @Transactional
-    public void forwardQuestion(UUID facultyId, UUID whiteboardId, UUID questionId, ForwardQuestionRequest req) {
+    public QuestionResponse forwardQuestion(UUID facultyId, UUID whiteboardId, UUID questionId, ForwardQuestionRequest req) {
         Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
@@ -313,6 +315,7 @@ public class QuestionService {
                 question.getWhiteboard().getId(), facultyId, AuditAction.QUESTION_FORWARDED,
                 "Question", questionId, null, "Forwarded to: " + targetFaculty.getId()
         );
+        return questionMapper.toResponse(question, facultyId, true);
     }
 
     private boolean isFaculty(UUID userId, UUID whiteboardId) {

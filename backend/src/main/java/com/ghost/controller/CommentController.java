@@ -68,12 +68,12 @@ public class CommentController {
     }
 
     @PostMapping("/{id}/verify")
-    public ResponseEntity<Void> verifyComment(
+    public ResponseEntity<CommentResponse> verifyComment(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID qId,
             @PathVariable UUID id) {
         UUID userId = UUID.fromString(userIdStr);
-        commentService.markAsVerifiedAnswer(userId, qId, id);
-        return ResponseEntity.noContent().build();
+        CommentResponse comment = commentService.markAsVerifiedAnswer(userId, qId, id);
+        return ResponseEntity.ok(comment);
     }
 }

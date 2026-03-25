@@ -27,6 +27,10 @@ public class CommentResponse {
 
     private boolean isVerifiedAnswer;
 
+    private UUID verifiedById;
+
+    private String verifiedByName;
+
     private int karmaScore;
 
     private VoteType userVote;

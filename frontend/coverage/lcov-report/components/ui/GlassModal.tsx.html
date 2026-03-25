@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">50% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -238,12 +238,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -300,15 +302,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -378,9 +378,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  useColorScheme,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 &nbsp;
 interface GlassModalProps {
@@ -390,10 +391,13 @@ interface GlassModalProps {
   children: React.ReactNode;
 }
 &nbsp;
-const { height: SCREEN_HEIGHT } = <span class="cstat-no" title="statement not covered" >Dimensions.get('window');</span>
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 &nbsp;
-const GlassModal: React.FC&lt;GlassModalProps&gt; = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span> visible, onClose, title, children }) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >  return (</span>
+const GlassModal: React.FC&lt;GlassModalProps&gt; = ({ visible, onClose, title, children }) =&gt; {
+  const colors = useThemeColors();
+  const colorScheme = useColorScheme();
+&nbsp;
+  return (
     &lt;Modal
       visible={visible}
       transparent
@@ -402,10 +406,10 @@ const GlassModal: React.FC&lt;GlassModalProps&gt; = <span class="cstat-no" title
       statusBarTranslucent
     &gt;
       &lt;KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : <span class="branch-1 cbranch-no" title="branch not covered" >'height'}</span>
         style={styles.keyboardView}
       &gt;
-        &lt;View style={styles.overlay}&gt;
+        &lt;View style={[styles.overlay, { backgroundColor: colors.overlay }]}&gt;
           &lt;TouchableOpacity
             style={styles.overlayTouchable}
             activeOpacity={1}
@@ -414,22 +418,26 @@ const GlassModal: React.FC&lt;GlassModalProps&gt; = <span class="cstat-no" title
             accessibilityLabel="Close modal"
           /&gt;
           &lt;View style={styles.modalContainer}&gt;
-            &lt;View style={styles.cardWrapper}&gt;
-              &lt;BlurView intensity={80} tint="dark" style={styles.blur}&gt;
-                &lt;View style={styles.cardInner}&gt;
+            &lt;View style={[styles.cardWrapper, { borderColor: colors.cardBorder }]}&gt;
+              &lt;BlurView
+                intensity={80}
+                tint={colorScheme === 'dark' ? <span class="branch-0 cbranch-no" title="branch not covered" >'dark' </span>: 'light'}
+                style={styles.blur}
+              &gt;
+                &lt;View style={[styles.cardInner, { backgroundColor: colors.cardBg }]}&gt;
                   {/* Title Bar */}
-                  &lt;View style={styles.titleBar}&gt;
-                    &lt;Text style={styles.title} numberOfLines={1}&gt;
+                  &lt;View style={[styles.titleBar, { borderBottomColor: colors.surfaceBorder }]}&gt;
+                    &lt;Text style={[styles.title, { color: colors.text }]} numberOfLines={1}&gt;
                       {title}
                     &lt;/Text&gt;
                     &lt;TouchableOpacity
                       onPress={onClose}
-                      style={styles.closeButton}
+                      style={[styles.closeButton, { backgroundColor: colors.surfaceLight }]}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       accessibilityRole="button"
                       accessibilityLabel="Close modal"
                     &gt;
-                      &lt;Text style={styles.closeIcon}&gt;✕&lt;/Text&gt;
+                      &lt;Text style={[styles.closeIcon, { color: colors.textSecondary }]}&gt;✕&lt;/Text&gt;
                     &lt;/TouchableOpacity&gt;
                   &lt;/View&gt;
 &nbsp;
@@ -452,13 +460,12 @@ const GlassModal: React.FC&lt;GlassModalProps&gt; = <span class="cstat-no" title
   );
 };
 &nbsp;
-const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.create({</span>
+const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -473,14 +480,11 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
   blur: {
     overflow: 'hidden',
   },
-  cardInner: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
+  cardInner: {},
   titleBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -488,10 +492,8 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
   },
   title: {
-    color: Colors.text,
     fontSize: Fonts.sizes.xl,
     fontWeight: Fonts.bold.fontWeight,
     flex: 1,
@@ -501,12 +503,10 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeIcon: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.lg,
     fontWeight: Fonts.bold.fontWeight,
   },
@@ -526,7 +526,7 @@ export default GlassModal;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-19T01:53:23.310Z
+                at 2026-03-25T14:37:44.386Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

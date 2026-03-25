@@ -132,9 +132,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon name="home" focused={focused} colors={colors} />
-          ),
+          tabBarIcon: ({ focused }) => <TabBarIcon name="home" focused={focused} colors={colors} />,
           tabBarAccessibilityLabel: 'Home tab',
         }}
       />

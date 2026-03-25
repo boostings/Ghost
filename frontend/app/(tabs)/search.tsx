@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Platform,
@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Alert,
   Animated,
   type GestureResponderEvent,
   type StyleProp,
@@ -25,17 +24,9 @@ import ReportModal from '../../components/ReportModal';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { questionService } from '../../services/questionService';
-import { whiteboardService } from '../../services/whiteboardService';
-import { bookmarkService } from '../../services/bookmarkService';
-import { useWhiteboardStore } from '../../stores/whiteboardStore';
+import { useQuestionSearchModel, type FilterStatus } from '../../hooks/useQuestionSearchModel';
 import { formatDate } from '../../utils/formatDate';
-import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
-
-type FilterStatus = 'ALL' | QuestionStatus;
-type WhiteboardFilter = 'ALL' | string;
-type TopicFilter = 'ALL' | string;
-const PAGE_SIZE = 20;
+import type { QuestionResponse } from '../../types';
 
 const STATUS_FILTERS: { label: string; value: FilterStatus }[] = [
   { label: 'All', value: 'ALL' },
@@ -80,91 +71,36 @@ function renderHighlightedText(
 
 export default function SearchScreen() {
   const router = useRouter();
-  const storeWhiteboards = useWhiteboardStore((state) => state.whiteboards);
-
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<QuestionResponse[]>([]);
-  const [fallbackWhiteboards, setFallbackWhiteboards] = useState<WhiteboardResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
-  const [whiteboardFilter, setWhiteboardFilter] = useState<WhiteboardFilter>('ALL');
-  const [topicFilter, setTopicFilter] = useState<TopicFilter>('ALL');
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{
-    questionId?: string;
-    commentId?: string;
-  } | null>(null);
   const cardEntry = useRef(new Animated.Value(0)).current;
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const availableWhiteboards = storeWhiteboards.length > 0 ? storeWhiteboards : fallbackWhiteboards;
-
-  const whiteboardLookup = useMemo(
-    () => new Map(availableWhiteboards.map((whiteboard) => [whiteboard.id, whiteboard])),
-    [availableWhiteboards]
-  );
-
-  const availableTopics = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          results
-            .filter((item) => item.topicId && item.topicName)
-            .map((item) => [item.topicId as string, item.topicName as string])
-        ),
-        ([id, name]) => ({ id, name })
-      ).sort((a, b) => a.name.localeCompare(b.name)),
-    [results]
-  );
-
-  const activeFilters = useMemo(() => {
-    const filters: string[] = [];
-    if (statusFilter !== 'ALL') {
-      filters.push(statusFilter === 'OPEN' ? 'Open only' : 'Closed only');
-    }
-    if (whiteboardFilter !== 'ALL') {
-      const whiteboard = whiteboardLookup.get(whiteboardFilter);
-      filters.push(whiteboard ? whiteboard.courseCode : 'Class selected');
-    }
-    if (topicFilter !== 'ALL') {
-      const topic = availableTopics.find((item) => item.id === topicFilter);
-      filters.push(topic ? topic.name : 'Topic selected');
-    }
-    return filters;
-  }, [availableTopics, statusFilter, topicFilter, whiteboardFilter, whiteboardLookup]);
-
-  const resultSummary = hasSearched
-    ? `${results.length} matching question${results.length === 1 ? '' : 's'}`
-    : 'Search by keyword, then narrow with filters.';
-
-  useEffect(() => {
-    let active = true;
-    if (storeWhiteboards.length > 0) {
-      return;
-    }
-
-    whiteboardService
-      .list(0, PAGE_SIZE)
-      .then((response) => {
-        if (active) {
-          setFallbackWhiteboards(response.content);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setFallbackWhiteboards([]);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [storeWhiteboards.length]);
+  const {
+    query,
+    results,
+    availableWhiteboards,
+    availableTopics,
+    whiteboardLookup,
+    loading,
+    loadingMore,
+    hasSearched,
+    statusFilter,
+    whiteboardFilter,
+    topicFilter,
+    page,
+    loadError,
+    reportModalVisible,
+    reportTarget,
+    activeFilters,
+    resultSummary,
+    handleQueryChange,
+    submitSearch,
+    handleStatusFilter,
+    handleWhiteboardFilter,
+    handleTopicFilter,
+    handleClearQuery,
+    handleLoadMore,
+    toggleBookmark,
+    openReportModal,
+    closeReportModal,
+  } = useQuestionSearchModel();
 
   useEffect(() => {
     if (results.length === 0) {
@@ -182,157 +118,9 @@ export default function SearchScreen() {
     }).start();
   }, [cardEntry, page, results.length]);
 
-  const performSearch = useCallback(
-    async (
-      searchQuery: string,
-      status: FilterStatus,
-      selectedWhiteboard: WhiteboardFilter,
-      selectedTopic: TopicFilter,
-      nextPage = 0,
-      replace = true
-    ) => {
-      if (!searchQuery.trim()) {
-        setResults([]);
-        setHasSearched(false);
-        setPage(0);
-        setHasMore(false);
-        setLoadError(null);
-        return;
-      }
-
-      if (!replace && (!hasMore || loadingMore)) {
-        return;
-      }
-
-      if (replace) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      setHasSearched(true);
-      try {
-        const params: Record<string, string | number | undefined> = {
-          q: searchQuery.trim(),
-          page: nextPage,
-          size: PAGE_SIZE,
-        };
-        if (status !== 'ALL') {
-          params.status = status;
-        }
-        if (selectedWhiteboard !== 'ALL') {
-          params.whiteboard = selectedWhiteboard;
-        }
-        if (selectedTopic !== 'ALL') {
-          params.topic = selectedTopic;
-        }
-        const response = await questionService.search(params);
-        setResults((prev) => (replace ? response.content : [...prev, ...response.content]));
-        setPage(nextPage);
-        setHasMore(nextPage + 1 < response.totalPages);
-        setLoadError(null);
-      } catch {
-        if (replace) {
-          setResults([]);
-        }
-        setHasMore(false);
-        setLoadError('Search failed. Please try again.');
-      } finally {
-        if (replace) {
-          setLoading(false);
-        } else {
-          setLoadingMore(false);
-        }
-      }
-    },
-    [hasMore, loadingMore]
-  );
-
-  const handleQueryChange = (text: string) => {
-    setQuery(text);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      performSearch(text, statusFilter, whiteboardFilter, topicFilter, 0, true);
-    }, 400);
-  };
-
-  const handleStatusFilter = (status: FilterStatus) => {
-    setStatusFilter(status);
-    if (query.trim()) {
-      performSearch(query, status, whiteboardFilter, topicFilter, 0, true);
-    }
-  };
-
-  const handleWhiteboardFilter = (selected: WhiteboardFilter) => {
-    setWhiteboardFilter(selected);
-    setTopicFilter('ALL');
-    if (query.trim()) {
-      performSearch(query, statusFilter, selected, 'ALL', 0, true);
-    }
-  };
-
-  const handleTopicFilter = (selected: TopicFilter) => {
-    setTopicFilter(selected);
-    if (query.trim()) {
-      performSearch(query, statusFilter, whiteboardFilter, selected, 0, true);
-    }
-  };
-
-  const handleClearQuery = () => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    setQuery('');
-    performSearch('', statusFilter, whiteboardFilter, topicFilter, 0, true);
-  };
-
-  const handleLoadMore = async () => {
-    if (!query.trim() || !hasMore || loading || loadingMore) {
-      return;
-    }
-    await performSearch(query, statusFilter, whiteboardFilter, topicFilter, page + 1, false);
-  };
-
-  const handleToggleBookmark = useCallback(
-    async (questionId: string) => {
-      const question = results.find((item) => item.id === questionId);
-      if (!question) {
-        return;
-      }
-
-      try {
-        if (question.isBookmarked) {
-          await bookmarkService.remove(questionId);
-        } else {
-          await bookmarkService.add(questionId);
-        }
-        setResults((prev) =>
-          prev.map((item) =>
-            item.id === questionId
-              ? {
-                  ...item,
-                  isBookmarked: !item.isBookmarked,
-                }
-              : item
-          )
-        );
-      } catch {
-        Alert.alert('Error', 'Failed to update bookmark.');
-      }
-    },
-    [results]
-  );
-
   const stopCardPress = (event: GestureResponderEvent) => {
     event.stopPropagation();
   };
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
 
   const renderQuestionItem = useCallback(
     ({ item, index }: { item: QuestionResponse; index: number }) => {
@@ -372,7 +160,13 @@ export default function SearchScreen() {
               <StatusBadge status={item.status} />
             </View>
 
-            {renderHighlightedText(item.title, query, styles.questionTitle, styles.highlightText, 2)}
+            {renderHighlightedText(
+              item.title,
+              query,
+              styles.questionTitle,
+              styles.highlightText,
+              2
+            )}
 
             {renderHighlightedText(
               item.isHidden ? '[hidden]' : item.body,
@@ -403,7 +197,7 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   onPress={(event) => {
                     stopCardPress(event);
-                    handleToggleBookmark(item.id);
+                    toggleBookmark(item.id);
                   }}
                   style={styles.footerActionButton}
                   accessibilityRole="button"
@@ -416,8 +210,7 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   onPress={(event) => {
                     stopCardPress(event);
-                    setReportTarget({ questionId: item.id });
-                    setReportModalVisible(true);
+                    openReportModal({ questionId: item.id });
                   }}
                   style={styles.footerActionButton}
                   accessibilityRole="button"
@@ -431,7 +224,7 @@ export default function SearchScreen() {
         </Animated.View>
       );
     },
-    [cardEntry, handleToggleBookmark, query, router, whiteboardLookup]
+    [cardEntry, openReportModal, query, router, toggleBookmark, whiteboardLookup]
   );
 
   return (
@@ -449,9 +242,7 @@ export default function SearchScreen() {
             value={query}
             onChangeText={handleQueryChange}
             returnKeyType="search"
-            onSubmitEditing={() =>
-              performSearch(query, statusFilter, whiteboardFilter, topicFilter, 0, true)
-            }
+            onSubmitEditing={submitSearch}
             style={styles.searchInput}
             icon={<Text style={styles.searchInputIcon}>{'\u{1F50D}'}</Text>}
           />
@@ -478,7 +269,10 @@ export default function SearchScreen() {
             {STATUS_FILTERS.map((filter) => (
               <TouchableOpacity
                 key={filter.value}
-                style={[styles.filterChip, statusFilter === filter.value && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  statusFilter === filter.value && styles.filterChipActive,
+                ]}
                 onPress={() => handleStatusFilter(filter.value)}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter by ${filter.label}`}
@@ -556,7 +350,10 @@ export default function SearchScreen() {
               accessibilityLabel="Filter by all topics"
             >
               <Text
-                style={[styles.filterChipText, topicFilter === 'ALL' && styles.filterChipTextActive]}
+                style={[
+                  styles.filterChipText,
+                  topicFilter === 'ALL' && styles.filterChipTextActive,
+                ]}
               >
                 All Topics
               </Text>
@@ -645,7 +442,7 @@ export default function SearchScreen() {
 
       <ReportModal
         visible={reportModalVisible}
-        onClose={() => setReportModalVisible(false)}
+        onClose={closeReportModal}
         target={reportTarget}
         title="Report Question"
       />

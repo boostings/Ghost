@@ -1,7 +1,9 @@
 package com.ghost.service;
 
 import com.ghost.exception.BadRequestException;
+import com.ghost.model.Course;
 import com.ghost.model.Question;
+import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.QuestionStatus;
@@ -65,6 +67,14 @@ class QuestionServiceTest {
 
         Whiteboard whiteboard = Whiteboard.builder()
                 .id(whiteboardId)
+                .course(Course.builder()
+                        .courseCode("IT326")
+                        .courseName("Software Engineering")
+                        .section("001")
+                        .build())
+                .semester(Semester.builder()
+                        .name("Fall 2026")
+                        .build())
                 .build();
 
         User author = User.builder()

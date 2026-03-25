@@ -8,7 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -196,8 +198,22 @@ export default function AuditLogScreen() {
     }
     setExporting(true);
     try {
-      await auditLogService.exportCsv(whiteboardId);
-      Alert.alert('Export', 'Audit log CSV has been prepared for download.');
+      const csv = await auditLogService.exportCsv(whiteboardId);
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ghost-audit-log-${whiteboardId}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('Export', 'Audit log CSV download started.');
+      } else {
+        await Clipboard.setStringAsync(csv);
+        Alert.alert('Export', 'Audit log CSV copied to clipboard.');
+      }
     } catch {
       Alert.alert('Error', 'Failed to export audit logs.');
     } finally {

@@ -1,11 +1,79 @@
 import api from './api';
 import { Config } from '../constants/config';
+import { useAuthStore } from '../stores/authStore';
 import type {
   NotificationResponse,
   PageResponse,
   PaginationParams,
   UnreadCountResponse,
 } from '../types';
+
+const UNREAD_COUNT_CACHE_TTL_MS = 5_000;
+
+type UnreadCountCacheEntry = {
+  accessToken: string | null;
+  count: number;
+  expiresAt: number;
+};
+
+type UnreadCountFlight = {
+  accessToken: string | null;
+  promise: Promise<number>;
+};
+
+let unreadCountCache: UnreadCountCacheEntry | null = null;
+let unreadCountFlight: UnreadCountFlight | null = null;
+
+function resetUnreadCountCache(): void {
+  unreadCountCache = null;
+  unreadCountFlight = null;
+}
+
+async function fetchUnreadCount(accessToken: string | null): Promise<number> {
+  const now = Date.now();
+
+  if (
+    unreadCountCache &&
+    unreadCountCache.accessToken === accessToken &&
+    unreadCountCache.expiresAt > now
+  ) {
+    return unreadCountCache.count;
+  }
+
+  if (unreadCountFlight && unreadCountFlight.accessToken === accessToken) {
+    return unreadCountFlight.promise;
+  }
+
+  const request = (async () => {
+    const response = await api.get<UnreadCountResponse>('/notifications/unread-count');
+    const count = response.data.count;
+
+    const currentToken = useAuthStore.getState().accessToken ?? null;
+    if (currentToken === accessToken) {
+      unreadCountCache = {
+        accessToken,
+        count,
+        expiresAt: Date.now() + UNREAD_COUNT_CACHE_TTL_MS,
+      };
+    } else {
+      unreadCountCache = null;
+    }
+
+    return count;
+  })();
+
+  unreadCountFlight = { accessToken, promise: request };
+
+  void request
+    .finally(() => {
+      if (unreadCountFlight?.accessToken === accessToken) {
+        unreadCountFlight = null;
+      }
+    })
+    .catch(() => undefined);
+
+  return request;
+}
 
 /**
  * Notification service - handles fetching notifications,
@@ -33,8 +101,8 @@ export const notificationService = {
    * GET /notifications/unread-count
    */
   getUnreadCount: async (): Promise<number> => {
-    const response = await api.get<UnreadCountResponse>('/notifications/unread-count');
-    return response.data.count;
+    const accessToken = useAuthStore.getState().accessToken ?? null;
+    return fetchUnreadCount(accessToken);
   },
 
   /**
@@ -43,6 +111,7 @@ export const notificationService = {
    */
   markAsRead: async (id: string): Promise<void> => {
     await api.put(`/notifications/${id}/read`);
+    resetUnreadCountCache();
   },
 
   /**
@@ -51,6 +120,7 @@ export const notificationService = {
    */
   markAllAsRead: async (): Promise<void> => {
     await api.put('/notifications/read-all');
+    resetUnreadCountCache();
   },
 
   /**

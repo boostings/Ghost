@@ -8,13 +8,17 @@ import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
 import com.ghost.mapper.WhiteboardMapper;
+import com.ghost.model.Course;
 import com.ghost.model.JoinRequest;
+import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
 import com.ghost.model.enums.Role;
+import com.ghost.repository.CourseRepository;
+import com.ghost.repository.SemesterRepository;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.repository.WhiteboardRepository;
@@ -36,6 +40,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WhiteboardService {
 
+    private final CourseRepository courseRepository;
+    private final SemesterRepository semesterRepository;
     private final WhiteboardRepository whiteboardRepository;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final UserRepository userRepository;
@@ -64,7 +70,10 @@ public class WhiteboardService {
         String normalizedCourseName = req.getCourseName().trim();
         String normalizedSection = normalizeSection(req.getSection());
 
-        Optional<Whiteboard> existing = whiteboardRepository.findByCourseCodeAndSemester(
+        Course course = getOrCreateCourse(normalizedCourseCode, normalizedCourseName, normalizedSection);
+        Semester semester = getOrCreateSemester(normalizedSemester);
+
+        Optional<Whiteboard> existing = whiteboardRepository.findByCourseCourseCodeAndSemesterName(
                 normalizedCourseCode,
                 normalizedSemester
         );
@@ -95,10 +104,8 @@ public class WhiteboardService {
         String inviteCode = generateInviteCode();
 
         Whiteboard whiteboard = Whiteboard.builder()
-                .courseCode(normalizedCourseCode)
-                .courseName(normalizedCourseName)
-                .section(normalizedSection)
-                .semester(normalizedSemester)
+                .course(course)
+                .semester(semester)
                 .owner(faculty)
                 .inviteCode(inviteCode)
                 .build();
@@ -121,7 +128,7 @@ public class WhiteboardService {
                 "Whiteboard",
                 whiteboard.getId(),
                 null,
-                whiteboard.getCourseCode()
+                whiteboard.getCourse().getCourseCode()
         );
 
         return whiteboard;
@@ -228,7 +235,7 @@ public class WhiteboardService {
                 AuditAction.WHITEBOARD_DELETED,
                 "Whiteboard",
                 whiteboardId,
-                whiteboard.getCourseCode(),
+                whiteboard.getCourse().getCourseCode(),
                 null
         );
 
@@ -304,8 +311,8 @@ public class WhiteboardService {
     }
 
     @Transactional(readOnly = true)
-    public void verifyFacultyRole(UUID userId, UUID whiteboardId) {
-        whiteboardMembershipService.verifyFacultyRole(userId, whiteboardId);
+    public WhiteboardMembership verifyFacultyRole(UUID userId, UUID whiteboardId) {
+        return whiteboardMembershipService.verifyFacultyRole(userId, whiteboardId);
     }
 
     private String generateInviteCode() {
@@ -341,5 +348,30 @@ public class WhiteboardService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Course getOrCreateCourse(String courseCode, String courseName, String section) {
+        Optional<Course> existing = courseRepository.findByCourseCode(courseCode);
+        if (existing.isPresent()) {
+            Course course = existing.get();
+            if ((course.getSection() == null || course.getSection().isBlank()) && section != null) {
+                course.setSection(section);
+                return courseRepository.save(course);
+            }
+            return course;
+        }
+
+        return courseRepository.save(Course.builder()
+                .courseCode(courseCode)
+                .courseName(courseName)
+                .section(section)
+                .build());
+    }
+
+    private Semester getOrCreateSemester(String semesterName) {
+        return semesterRepository.findByName(semesterName)
+                .orElseGet(() -> semesterRepository.save(Semester.builder()
+                        .name(semesterName)
+                        .build()));
     }
 }

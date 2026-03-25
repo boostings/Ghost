@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,8 +18,10 @@ class ControllerLayerContractTest {
 
     private static final List<Class<?>> CONTROLLERS = List.of(
             AuthController.class,
+            FacultyController.class,
             UserController.class,
             WhiteboardController.class,
+            WhiteboardMembershipController.class,
             QuestionController.class,
             CommentController.class,
             TopicController.class,
@@ -27,13 +30,17 @@ class ControllerLayerContractTest {
             NotificationController.class,
             BookmarkController.class,
             SearchController.class,
-            KarmaController.class
+            KarmaController.class,
+            StudentController.class
     );
 
     @Test
     void controllersShouldDependOnServicesOnly() {
         for (Class<?> controller : CONTROLLERS) {
             for (Field field : controller.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic()) {
+                    continue;
+                }
                 assertThat(field.getType().getSimpleName().endsWith("Service"))
                         .as("%s field %s should be a service dependency", controller.getSimpleName(), field.getName())
                         .isTrue();

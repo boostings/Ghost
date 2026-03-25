@@ -37,9 +37,11 @@ public class Comment {
     @Column(name = "body", columnDefinition = "TEXT", nullable = false)
     private String body;
 
-    @Column(name = "is_verified_answer", nullable = false)
-    @Builder.Default
-    private boolean isVerifiedAnswer = false;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "verified_by_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private User verifiedBy;
 
     @Column(name = "is_hidden", nullable = false)
     @Builder.Default
@@ -63,11 +65,4 @@ public class Comment {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        if (editDeadline == null) {
-            editDeadline = LocalDateTime.now().plusMinutes(15);
-        }
-    }
 }

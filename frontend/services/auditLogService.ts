@@ -29,7 +29,10 @@ export const auditLogService = {
     return response.data;
   },
 
-  exportCsv: async (whiteboardId: string): Promise<void> => {
-    await api.get(`/whiteboards/${whiteboardId}/audit-logs/export`);
+  exportCsv: async (whiteboardId: string): Promise<string> => {
+    const response = await api.get<string>(`/whiteboards/${whiteboardId}/audit-logs/export`, {
+      responseType: 'text',
+    });
+    return response.data;
   },
 };

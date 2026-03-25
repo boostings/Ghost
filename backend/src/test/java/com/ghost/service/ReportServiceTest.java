@@ -4,8 +4,10 @@ import com.ghost.dto.request.ReviewReportRequest;
 import com.ghost.dto.response.ReportResponse;
 import com.ghost.mapper.ReportMapper;
 import com.ghost.model.Comment;
+import com.ghost.model.Course;
 import com.ghost.model.Question;
 import com.ghost.model.Report;
+import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
@@ -65,6 +67,7 @@ class ReportServiceTest {
     private UUID whiteboardId;
     private UUID facultyId;
     private User faculty;
+    private Whiteboard whiteboard;
 
     @BeforeEach
     void setUp() {
@@ -72,6 +75,17 @@ class ReportServiceTest {
         whiteboardId = UUID.randomUUID();
         facultyId = UUID.randomUUID();
         faculty = User.builder().id(facultyId).build();
+        whiteboard = Whiteboard.builder()
+                .id(whiteboardId)
+                .course(Course.builder()
+                        .courseCode("IT326")
+                        .courseName("Software Engineering")
+                        .section("001")
+                        .build())
+                .semester(Semester.builder()
+                        .name("Fall 2026")
+                        .build())
+                .build();
 
         when(reportRepository.save(any(Report.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(reportMapper.toResponse(any(Report.class))).thenReturn(ReportResponse.builder().build());
@@ -82,7 +96,7 @@ class ReportServiceTest {
     void reviewReportDismissedQuestionShouldRestoreWhenActiveReportsBelowThreshold() {
         Question question = Question.builder()
                 .id(UUID.randomUUID())
-                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
+                .whiteboard(whiteboard)
                 .isHidden(true)
                 .reportCount(3)
                 .build();
@@ -119,7 +133,7 @@ class ReportServiceTest {
     void reviewReportDismissedQuestionShouldStayHiddenWhenThresholdStillMet() {
         Question question = Question.builder()
                 .id(UUID.randomUUID())
-                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
+                .whiteboard(whiteboard)
                 .isHidden(true)
                 .reportCount(4)
                 .build();
@@ -156,7 +170,7 @@ class ReportServiceTest {
     void reviewReportDismissedCommentShouldRestoreWhenActiveReportsBelowThreshold() {
         Question question = Question.builder()
                 .id(UUID.randomUUID())
-                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
+                .whiteboard(whiteboard)
                 .build();
         Comment comment = Comment.builder()
                 .id(UUID.randomUUID())

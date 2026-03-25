@@ -30,7 +30,11 @@ public class CommentMapper {
                 .authorId(comment.getAuthor().getId())
                 .authorName(comment.getAuthor().getFirstName() + " " + comment.getAuthor().getLastName())
                 .body(comment.getBody())
-                .isVerifiedAnswer(comment.isVerifiedAnswer())
+                .isVerifiedAnswer(comment.getVerifiedBy() != null)
+                .verifiedById(comment.getVerifiedBy() != null ? comment.getVerifiedBy().getId() : null)
+                .verifiedByName(comment.getVerifiedBy() != null
+                        ? comment.getVerifiedBy().getFirstName() + " " + comment.getVerifiedBy().getLastName()
+                        : null)
                 .karmaScore(comment.getKarmaScore())
                 .userVote(userVote)
                 .canEdit(canEdit)

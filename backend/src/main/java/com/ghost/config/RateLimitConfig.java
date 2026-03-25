@@ -2,7 +2,6 @@ package com.ghost.config;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -40,13 +39,19 @@ public class RateLimitConfig {
 
     private Bucket createAuthBucket() {
         return Bucket.builder()
-                .addLimit(Bandwidth.classic(100, Refill.greedy(100, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.builder()
+                        .capacity(100)
+                        .refillGreedy(100, Duration.ofMinutes(1))
+                        .build())
                 .build();
     }
 
     private Bucket createGeneralBucket() {
         return Bucket.builder()
-                .addLimit(Bandwidth.classic(300, Refill.greedy(300, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.builder()
+                        .capacity(300)
+                        .refillGreedy(300, Duration.ofMinutes(1))
+                        .build())
                 .build();
     }
 

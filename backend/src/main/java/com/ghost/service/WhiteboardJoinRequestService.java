@@ -140,8 +140,8 @@ public class WhiteboardJoinRequestService {
                 ? "Join Request Approved"
                 : "Join Request Rejected";
         String body = status == JoinRequestStatus.APPROVED
-                ? "Your request to join " + joinRequest.getWhiteboard().getCourseCode() + " was approved."
-                : "Your request to join " + joinRequest.getWhiteboard().getCourseCode() + " was rejected.";
+                ? "Your request to join " + joinRequest.getWhiteboard().getCourse().getCourseCode() + " was approved."
+                : "Your request to join " + joinRequest.getWhiteboard().getCourse().getCourseCode() + " was rejected.";
 
         notificationService.createAndSend(
                 joinRequest.getUser().getId(),

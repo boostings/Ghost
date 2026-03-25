@@ -2,6 +2,7 @@ package com.ghost.config;
 
 import com.ghost.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,8 +15,12 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -35,6 +40,10 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                .accessDeniedHandler(restAccessDeniedHandler())
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST,
                         "/api/auth/register",
@@ -50,6 +59,24 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public AccessDeniedHandler restAccessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext()
+                    .getAuthentication();
+
+            boolean isAnonymous = authentication == null
+                    || !authentication.isAuthenticated()
+                    || authentication instanceof AnonymousAuthenticationToken;
+
+            response.sendError(
+                    isAnonymous ? HttpStatus.UNAUTHORIZED.value() : HttpStatus.FORBIDDEN.value(),
+                    isAnonymous ? HttpStatus.UNAUTHORIZED.getReasonPhrase() : HttpStatus.FORBIDDEN.getReasonPhrase()
+            );
+        };
     }
 
     @Bean

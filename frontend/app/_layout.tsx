@@ -49,9 +49,9 @@ function RootLayoutNav() {
     const checkMembership = async () => {
       setIsMembershipLoading(true);
       try {
-        const page = await whiteboardService.getWhiteboards({ page: 0, size: 1 });
+        const hasWhiteboards = await whiteboardService.hasAnyWhiteboard();
         if (!cancelled) {
-          setHasJoinedWhiteboard(page.totalElements > 0);
+          setHasJoinedWhiteboard(hasWhiteboards);
         }
       } catch {
         if (!cancelled) {

@@ -1,5 +1,6 @@
 import api from './api';
 import { Config } from '../constants/config';
+import { useAuthStore } from '../stores/authStore';
 import type {
   WhiteboardResponse,
   PageResponse,
@@ -12,6 +13,83 @@ import type {
   UserResponse,
   JoinRequestStatus,
 } from '../types';
+
+const MEMBERSHIP_CHECK_CACHE_TTL_MS = 30_000;
+
+type MembershipCacheEntry = {
+  accessToken: string | null;
+  hasWhiteboards: boolean;
+  expiresAt: number;
+};
+
+type MembershipFlight = {
+  accessToken: string | null;
+  promise: Promise<boolean>;
+};
+
+let membershipCache: MembershipCacheEntry | null = null;
+let membershipFlight: MembershipFlight | null = null;
+
+function resetMembershipCache(): void {
+  membershipCache = null;
+  membershipFlight = null;
+}
+
+async function checkMembership(accessToken: string | null): Promise<boolean> {
+  const now = Date.now();
+
+  if (
+    membershipCache &&
+    membershipCache.accessToken === accessToken &&
+    membershipCache.expiresAt > now
+  ) {
+    return membershipCache.hasWhiteboards;
+  }
+
+  if (membershipFlight && membershipFlight.accessToken === accessToken) {
+    return membershipFlight.promise;
+  }
+
+  const request = (async () => {
+    const response = await api.get<PageResponse<WhiteboardResponse> | WhiteboardResponse[]>(
+      '/whiteboards',
+      {
+        params: {
+          page: 0,
+          size: 1,
+        },
+      }
+    );
+
+    const responseData = toPageResponse(response.data);
+    const hasWhiteboards = responseData.totalElements > 0;
+
+    const currentToken = useAuthStore.getState().accessToken ?? null;
+    if (currentToken === accessToken) {
+      membershipCache = {
+        accessToken,
+        hasWhiteboards,
+        expiresAt: Date.now() + MEMBERSHIP_CHECK_CACHE_TTL_MS,
+      };
+    } else {
+      membershipCache = null;
+    }
+
+    return hasWhiteboards;
+  })();
+
+  membershipFlight = { accessToken, promise: request };
+
+  void request
+    .finally(() => {
+      if (membershipFlight?.accessToken === accessToken) {
+        membershipFlight = null;
+      }
+    })
+    .catch(() => undefined);
+
+  return request;
+}
 
 type InviteInfoResponse = {
   inviteCode: string;
@@ -70,6 +148,15 @@ export const whiteboardService = {
   },
 
   /**
+   * Check whether the user has at least one whiteboard.
+   * Uses a short in-memory cache to avoid duplicate mount-triggered requests.
+   */
+  hasAnyWhiteboard: async (): Promise<boolean> => {
+    const accessToken = useAuthStore.getState().accessToken ?? null;
+    return checkMembership(accessToken);
+  },
+
+  /**
    * Get discoverable classes that the current user has not joined yet.
    * GET /whiteboards/discover
    */
@@ -103,6 +190,7 @@ export const whiteboardService = {
    */
   createWhiteboard: async (data: CreateWhiteboardRequest): Promise<WhiteboardResponse> => {
     const response = await api.post<WhiteboardResponse>('/whiteboards', data);
+    resetMembershipCache();
     return response.data;
   },
 
@@ -112,6 +200,7 @@ export const whiteboardService = {
    */
   deleteWhiteboard: async (id: string): Promise<void> => {
     await api.delete(`/whiteboards/${id}`);
+    resetMembershipCache();
   },
 
   /**
@@ -122,9 +211,11 @@ export const whiteboardService = {
     const trimmedCode = inviteCode.trim();
     if (whiteboardId) {
       await api.post(`/whiteboards/${whiteboardId}/join`, { inviteCode: trimmedCode });
+      resetMembershipCache();
       return;
     }
     await api.post('/whiteboards/join-by-invite', { inviteCode: trimmedCode });
+    resetMembershipCache();
   },
 
   /**
@@ -210,6 +301,7 @@ export const whiteboardService = {
    */
   leaveWhiteboard: async (id: string): Promise<void> => {
     await api.post(`/whiteboards/${id}/leave`);
+    resetMembershipCache();
   },
 
   /**

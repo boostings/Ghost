@@ -65,7 +65,9 @@ const CommentCard: React.FC<CommentCardProps> = ({
       {comment.isVerifiedAnswer && (
         <View style={styles.verifiedBadge}>
           <Text style={styles.verifiedCheckmark}>✓</Text>
-          <Text style={styles.verifiedText}>Verified Answer</Text>
+          <Text style={styles.verifiedText}>
+            {comment.verifiedByName ? `Verified by ${comment.verifiedByName}` : 'Verified Answer'}
+          </Text>
         </View>
       )}
 

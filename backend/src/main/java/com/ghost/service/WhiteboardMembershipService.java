@@ -227,11 +227,12 @@ public class WhiteboardMembershipService {
     }
 
     @Transactional(readOnly = true)
-    public void verifyFacultyRole(UUID userId, UUID whiteboardId) {
+    public WhiteboardMembership verifyFacultyRole(UUID userId, UUID whiteboardId) {
         WhiteboardMembership membership = verifyMembership(userId, whiteboardId);
         if (membership.getRole() != Role.FACULTY) {
             throw new UnauthorizedException("Only faculty members can perform this action");
         }
+        return membership;
     }
 
     private void joinWhiteboard(UUID userId, Whiteboard whiteboard) {

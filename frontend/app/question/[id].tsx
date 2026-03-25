@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
@@ -15,230 +15,98 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
-import GlassModal from '../../components/ui/GlassModal';
 import CommentCard from '../../components/CommentCard';
+import ReportModal from '../../components/ReportModal';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import KarmaDisplay from '../../components/ui/KarmaDisplay';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { useAuthStore } from '../../stores/authStore';
-import { questionService } from '../../services/questionService';
-import { commentService } from '../../services/commentService';
-import { bookmarkService } from '../../services/bookmarkService';
-import { reportService } from '../../services/reportService';
+import { useQuestionDetailModel } from '../../hooks/useQuestionDetailModel';
 import { formatFullDate } from '../../utils/formatDate';
-import { extractErrorMessage } from '../../hooks/useApi';
-import { useWebSocket } from '../../hooks/useWebSocket';
-import { sanitizeText } from '../../utils/sanitize';
-import type { QuestionResponse, CommentResponse, VoteType, ReportReason } from '../../types';
-
-const REPORT_REASON_OPTIONS: { label: string; value: ReportReason; description: string }[] = [
-  { label: 'Spam', value: 'SPAM', description: 'Promotional or repetitive content.' },
-  { label: 'Inappropriate', value: 'INAPPROPRIATE', description: 'Offensive or explicit content.' },
-  { label: 'Harassment', value: 'HARASSMENT', description: 'Bullying or targeted abuse.' },
-  { label: 'Off Topic', value: 'OFF_TOPIC', description: 'Not related to this class discussion.' },
-  { label: 'Other', value: 'OTHER', description: 'Something else that needs faculty review.' },
-];
-
-function sortCommentsByCreatedAt(comments: CommentResponse[]): CommentResponse[] {
-  return [...comments].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
-}
-
-function parseCommentMessage(body: string): {
-  type?: string;
-  comment?: CommentResponse;
-  commentId?: string;
-} {
-  try {
-    const parsed: unknown = JSON.parse(body);
-    if (!parsed || typeof parsed !== 'object') {
-      return {};
-    }
-
-    const envelope = parsed as { type?: unknown; payload?: unknown; id?: unknown };
-    const type = typeof envelope.type === 'string' ? envelope.type : undefined;
-    const payload = envelope.payload ?? parsed;
-
-    if (payload && typeof payload === 'object') {
-      const payloadObj = payload as Record<string, unknown>;
-      const payloadId = typeof payloadObj.id === 'string' ? payloadObj.id : undefined;
-      const hasCommentShape =
-        typeof payloadObj.authorName === 'string' &&
-        typeof payloadObj.body === 'string' &&
-        typeof payloadObj.createdAt === 'string';
-
-      if (hasCommentShape && payloadId) {
-        return { type, comment: payloadObj as unknown as CommentResponse };
-      }
-      if (payloadId) {
-        return { type, commentId: payloadId };
-      }
-    }
-
-    const rootId = typeof envelope.id === 'string' ? envelope.id : undefined;
-    return { type, commentId: rootId };
-  } catch {
-    return {};
-  }
-}
+import type { CommentResponse, VoteType } from '../../types';
 
 export default function QuestionDetailScreen() {
   const router = useRouter();
   const { id, whiteboardId } = useLocalSearchParams<{ id: string; whiteboardId: string }>();
-  const user = useAuthStore((state) => state.user);
-  const isFaculty = user?.role === 'FACULTY';
-  const commentInputRef = useRef<TextInput>(null);
+  const {
+    commentInputRef,
+    question,
+    comments,
+    loading,
+    refreshing,
+    commentText,
+    editingCommentId,
+    submitting,
+    isBookmarked,
+    loadError,
+    reportModalVisible,
+    reportTarget,
+    isClosed,
+    canEdit,
+    isFaculty,
+    user,
+    setCommentText,
+    refresh,
+    submitComment,
+    startEditingComment,
+    cancelEditingComment,
+    deleteComment,
+    voteOnQuestion,
+    voteOnComment,
+    verifyAnswer,
+    toggleBookmark,
+    openReportModal,
+    closeReportModal,
+    deleteQuestion,
+    closeQuestion,
+    togglePinnedState,
+  } = useQuestionDetailModel({
+    questionId: id,
+    whiteboardId,
+    onQuestionDeleted: () => router.back(),
+  });
 
-  const [question, setQuestion] = useState<QuestionResponse | null>(null);
-  const [comments, setComments] = useState<CommentResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportReason, setReportReason] = useState<ReportReason | null>(null);
-  const [reportNotes, setReportNotes] = useState('');
-  const [reportTarget, setReportTarget] = useState<{
-    questionId?: string;
-    commentId?: string;
-  } | null>(null);
-  const [submittingReport, setSubmittingReport] = useState(false);
-  const lastFetchRef = useRef(0);
-  const { subscribe } = useWebSocket();
+  const isAuthor = question?.authorId === user?.id;
 
-  const fetchData = useCallback(async () => {
-    if (!id) {
-      setQuestion(null);
-      setComments([]);
-      setLoading(false);
-      setLoadError('Missing question id.');
-      return;
-    }
-
+  const handleQuestionVote = async (voteType: VoteType) => {
     try {
-      const resolvedQuestion = whiteboardId
-        ? questionService.getById(whiteboardId, id)
-        : questionService.getByIdGlobal(id);
-      const [q, c] = await Promise.all([resolvedQuestion, commentService.list(id)]);
-      setQuestion(q);
-      setComments(c);
-      setIsBookmarked(q.isBookmarked || false);
-      setLoadError(null);
-      lastFetchRef.current = Date.now();
+      await voteOnQuestion(voteType);
     } catch {
-      setLoadError('Failed to load this question.');
-      setQuestion(null);
-      setComments([]);
-    } finally {
-      setLoading(false);
+      Alert.alert('Error', 'Could not record your vote. Please try again.');
     }
-  }, [id, whiteboardId]);
+  };
 
-  useFocusEffect(
-    useCallback(() => {
-      const now = Date.now();
-      const isStale = now - lastFetchRef.current > 30000;
-      if (!question || isStale) {
-        fetchData();
-      }
-    }, [fetchData, question])
-  );
+  const handleCommentVote = async (commentId: string, voteType: VoteType) => {
+    try {
+      await voteOnComment(commentId, voteType);
+    } catch {
+      Alert.alert('Error', 'Could not record your vote. Please try again.');
+    }
+  };
 
-  useEffect(() => {
+  const handleToggleBookmark = async () => {
+    try {
+      await toggleBookmark();
+    } catch {
+      Alert.alert('Error', 'Failed to update bookmark.');
+    }
+  };
+
+  const handleReportQuestion = () => {
     if (!id) {
       return;
     }
 
-    const subscription = subscribe(`/topic/question/${id}/comments`, (frame) => {
-      const { type, comment, commentId } = parseCommentMessage(frame.body);
-      const normalizedType = type?.toUpperCase() ?? '';
-      const isDeleteEvent = normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
-
-      if (isDeleteEvent && commentId) {
-        setComments((prev) => prev.filter((existing) => existing.id !== commentId));
-        return;
-      }
-
-      if (comment) {
-        setComments((prev) => {
-          const index = prev.findIndex((existing) => existing.id === comment.id);
-          if (index >= 0) {
-            const next = [...prev];
-            next[index] = comment;
-            return sortCommentsByCreatedAt(next);
-          }
-          return sortCommentsByCreatedAt([...prev, comment]);
-        });
-      }
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [id, subscribe]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
+    openReportModal({ questionId: id });
   };
 
-  const handleSubmitComment = async () => {
-    const sanitizedComment = sanitizeText(commentText);
-    if (!sanitizedComment || !id || submitting) return;
-
-    setSubmitting(true);
-    try {
-      if (editingCommentId) {
-        const updatedComment = await commentService.update(id, editingCommentId, {
-          body: sanitizedComment,
-        });
-        setComments((prev) =>
-          prev.map((comment) => (comment.id === updatedComment.id ? updatedComment : comment))
-        );
-        setEditingCommentId(null);
-      } else {
-        const newComment = await commentService.create(id, { body: sanitizedComment });
-        setComments((prev) => sortCommentsByCreatedAt([...prev, newComment]));
-      }
-
-      setCommentText('');
-      commentInputRef.current?.blur();
-    } catch (error: unknown) {
-      Alert.alert('Error', extractErrorMessage(error));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleStartEditComment = (comment: CommentResponse) => {
-    if (isClosed) {
-      return;
-    }
-    setEditingCommentId(comment.id);
-    setCommentText(comment.body);
-    commentInputRef.current?.focus();
-  };
-
-  const handleCancelEditComment = () => {
-    setEditingCommentId(null);
-    setCommentText('');
-    commentInputRef.current?.blur();
+  const handleReportComment = (commentId: string) => {
+    openReportModal({ commentId });
   };
 
   const handleDeleteComment = (comment: CommentResponse) => {
-    if (!id) {
-      return;
-    }
-
     Alert.alert('Delete Comment', 'Are you sure? This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -246,11 +114,7 @@ export default function QuestionDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await commentService.delete(id, comment.id);
-            setComments((prev) => prev.filter((existing) => existing.id !== comment.id));
-            if (editingCommentId === comment.id) {
-              handleCancelEditComment();
-            }
+            await deleteComment(comment.id);
           } catch {
             Alert.alert('Error', 'Failed to delete comment.');
           }
@@ -259,70 +123,7 @@ export default function QuestionDetailScreen() {
     ]);
   };
 
-  const handleQuestionVote = async (voteType: VoteType) => {
-    if (!id) return;
-    try {
-      if (question?.userVote === voteType) {
-        await questionService.removeVote(id);
-        setQuestion((prev) =>
-          prev
-            ? {
-                ...prev,
-                userVote: null,
-                karmaScore: prev.karmaScore + (voteType === 'UPVOTE' ? -1 : 1),
-              }
-            : prev
-        );
-      } else {
-        await questionService.vote(id, voteType);
-        const oldVote = question?.userVote;
-        let scoreDiff = voteType === 'UPVOTE' ? 1 : -1;
-        if (oldVote) scoreDiff += oldVote === 'UPVOTE' ? -1 : 1;
-        setQuestion((prev) =>
-          prev ? { ...prev, userVote: voteType, karmaScore: prev.karmaScore + scoreDiff } : prev
-        );
-      }
-    } catch {
-      Alert.alert('Error', 'Could not record your vote. Please try again.');
-    }
-  };
-
-  const handleCommentVote = async (commentId: string, voteType: VoteType) => {
-    try {
-      const comment = comments.find((c) => c.id === commentId);
-      if (comment?.userVote === voteType) {
-        await commentService.removeVote(commentId);
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === commentId
-              ? {
-                  ...c,
-                  userVote: null,
-                  karmaScore: c.karmaScore + (voteType === 'UPVOTE' ? -1 : 1),
-                }
-              : c
-          )
-        );
-      } else {
-        await commentService.vote(commentId, voteType);
-        const oldVote = comment?.userVote;
-        let scoreDiff = voteType === 'UPVOTE' ? 1 : -1;
-        if (oldVote) scoreDiff += oldVote === 'UPVOTE' ? -1 : 1;
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === commentId
-              ? { ...c, userVote: voteType, karmaScore: c.karmaScore + scoreDiff }
-              : c
-          )
-        );
-      }
-    } catch {
-      Alert.alert('Error', 'Could not record your vote. Please try again.');
-    }
-  };
-
-  const handleVerifyAnswer = async (commentId: string) => {
-    if (!id) return;
+  const handleVerifyAnswer = (commentId: string) => {
     Alert.alert(
       'Verify Answer',
       'Mark this comment as the verified answer? This will close the question and prevent new comments.',
@@ -332,8 +133,7 @@ export default function QuestionDetailScreen() {
           text: 'Verify',
           onPress: async () => {
             try {
-              await commentService.verify(id, commentId);
-              await fetchData();
+              await verifyAnswer(commentId);
             } catch {
               Alert.alert('Error', 'Failed to verify answer.');
             }
@@ -343,72 +143,6 @@ export default function QuestionDetailScreen() {
     );
   };
 
-  const handleBookmark = async () => {
-    if (!id) return;
-    try {
-      if (isBookmarked) {
-        await bookmarkService.remove(id);
-        setIsBookmarked(false);
-      } else {
-        await bookmarkService.add(id);
-        setIsBookmarked(true);
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to update bookmark.');
-    }
-  };
-
-  const closeReportModal = () => {
-    setReportModalVisible(false);
-    setReportReason(null);
-    setReportNotes('');
-    setReportTarget(null);
-  };
-
-  const openReportModal = (target: { questionId?: string; commentId?: string }) => {
-    setReportTarget(target);
-    setReportReason(null);
-    setReportNotes('');
-    setReportModalVisible(true);
-  };
-
-  const handleReportQuestion = () => {
-    if (!id) {
-      return;
-    }
-    openReportModal({ questionId: id });
-  };
-
-  const handleReportComment = (commentId: string) => {
-    openReportModal({ commentId });
-  };
-
-  const submitReport = async () => {
-    if (!reportTarget?.questionId && !reportTarget?.commentId) {
-      return;
-    }
-    if (!reportReason) {
-      Alert.alert('Report', 'Please select a reason.');
-      return;
-    }
-
-    setSubmittingReport(true);
-    try {
-      const notes = reportNotes.trim();
-      await reportService.create({
-        ...reportTarget,
-        reason: reportReason,
-        notes: notes ? notes : undefined,
-      });
-      closeReportModal();
-      Alert.alert('Reported', 'Thank you for your report. It will be reviewed by faculty.');
-    } catch {
-      Alert.alert('Error', 'Failed to submit report.');
-    } finally {
-      setSubmittingReport(false);
-    }
-  };
-
   const handleDeleteQuestion = () => {
     Alert.alert('Delete Question', 'Are you sure? This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -416,28 +150,34 @@ export default function QuestionDetailScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          if (!id) {
-            return;
-          }
           try {
-            const wbId = whiteboardId || question?.whiteboardId;
-            if (!wbId) {
-              Alert.alert('Error', 'Missing whiteboard context.');
-              return;
-            }
-            await questionService.delete(wbId, id);
-            router.back();
-          } catch {
-            Alert.alert('Error', 'Failed to delete question.');
+            await deleteQuestion();
+          } catch (error) {
+            Alert.alert(
+              'Error',
+              error instanceof Error ? error.message : 'Failed to delete question.'
+            );
           }
         },
       },
     ]);
   };
 
-  const isClosed = question?.status === 'CLOSED';
-  const isAuthor = question?.authorId === user?.id;
-  const canEdit = isAuthor && !isClosed && !question?.verifiedAnswerId;
+  const handleCloseQuestion = async () => {
+    try {
+      await closeQuestion();
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to close question.');
+    }
+  };
+
+  const handleTogglePinnedState = async () => {
+    try {
+      await togglePinnedState();
+    } catch {
+      Alert.alert('Error', 'Max 3 pinned questions per whiteboard.');
+    }
+  };
 
   const renderComment = ({ item }: { item: CommentResponse }) => {
     const isCommentAuthor = item.authorId === user?.id;
@@ -447,7 +187,7 @@ export default function QuestionDetailScreen() {
         comment={item}
         onUpvote={() => handleCommentVote(item.id, 'UPVOTE')}
         onDownvote={() => handleCommentVote(item.id, 'DOWNVOTE')}
-        onEdit={isCommentAuthor && item.canEdit ? () => handleStartEditComment(item) : undefined}
+        onEdit={isCommentAuthor && item.canEdit ? () => startEditingComment(item) : undefined}
         onDelete={isCommentAuthor || isFaculty ? () => handleDeleteComment(item) : undefined}
         onReport={!isCommentAuthor ? () => handleReportComment(item.id) : undefined}
         onVerify={
@@ -494,7 +234,7 @@ export default function QuestionDetailScreen() {
             </Text>
             <View style={styles.headerActions}>
               <TouchableOpacity
-                onPress={handleBookmark}
+                onPress={handleToggleBookmark}
                 style={styles.headerButton}
                 accessibilityRole="button"
                 accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
@@ -522,7 +262,7 @@ export default function QuestionDetailScreen() {
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={handleRefresh}
+                onRefresh={refresh}
                 tintColor={Colors.primary}
               />
             }
@@ -587,18 +327,7 @@ export default function QuestionDetailScreen() {
                         )}
                         {isFaculty && !isClosed && (
                           <TouchableOpacity
-                            onPress={async () => {
-                              if (!id) {
-                                return;
-                              }
-                              try {
-                                const wbId = whiteboardId || question.whiteboardId;
-                                await questionService.close(wbId, id);
-                                await fetchData();
-                              } catch {
-                                Alert.alert('Error', 'Failed to close question.');
-                              }
-                            }}
+                            onPress={handleCloseQuestion}
                             style={styles.questionAction}
                             accessibilityRole="button"
                             accessibilityLabel="Close question"
@@ -608,22 +337,7 @@ export default function QuestionDetailScreen() {
                         )}
                         {isFaculty && (
                           <TouchableOpacity
-                            onPress={async () => {
-                              if (!id) {
-                                return;
-                              }
-                              try {
-                                const wbId = whiteboardId || question.whiteboardId;
-                                if (question.isPinned) {
-                                  await questionService.unpin(wbId, id);
-                                } else {
-                                  await questionService.pin(wbId, id);
-                                }
-                                await fetchData();
-                              } catch {
-                                Alert.alert('Error', 'Max 3 pinned questions per whiteboard.');
-                              }
-                            }}
+                            onPress={handleTogglePinnedState}
                             style={styles.questionAction}
                             accessibilityRole="button"
                             accessibilityLabel={
@@ -674,7 +388,7 @@ export default function QuestionDetailScreen() {
                 <View style={styles.editingBanner}>
                   <Text style={styles.editingText}>Editing comment</Text>
                   <TouchableOpacity
-                    onPress={handleCancelEditComment}
+                    onPress={cancelEditingComment}
                     accessibilityRole="button"
                     accessibilityLabel="Cancel comment edit"
                   >
@@ -699,7 +413,7 @@ export default function QuestionDetailScreen() {
                     styles.sendButton,
                     (!commentText.trim() || submitting) && styles.sendButtonDisabled,
                   ]}
-                  onPress={handleSubmitComment}
+                  onPress={submitComment}
                   disabled={!commentText.trim() || submitting}
                   accessibilityRole="button"
                   accessibilityLabel="Post comment"
@@ -715,69 +429,12 @@ export default function QuestionDetailScreen() {
           )}
         </KeyboardAvoidingView>
 
-        <GlassModal
+        <ReportModal
           visible={reportModalVisible}
           onClose={closeReportModal}
+          target={reportTarget}
           title={reportTarget?.questionId ? 'Report Question' : 'Report Comment'}
-        >
-          <Text style={styles.reportModalSubtitle}>
-            Select the reason and add optional context for faculty moderators.
-          </Text>
-
-          <View style={styles.reportReasonList}>
-            {REPORT_REASON_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.reportReasonOption,
-                  reportReason === option.value && styles.reportReasonOptionActive,
-                ]}
-                onPress={() => setReportReason(option.value)}
-                accessibilityRole="button"
-                accessibilityLabel={`Report reason: ${option.label}`}
-              >
-                <Text
-                  style={[
-                    styles.reportReasonLabel,
-                    reportReason === option.value && styles.reportReasonLabelActive,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-                <Text style={styles.reportReasonDescription}>{option.description}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.reportNotesLabel}>Notes (optional)</Text>
-          <TextInput
-            style={styles.reportNotesInput}
-            placeholder="Add context for faculty review..."
-            placeholderTextColor={Colors.textMuted}
-            value={reportNotes}
-            onChangeText={setReportNotes}
-            multiline
-            maxLength={500}
-            selectionColor={Colors.primary}
-          />
-
-          <TouchableOpacity
-            onPress={submitReport}
-            style={[
-              styles.reportSubmitButton,
-              (!reportReason || submittingReport) && styles.reportSubmitButtonDisabled,
-            ]}
-            disabled={!reportReason || submittingReport}
-            accessibilityRole="button"
-            accessibilityLabel="Submit report"
-          >
-            {submittingReport ? (
-              <ActivityIndicator size="small" color={Colors.text} />
-            ) : (
-              <Text style={styles.reportSubmitText}>Submit Report</Text>
-            )}
-          </TouchableOpacity>
-        </GlassModal>
+        />
       </SafeAreaView>
     </LinearGradient>
   );

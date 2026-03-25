@@ -14,7 +14,7 @@ import java.util.UUID;
 @Table(
         name = "whiteboards",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_whiteboards_course_semester", columnNames = {"course_code", "semester"})
+                @UniqueConstraint(name = "uq_whiteboards_course_semester", columnNames = {"course_id", "semester_id"})
         }
 )
 @Getter
@@ -29,17 +29,17 @@ public class Whiteboard {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "course_code", nullable = false)
-    private String courseCode;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Course course;
 
-    @Column(name = "course_name", nullable = false)
-    private String courseName;
-
-    @Column(name = "section")
-    private String section;
-
-    @Column(name = "semester", nullable = false)
-    private String semester;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "semester_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Semester semester;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
@@ -59,6 +59,18 @@ public class Whiteboard {
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<WhiteboardMembership> memberships = new ArrayList<>();
+
+    @OneToMany(mappedBy = "whiteboard", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<Question> questions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "whiteboard", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<Topic> topics = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -19,7 +19,9 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
         { backgroundColor: isOpen ? `${colors.openStatus}26` : `${colors.closedStatus}26` },
       ]}
     >
-      <View style={[styles.dot, { backgroundColor: isOpen ? colors.openStatus : colors.closedStatus }]} />
+      <View
+        style={[styles.dot, { backgroundColor: isOpen ? colors.openStatus : colors.closedStatus }]}
+      />
       <Text style={[styles.text, { color: isOpen ? colors.openStatus : colors.closedStatus }]}>
         {status}
       </Text>

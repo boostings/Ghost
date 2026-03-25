@@ -2,7 +2,12 @@ package com.ghost.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ghost.dto.request.LoginRequest;
+import com.ghost.dto.request.RefreshTokenRequest;
+import com.ghost.dto.request.RegisterRequest;
 import com.ghost.dto.request.UpdateUserRequest;
+import com.ghost.dto.request.VerifyEmailRequest;
+import com.ghost.dto.response.AuthResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
@@ -25,11 +30,42 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
 
+    private final AuthService authService;
     private final UserRepository userRepository;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final AuditLogService auditLogService;
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
+
+    @Transactional
+    public void register(RegisterRequest req) {
+        authService.register(req);
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest req) {
+        return authService.login(req);
+    }
+
+    @Transactional
+    public AuthResponse verifyEmail(VerifyEmailRequest req) {
+        return authService.verifyEmail(req);
+    }
+
+    @Transactional
+    public void resendVerificationCode(String email) {
+        authService.resendVerificationCode(email);
+    }
+
+    @Transactional
+    public AuthResponse refreshToken(RefreshTokenRequest req) {
+        return authService.refreshToken(req);
+    }
+
+    @Transactional
+    public void deleteAccount(UUID userId) {
+        authService.deleteAccount(userId);
+    }
 
     @Transactional(readOnly = true)
     public UserResponse getUserById(UUID id) {

@@ -1,5 +1,12 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View, ViewStyle, StyleProp, useColorScheme } from 'react-native';
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+  StyleProp,
+  useColorScheme,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useThemeColors } from '../../constants/colors';
 
@@ -23,7 +30,11 @@ const GlassCard: React.FC<GlassCardProps> = ({
 
   const content = (
     <View style={[styles.container, { borderColor: colors.cardBorder }, style]}>
-      <BlurView intensity={blurIntensity} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={styles.blur}>
+      <BlurView
+        intensity={blurIntensity}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        style={styles.blur}
+      >
         <View style={[styles.inner, { backgroundColor: colors.cardBg }]}>{children}</View>
       </BlurView>
     </View>

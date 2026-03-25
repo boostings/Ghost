@@ -105,6 +105,9 @@ public class CommentService {
         if (comment.getEditDeadline() == null || comment.getEditDeadline().isBefore(LocalDateTime.now())) {
             throw new BadRequestException("Edit deadline has passed. Comments can only be edited within 15 minutes.");
         }
+        if (comment.getQuestion().getStatus() == QuestionStatus.CLOSED) {
+            throw new BadRequestException("Cannot edit a comment on a closed question");
+        }
 
         // Save old value for audit
         String oldBody = comment.getBody();
@@ -150,20 +153,24 @@ public class CommentService {
     }
 
     @Transactional
-    public void markAsVerifiedAnswer(UUID facultyId, UUID questionId, UUID commentId) {
+    public CommentResponse markAsVerifiedAnswer(UUID facultyId, UUID questionId, UUID commentId) {
         Comment comment = getCommentByIdAndQuestion(commentId, questionId);
 
         Question question = comment.getQuestion();
+        WhiteboardMembership facultyMembership = whiteboardService.verifyMembership(
+                facultyId, question.getWhiteboard().getId());
 
         // Verify faculty in whiteboard
-        whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        if (facultyMembership.getRole() != com.ghost.model.enums.Role.FACULTY) {
+            throw new UnauthorizedException("Only faculty can mark a verified answer");
+        }
         if (question.getStatus() == QuestionStatus.CLOSED) {
             throw new BadRequestException("Question is already closed");
         }
         if (question.getVerifiedAnswerId() != null) {
             throw new BadRequestException("Question already has a verified answer");
         }
-        if (comment.isVerifiedAnswer()) {
+        if (comment.getVerifiedBy() != null) {
             throw new BadRequestException("Comment is already marked as verified answer");
         }
         if (comment.isHidden()) {
@@ -171,9 +178,10 @@ public class CommentService {
         }
 
         // Set comment as verified answer
-        comment.setVerifiedAnswer(true);
+        comment.setVerifiedBy(facultyMembership.getUser());
         commentRepository.save(comment);
-        publishCommentEvent(questionId, "COMMENT_UPDATED", commentMapper.toResponse(comment, facultyId));
+        CommentResponse updatedComment = commentMapper.toResponse(comment, facultyId);
+        publishCommentEvent(questionId, "COMMENT_UPDATED", updatedComment);
 
         // Set question verified answer and close it
         questionService.markVerifiedAnswerAndClose(question.getId(), commentId);
@@ -224,6 +232,8 @@ public class CommentService {
                 );
             }
         }
+
+        return updatedComment;
     }
 
     @Transactional(readOnly = true)

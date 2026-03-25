@@ -115,8 +115,7 @@ const styles = StyleSheet.create({
   blur: {
     overflow: 'hidden',
   },
-  cardInner: {
-  },
+  cardInner: {},
   titleBar: {
     flexDirection: 'row',
     alignItems: 'center',

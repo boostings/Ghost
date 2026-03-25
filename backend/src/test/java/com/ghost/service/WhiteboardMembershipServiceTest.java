@@ -1,6 +1,8 @@
 package com.ghost.service;
 
 import com.ghost.mapper.UserMapper;
+import com.ghost.model.Course;
+import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
@@ -57,6 +59,13 @@ class WhiteboardMembershipServiceTest {
         Whiteboard demoWhiteboard = Whiteboard.builder()
                 .id(demoWhiteboardId)
                 .isDemo(true)
+                .course(Course.builder()
+                        .courseCode("DEMO101")
+                        .courseName("Demo Course")
+                        .build())
+                .semester(Semester.builder()
+                        .name("Spring 2026")
+                        .build())
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -116,6 +125,13 @@ class WhiteboardMembershipServiceTest {
         Whiteboard demoWhiteboard = Whiteboard.builder()
                 .id(demoWhiteboardId)
                 .isDemo(true)
+                .course(Course.builder()
+                        .courseCode("DEMO101")
+                        .courseName("Demo Course")
+                        .build())
+                .semester(Semester.builder()
+                        .name("Spring 2026")
+                        .build())
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));

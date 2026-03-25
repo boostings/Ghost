@@ -67,8 +67,9 @@ export const commentService = {
    * This sets the question status to CLOSED and locks the thread.
    * POST /questions/{qId}/comments/{id}/verify
    */
-  markVerifiedAnswer: async (qId: string, id: string): Promise<void> => {
-    await api.post(`/questions/${qId}/comments/${id}/verify`);
+  markVerifiedAnswer: async (qId: string, id: string): Promise<CommentResponse> => {
+    const response = await api.post<CommentResponse>(`/questions/${qId}/comments/${id}/verify`);
+    return response.data;
   },
 
   /**
@@ -106,8 +107,8 @@ export const commentService = {
     await commentService.deleteComment(qId, id);
   },
 
-  verify: async (qId: string, id: string): Promise<void> => {
-    await commentService.markVerifiedAnswer(qId, id);
+  verify: async (qId: string, id: string): Promise<CommentResponse> => {
+    return commentService.markVerifiedAnswer(qId, id);
   },
 
   vote: async (id: string, voteType: VoteType): Promise<void> => {

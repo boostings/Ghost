@@ -127,19 +127,25 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
+    const status = error.response?.status;
+    const isAuthError = status === 401 || status === 403;
+    const isAuthEndpoint =
+      originalRequest?.url?.includes('/auth/refresh') ||
+      originalRequest?.url?.includes('/auth/login');
+
     if (__DEV__) {
-      console.error('[API RESPONSE ERROR]', {
+      const logLabel = isAuthError ? '[API RESPONSE AUTH]' : '[API RESPONSE ERROR]';
+      const logMethod = isAuthError ? console.warn : console.error;
+
+      logMethod(logLabel, {
         method: originalRequest?.method?.toUpperCase(),
         url: `${originalRequest?.baseURL ?? ''}${originalRequest?.url ?? ''}`,
-        status: error.response?.status,
+        status,
         code: error.code,
         message: error.message,
         data: sanitizeForLog(error.response?.data),
       });
     }
-
-    const status = error.response?.status;
-    const isAuthError = status === 401 || status === 403;
 
     // Only attempt refresh for auth errors that haven't already been retried
     if (!isAuthError || originalRequest._retry) {
@@ -147,10 +153,7 @@ api.interceptors.response.use(
     }
 
     // Don't try to refresh if we're already on the refresh or login endpoint
-    if (
-      originalRequest.url?.includes('/auth/refresh') ||
-      originalRequest.url?.includes('/auth/login')
-    ) {
+    if (isAuthEndpoint) {
       useAuthStore.getState().logout();
       return Promise.reject(error);
     }

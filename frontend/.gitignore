@@ -6,6 +6,8 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-smoke/
+dist-smoke-ci/
 web-build/
 expo-env.d.ts
 
