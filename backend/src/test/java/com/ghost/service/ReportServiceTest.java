@@ -167,6 +167,41 @@ class ReportServiceTest {
     }
 
     @Test
+    void reviewReportReviewedQuestionShouldHideContent() {
+        Question question = Question.builder()
+                .id(UUID.randomUUID())
+                .whiteboard(whiteboard)
+                .isHidden(false)
+                .reportCount(1)
+                .build();
+        Report report = Report.builder()
+                .id(reportId)
+                .question(question)
+                .status(ReportStatus.PENDING)
+                .build();
+
+        when(reportRepository.findById(reportId)).thenReturn(Optional.of(report));
+        when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reportService.reviewReport(
+                facultyId,
+                reportId,
+                ReviewReportRequest.builder().status(ReportStatus.REVIEWED).build()
+        );
+
+        assertThat(question.isHidden()).isTrue();
+        verify(auditLogService).logAction(
+                eq(whiteboardId),
+                eq(facultyId),
+                eq(AuditAction.CONTENT_HIDDEN),
+                eq("Question"),
+                eq(question.getId()),
+                eq("visible"),
+                eq("hidden")
+        );
+    }
+
+    @Test
     void reviewReportDismissedCommentShouldRestoreWhenActiveReportsBelowThreshold() {
         Question question = Question.builder()
                 .id(UUID.randomUUID())
@@ -202,6 +237,43 @@ class ReportServiceTest {
                 eq(AuditAction.CONTENT_RESTORED),
                 eq("Comment"),
                 eq(comment.getId()),
+                eq("hidden"),
+                eq("visible")
+        );
+    }
+
+    @Test
+    void reviewReportDismissedQuestionShouldRemainHiddenWhenReviewedReportStillExists() {
+        Question question = Question.builder()
+                .id(UUID.randomUUID())
+                .whiteboard(whiteboard)
+                .isHidden(true)
+                .reportCount(1)
+                .build();
+        Report report = Report.builder()
+                .id(reportId)
+                .question(question)
+                .status(ReportStatus.PENDING)
+                .build();
+
+        when(reportRepository.findById(reportId)).thenReturn(Optional.of(report));
+        when(reportRepository.countByQuestionIdAndStatusNot(question.getId(), ReportStatus.DISMISSED)).thenReturn(1L);
+        when(reportRepository.countByQuestionIdAndStatus(question.getId(), ReportStatus.REVIEWED)).thenReturn(1L);
+        when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reportService.reviewReport(
+                facultyId,
+                reportId,
+                ReviewReportRequest.builder().status(ReportStatus.DISMISSED).build()
+        );
+
+        assertThat(question.isHidden()).isTrue();
+        verify(auditLogService, never()).logAction(
+                eq(whiteboardId),
+                eq(facultyId),
+                eq(AuditAction.CONTENT_RESTORED),
+                eq("Question"),
+                eq(question.getId()),
                 eq("hidden"),
                 eq("visible")
         );

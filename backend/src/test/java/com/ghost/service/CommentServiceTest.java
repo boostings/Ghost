@@ -2,7 +2,6 @@ package com.ghost.service;
 
 import com.ghost.dto.response.CommentResponse;
 import com.ghost.exception.BadRequestException;
-import com.ghost.mapper.CommentMapper;
 import com.ghost.model.Comment;
 import com.ghost.model.Course;
 import com.ghost.model.Question;
@@ -55,7 +54,7 @@ class CommentServiceTest {
     private NotificationService notificationService;
 
     @Mock
-    private CommentMapper commentMapper;
+    private CommentResponseAssembler commentResponseAssembler;
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
@@ -119,10 +118,10 @@ class CommentServiceTest {
     }
 
     @Test
-    void markAsVerifiedAnswerShouldAttachVerifierAndReturnUpdatedComment() {
+    void AC3_markAsVerifiedAnswerShouldAttachVerifierAndReturnUpdatedComment() {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(commentMapper.toResponse(any(Comment.class), eq(facultyId))).thenReturn(
+        when(commentResponseAssembler.toResponse(any(Comment.class), eq(facultyId))).thenReturn(
                 CommentResponse.builder()
                         .id(commentId)
                         .questionId(questionId)
@@ -146,7 +145,7 @@ class CommentServiceTest {
         CommentResponse response = commentService.markAsVerifiedAnswer(facultyId, questionId, commentId);
 
         assertThat(comment.getVerifiedBy()).isEqualTo(facultyUser);
-        verify(questionService).markVerifiedAnswerAndClose(questionId, commentId);
+        verify(questionService).markVerifiedAnswerAndClose(facultyId, questionId, commentId);
         verify(auditLogService).logAction(
                 eq(question.getWhiteboard().getId()),
                 eq(facultyId),
@@ -161,7 +160,7 @@ class CommentServiceTest {
     }
 
     @Test
-    void markAsVerifiedAnswerShouldRejectAlreadyVerifiedComment() {
+    void AC3_markAsVerifiedAnswerShouldRejectAlreadyVerifiedComment() {
         comment.setVerifiedBy(facultyUser);
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(whiteboardService.verifyMembership(facultyId, question.getWhiteboard().getId())).thenReturn(

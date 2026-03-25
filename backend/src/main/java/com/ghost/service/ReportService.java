@@ -90,7 +90,7 @@ public class ReportService {
                 questionRepository.save(question);
 
                 // Notify faculty
-                notifyFacultyOfHiddenContent(whiteboardId, targetType, targetId, question.getTitle());
+                notifyFacultyOfHiddenContent(whiteboardId, userId, targetType, targetId, question.getTitle());
 
                 // Log CONTENT_HIDDEN
                 auditLogService.logAction(
@@ -123,7 +123,7 @@ public class ReportService {
                 commentRepository.save(comment);
 
                 // Notify faculty
-                notifyFacultyOfHiddenContent(whiteboardId, targetType, targetId, comment.getBody());
+                notifyFacultyOfHiddenContent(whiteboardId, userId, targetType, targetId, comment.getBody());
 
                 // Log CONTENT_HIDDEN
                 auditLogService.logAction(
@@ -192,9 +192,16 @@ public class ReportService {
                 req.getStatus().name()
         );
 
-        // Dismissed reports no longer contribute to active moderation thresholds.
-        // Restore only if active (non-dismissed) reports drop below threshold.
-        if (req.getStatus() == ReportStatus.DISMISSED) {
+        if (req.getStatus() == ReportStatus.REVIEWED) {
+            if (report.getQuestion() != null) {
+                applyReviewedModerationState(whiteboardId, facultyId, report.getQuestion());
+            } else if (report.getComment() != null) {
+                applyReviewedModerationState(whiteboardId, facultyId, report.getComment());
+            }
+        } else if (req.getStatus() == ReportStatus.DISMISSED) {
+            // Dismissed reports no longer contribute to active moderation thresholds.
+            // Restore only if active (non-dismissed) reports drop below threshold
+            // and there is no faculty-reviewed report still keeping the content hidden.
             if (report.getQuestion() != null) {
                 reconcileQuestionModerationState(whiteboardId, facultyId, report.getQuestion());
             } else if (report.getComment() != null) {
@@ -204,14 +211,58 @@ public class ReportService {
         return reportMapper.toResponse(report);
     }
 
+    private void applyReviewedModerationState(UUID whiteboardId, UUID facultyId, Question question) {
+        if (!question.isHidden()) {
+            question.setHidden(true);
+            questionRepository.save(question);
+            auditLogService.logAction(
+                    whiteboardId,
+                    facultyId,
+                    AuditAction.CONTENT_HIDDEN,
+                    "Question",
+                    question.getId(),
+                    "visible",
+                    "hidden"
+            );
+            return;
+        }
+
+        questionRepository.save(question);
+    }
+
+    private void applyReviewedModerationState(UUID whiteboardId, UUID facultyId, Comment comment) {
+        if (!comment.isHidden()) {
+            comment.setHidden(true);
+            commentRepository.save(comment);
+            auditLogService.logAction(
+                    whiteboardId,
+                    facultyId,
+                    AuditAction.CONTENT_HIDDEN,
+                    "Comment",
+                    comment.getId(),
+                    "visible",
+                    "hidden"
+            );
+            return;
+        }
+
+        commentRepository.save(comment);
+    }
+
     private void reconcileQuestionModerationState(UUID whiteboardId, UUID facultyId, Question question) {
         long activeReportCount = reportRepository.countByQuestionIdAndStatusNot(
                 question.getId(),
                 ReportStatus.DISMISSED
         );
+        long reviewedReportCount = reportRepository.countByQuestionIdAndStatus(
+                question.getId(),
+                ReportStatus.REVIEWED
+        );
         question.setReportCount((int) activeReportCount);
 
-        if (question.isHidden() && activeReportCount < AUTO_HIDE_REPORT_THRESHOLD) {
+        if (question.isHidden()
+                && activeReportCount < AUTO_HIDE_REPORT_THRESHOLD
+                && reviewedReportCount == 0) {
             question.setHidden(false);
             questionRepository.save(question);
             auditLogService.logAction(
@@ -234,9 +285,15 @@ public class ReportService {
                 comment.getId(),
                 ReportStatus.DISMISSED
         );
+        long reviewedReportCount = reportRepository.countByCommentIdAndStatus(
+                comment.getId(),
+                ReportStatus.REVIEWED
+        );
         comment.setReportCount((int) activeReportCount);
 
-        if (comment.isHidden() && activeReportCount < AUTO_HIDE_REPORT_THRESHOLD) {
+        if (comment.isHidden()
+                && activeReportCount < AUTO_HIDE_REPORT_THRESHOLD
+                && reviewedReportCount == 0) {
             comment.setHidden(false);
             commentRepository.save(comment);
             auditLogService.logAction(
@@ -254,17 +311,25 @@ public class ReportService {
         commentRepository.save(comment);
     }
 
-    private void notifyFacultyOfHiddenContent(UUID whiteboardId, String contentType, UUID contentId, String contentPreview) {
+    private void notifyFacultyOfHiddenContent(
+            UUID whiteboardId,
+            UUID actorId,
+            String contentType,
+            UUID contentId,
+            String contentPreview
+    ) {
         List<WhiteboardMembership> members = whiteboardService.getMembers(whiteboardId);
         for (WhiteboardMembership member : members) {
             if (member.getRole() == Role.FACULTY) {
                 notificationService.createAndSend(
+                        actorId,
                         member.getUser().getId(),
                         NotificationType.CONTENT_HIDDEN,
                         "Content Auto-Hidden",
                         contentType + " has been auto-hidden due to multiple reports: " + contentPreview,
                         contentType,
-                        contentId
+                        contentId,
+                        whiteboardId
                 );
             }
         }

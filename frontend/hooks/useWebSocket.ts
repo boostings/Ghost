@@ -211,12 +211,9 @@ export function useWebSocket() {
           setIsConnected(true);
           reconnectAttemptRef.current = 0;
 
-          // Re-subscribe any pending subscriptions
+          // Move queued subscriptions into the active map before resubscribing.
+          // This prevents duplicate SUBSCRIBE frames for the same id.
           for (const pending of pendingSubscriptionsRef.current) {
-            sendFrame('SUBSCRIBE', {
-              id: pending.id,
-              destination: pending.destination,
-            });
             subscriptionsRef.current.set(pending.id, {
               destination: pending.destination,
               callback: pending.callback,
@@ -224,7 +221,7 @@ export function useWebSocket() {
           }
           pendingSubscriptionsRef.current = [];
 
-          // Also re-subscribe existing subscriptions (reconnection case)
+          // Re-subscribe active subscriptions after reconnect.
           for (const [id, sub] of subscriptionsRef.current.entries()) {
             sendFrame('SUBSCRIBE', {
               id,

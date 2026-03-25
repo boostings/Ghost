@@ -26,6 +26,14 @@ public class ReportResponse {
 
     private UUID commentId;
 
+    private UUID threadQuestionId;
+
+    private String contentTitle;
+
+    private String contentPreview;
+
+    private boolean contentHidden;
+
     private ReportReason reason;
 
     private String notes;

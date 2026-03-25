@@ -6,7 +6,6 @@ import com.ghost.dto.response.CommentResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
-import com.ghost.mapper.CommentMapper;
 import com.ghost.model.Bookmark;
 import com.ghost.model.Comment;
 import com.ghost.model.Question;
@@ -40,7 +39,7 @@ public class CommentService {
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
-    private final CommentMapper commentMapper;
+    private final CommentResponseAssembler commentResponseAssembler;
     private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
@@ -77,16 +76,18 @@ public class CommentService {
         // Notify question author (if commenter is not the author)
         if (!question.getAuthor().getId().equals(userId)) {
             notificationService.createAndSend(
+                    userId,
                     question.getAuthor().getId(),
                     NotificationType.COMMENT_ADDED,
                     "New Comment",
                     "Someone commented on your question: " + question.getTitle(),
                     "Question",
-                    questionId
+                    questionId,
+                    question.getWhiteboard().getId()
             );
         }
 
-        CommentResponse response = commentMapper.toResponse(comment, userId);
+        CommentResponse response = commentResponseAssembler.toResponse(comment, userId);
         publishCommentEvent(question.getId(), "COMMENT_CREATED", response);
         return response;
     }
@@ -120,7 +121,7 @@ public class CommentService {
                 "Comment", commentId, oldBody, comment.getBody()
         );
 
-        CommentResponse response = commentMapper.toResponse(comment, userId);
+        CommentResponse response = commentResponseAssembler.toResponse(comment, userId);
         publishCommentEvent(questionId, "COMMENT_EDITED", response);
         return response;
     }
@@ -180,11 +181,11 @@ public class CommentService {
         // Set comment as verified answer
         comment.setVerifiedBy(facultyMembership.getUser());
         commentRepository.save(comment);
-        CommentResponse updatedComment = commentMapper.toResponse(comment, facultyId);
+        CommentResponse updatedComment = commentResponseAssembler.toResponse(comment, facultyId);
         publishCommentEvent(questionId, "COMMENT_UPDATED", updatedComment);
 
         // Set question verified answer and close it
-        questionService.markVerifiedAnswerAndClose(question.getId(), commentId);
+        questionService.markVerifiedAnswerAndClose(facultyId, question.getId(), commentId);
 
         // Log question status transition caused by verified answer.
         auditLogService.logAction(
@@ -206,12 +207,14 @@ public class CommentService {
         // Notify question author
         if (!question.getAuthor().getId().equals(facultyId)) {
             notificationService.createAndSend(
+                    facultyId,
                     question.getAuthor().getId(),
                     NotificationType.QUESTION_ANSWERED,
                     "Your Question Was Answered",
                     "A verified answer has been provided for: " + question.getTitle(),
                     "Question",
-                    question.getId()
+                    question.getId(),
+                    question.getWhiteboard().getId()
             );
         }
 
@@ -223,12 +226,14 @@ public class CommentService {
             if (!bookmarkUserId.equals(question.getAuthor().getId())
                     && !bookmarkUserId.equals(facultyId)) {
                 notificationService.createAndSend(
+                        facultyId,
                         bookmarkUserId,
                         NotificationType.QUESTION_ANSWERED,
                         "Bookmarked Question Answered",
                         "A verified answer has been provided for: " + question.getTitle(),
                         "Question",
-                        question.getId()
+                        question.getId(),
+                        question.getWhiteboard().getId()
                 );
             }
         }
@@ -244,7 +249,7 @@ public class CommentService {
             throw new ResourceNotFoundException("Question", "id", questionId);
         }
         return commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(questionId, pageable)
-                .map(comment -> commentMapper.toResponse(comment, userId));
+                .map(comment -> commentResponseAssembler.toResponse(comment, userId));
     }
 
     private void publishCommentEvent(UUID questionId, String type, Object payload) {

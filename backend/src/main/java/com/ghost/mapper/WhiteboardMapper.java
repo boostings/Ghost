@@ -5,17 +5,12 @@ import com.ghost.model.Course;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
-import com.ghost.repository.WhiteboardMembershipRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class WhiteboardMapper {
 
-    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
-
-    public WhiteboardResponse toResponse(Whiteboard whiteboard, boolean includeInviteCode) {
+    public WhiteboardResponse toResponse(Whiteboard whiteboard, long memberCount, boolean includeInviteCode) {
         User owner = whiteboard.getOwner();
         Course course = whiteboard.getCourse();
         Semester semester = whiteboard.getSemester();
@@ -29,7 +24,7 @@ public class WhiteboardMapper {
                 .ownerName(owner.getFirstName() + " " + owner.getLastName())
                 .inviteCode(includeInviteCode ? whiteboard.getInviteCode() : null)
                 .isDemo(whiteboard.isDemo())
-                .memberCount(whiteboardMembershipRepository.countByWhiteboardId(whiteboard.getId()))
+                .memberCount((int) memberCount)
                 .createdAt(whiteboard.getCreatedAt())
                 .build();
     }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
@@ -12,14 +12,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import {
+  REPORT_STATUS_FILTERS,
+  useModerationReportsModel,
+} from '../../hooks/useModerationReportsModel';
 import { formatDate } from '../../utils/formatDate';
-import { reportService } from '../../services/reportService';
-import type { ReportResponse, ReportStatus } from '../../types';
+import type { ReportResponse } from '../../types';
 
 const REASON_LABELS: Record<string, string> = {
   SPAM: 'Spam',
@@ -40,96 +42,23 @@ const REASON_COLORS: Record<string, string> = {
 export default function ReportsScreen() {
   const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
-
-  const [reports, setReports] = useState<ReportResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | ReportStatus>('ALL');
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const lastFetchRef = useRef(0);
-  const lastFilterRef = useRef(statusFilter);
-  const PAGE_SIZE = 20;
-
-  const fetchReports = useCallback(
-    async (options?: { page?: number; replace?: boolean }) => {
-      if (!whiteboardId) return;
-      const nextPage = options?.page ?? 0;
-      const replace = options?.replace ?? true;
-      if (!replace && (!hasMore || loadingMore)) {
-        return;
-      }
-
-      try {
-        if (replace) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
-        }
-
-        const response = await reportService.list(whiteboardId, nextPage, PAGE_SIZE);
-        const filtered =
-          statusFilter === 'ALL'
-            ? response.content
-            : response.content.filter((report) => report.status === statusFilter);
-        setReports((prev) => (replace ? filtered : [...prev, ...filtered]));
-        setPage(nextPage);
-        setHasMore(nextPage + 1 < response.totalPages);
-        setLoadError(null);
-        lastFetchRef.current = Date.now();
-      } catch {
-        if (replace) {
-          setReports([]);
-        }
-        setHasMore(false);
-        setLoadError('Failed to load reports.');
-      } finally {
-        if (replace) {
-          setLoading(false);
-        } else {
-          setLoadingMore(false);
-        }
-      }
-    },
-    [hasMore, loadingMore, statusFilter, whiteboardId]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      const filterChanged = lastFilterRef.current !== statusFilter;
-      if (filterChanged) {
-        lastFilterRef.current = statusFilter;
-        fetchReports({ page: 0, replace: true });
-        return;
-      }
-
-      const now = Date.now();
-      const isStale = now - lastFetchRef.current > 30000;
-      if (reports.length === 0 || isStale) {
-        fetchReports({ page: 0, replace: true });
-      }
-    }, [fetchReports, reports.length, statusFilter])
-  );
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchReports({ page: 0, replace: true });
-    setRefreshing(false);
-  };
-
-  const handleLoadMore = async () => {
-    if (loading || loadingMore || !hasMore) {
-      return;
-    }
-    await fetchReports({ page: page + 1, replace: false });
-  };
+  const {
+    reports,
+    loading,
+    refreshing,
+    statusFilter,
+    loadError,
+    loadingMore,
+    handleRefresh,
+    handleLoadMore,
+    handleStatusFilter,
+    dismissReport,
+    removeReportedContent,
+  } = useModerationReportsModel(whiteboardId);
 
   const handleDismiss = async (reportId: string) => {
     try {
-      await reportService.review(reportId, { status: 'DISMISSED' });
-      setReports((prev) => prev.filter((r) => r.id !== reportId));
+      await dismissReport(reportId);
       Alert.alert('Dismissed', 'Report has been dismissed.');
     } catch {
       Alert.alert('Error', 'Failed to dismiss report.');
@@ -144,8 +73,7 @@ export default function ReportsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await reportService.review(report.id, { status: 'REVIEWED' });
-            setReports((prev) => prev.filter((r) => r.id !== report.id));
+            await removeReportedContent(report.id);
             Alert.alert('Removed', 'Content has been hidden.');
           } catch {
             Alert.alert('Error', 'Failed to remove content.');
@@ -155,25 +83,11 @@ export default function ReportsScreen() {
     ]);
   };
 
-  const handleRestore = async (reportId: string) => {
-    try {
-      await reportService.review(reportId, { status: 'DISMISSED' });
-      setReports((prev) => prev.filter((r) => r.id !== reportId));
-      Alert.alert('Restored', 'Content has been restored.');
-    } catch {
-      Alert.alert('Error', 'Failed to restore content.');
-    }
-  };
+  const renderReportItem = ({ item }: { item: ReportResponse }) => {
+    const threadQuestionId = item.questionId ?? item.threadQuestionId;
 
-  const statusFilters: { label: string; value: 'ALL' | ReportStatus }[] = [
-    { label: 'All', value: 'ALL' },
-    { label: 'Pending', value: 'PENDING' },
-    { label: 'Reviewed', value: 'REVIEWED' },
-    { label: 'Dismissed', value: 'DISMISSED' },
-  ];
-
-  const renderReportItem = ({ item }: { item: ReportResponse }) => (
-    <GlassCard style={styles.reportCard}>
+    return (
+      <GlassCard style={styles.reportCard}>
       {/* Report Header */}
       <View style={styles.reportHeader}>
         <View
@@ -214,6 +128,27 @@ export default function ReportsScreen() {
         <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
       </View>
 
+      {(item.contentTitle || item.contentPreview) && (
+        <View style={styles.previewContainer}>
+          <View style={styles.previewHeader}>
+            <Text style={styles.previewLabel}>Reported Content</Text>
+            {item.contentHidden && (
+              <View style={styles.hiddenBadge}>
+                <Text style={styles.hiddenBadgeText}>Hidden</Text>
+              </View>
+            )}
+          </View>
+          {item.contentTitle ? <Text style={styles.previewTitle}>{item.contentTitle}</Text> : null}
+          {item.contentPreview ? (
+            <Text style={styles.previewText} numberOfLines={4}>
+              {item.contentPreview}
+            </Text>
+          ) : (
+            <Text style={styles.previewPlaceholder}>Preview unavailable.</Text>
+          )}
+        </View>
+      )}
+
       {/* Notes */}
       {item.notes && (
         <View style={styles.notesContainer}>
@@ -243,35 +178,31 @@ export default function ReportsScreen() {
             <Text style={styles.removeButtonText}>Remove Content</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.restoreButton}
-            onPress={() => handleRestore(item.id)}
-            accessibilityRole="button"
-            accessibilityLabel="Restore reported content"
-          >
-            <Text style={styles.restoreButtonText}>Restore</Text>
-          </TouchableOpacity>
         </View>
       )}
 
       {/* View Content Link */}
       <TouchableOpacity
-        style={styles.viewLink}
+        style={[styles.viewLink, !threadQuestionId && styles.viewLinkDisabled]}
         onPress={() => {
-          if (item.questionId) {
+          if (threadQuestionId) {
             router.push({
               pathname: '/question/[id]',
-              params: { id: item.questionId, whiteboardId },
+              params: { id: threadQuestionId, whiteboardId },
             });
           }
         }}
+        disabled={!threadQuestionId}
         accessibilityRole="button"
         accessibilityLabel="View reported content"
       >
-        <Text style={styles.viewLinkText}>View Content {'\u203A'}</Text>
+        <Text style={styles.viewLinkText}>
+          {item.questionId ? 'View Question' : 'Open Thread'} {'\u203A'}
+        </Text>
       </TouchableOpacity>
     </GlassCard>
-  );
+    );
+  };
 
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
@@ -292,14 +223,11 @@ export default function ReportsScreen() {
 
         {/* Filter Chips */}
         <View style={styles.filterContainer}>
-          {statusFilters.map((filter) => (
+          {REPORT_STATUS_FILTERS.map((filter) => (
             <TouchableOpacity
               key={filter.value}
               style={[styles.filterChip, statusFilter === filter.value && styles.filterChipActive]}
-              onPress={() => {
-                setStatusFilter(filter.value);
-                setLoading(true);
-              }}
+              onPress={() => handleStatusFilter(filter.value)}
               accessibilityRole="button"
               accessibilityLabel={`Filter by ${filter.label} reports`}
             >
@@ -485,6 +413,56 @@ const styles = StyleSheet.create({
   contentInfo: {
     marginBottom: 10,
   },
+  previewContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  previewLabel: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  hiddenBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,68,68,0.16)',
+  },
+  hiddenBadgeText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    color: Colors.error,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewTitle: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  previewText: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  previewPlaceholder: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
+  },
   contentType: {
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
@@ -548,23 +526,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.error,
   },
-  restoreButton: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,200,81,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  restoreButtonText: {
-    fontSize: Fonts.sizes.sm,
-    fontWeight: '600',
-    color: Colors.success,
-  },
   viewLink: {
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  viewLinkDisabled: {
+    opacity: 0.45,
   },
   viewLinkText: {
     fontSize: Fonts.sizes.sm,

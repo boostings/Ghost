@@ -10,7 +10,6 @@ import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
 import com.ghost.model.User;
-import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
@@ -226,22 +225,6 @@ public class AuthService {
     }
 
     private void logUserAction(UUID actorId, AuditAction action, UUID targetId, String oldValue, String newValue) {
-        List<WhiteboardMembership> memberships = whiteboardMembershipRepository.findByUserId(actorId);
-        if (!memberships.isEmpty()) {
-            for (WhiteboardMembership membership : memberships) {
-                auditLogService.logAction(
-                        membership.getWhiteboard().getId(),
-                        actorId,
-                        action,
-                        "User",
-                        targetId,
-                        oldValue,
-                        newValue
-                );
-            }
-            return;
-        }
-
         auditLogService.logAction(
                 null,
                 actorId,

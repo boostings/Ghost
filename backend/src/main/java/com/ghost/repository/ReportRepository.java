@@ -27,6 +27,10 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
 
     long countByCommentIdAndStatusNot(UUID commentId, ReportStatus status);
 
+    long countByQuestionIdAndStatus(UUID questionId, ReportStatus status);
+
+    long countByCommentIdAndStatus(UUID commentId, ReportStatus status);
+
     Page<Report> findByStatus(ReportStatus status, Pageable pageable);
 
     @Query("SELECT r FROM Report r " +

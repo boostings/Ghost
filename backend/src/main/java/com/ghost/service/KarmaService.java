@@ -225,12 +225,14 @@ public class KarmaService {
                 && interactionsAfter >= 20
                 && !question.getAuthor().getId().equals(actorId)) {
             notificationService.createAndSend(
+                    actorId,
                     question.getAuthor().getId(),
                     NotificationType.POST_TRENDING,
                     "Your Question Is Trending",
                     "Your question has reached 20+ interactions: " + question.getTitle(),
                     "Question",
-                    question.getId()
+                    question.getId(),
+                    question.getWhiteboard().getId()
             );
         }
     }
@@ -245,12 +247,14 @@ public class KarmaService {
                 preview = preview.substring(0, 80) + "...";
             }
             notificationService.createAndSend(
+                    actorId,
                     comment.getAuthor().getId(),
                     NotificationType.POST_TRENDING,
                     "Your Comment Is Trending",
                     "Your comment has reached 20+ interactions: " + (preview != null ? preview : "Comment"),
                     "Comment",
-                    comment.getId()
+                    comment.getId(),
+                    comment.getQuestion().getWhiteboard().getId()
             );
         }
     }

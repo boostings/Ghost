@@ -3,27 +3,20 @@ package com.ghost.mapper;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.model.Question;
 import com.ghost.model.enums.VoteType;
-import com.ghost.repository.BookmarkRepository;
-import com.ghost.repository.CommentRepository;
-import com.ghost.repository.KarmaVoteRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
+import static java.lang.Math.toIntExact;
 
 @Component
-@RequiredArgsConstructor
 public class QuestionMapper {
 
-    private final CommentRepository commentRepository;
-    private final KarmaVoteRepository karmaVoteRepository;
-    private final BookmarkRepository bookmarkRepository;
-
-    public QuestionResponse toResponse(Question question, UUID currentUserId, boolean includeModerationData) {
-        VoteType userVote = karmaVoteRepository.findByUserIdAndQuestionId(currentUserId, question.getId())
-                .map(vote -> vote.getVoteType())
-                .orElse(null);
-
+    public QuestionResponse toResponse(
+            Question question,
+            VoteType userVote,
+            long commentCount,
+            boolean isBookmarked,
+            boolean includeModerationData
+    ) {
         return QuestionResponse.builder()
                 .id(question.getId())
                 .whiteboardId(question.getWhiteboard().getId())
@@ -38,9 +31,9 @@ public class QuestionMapper {
                 .isHidden(includeModerationData && question.isHidden())
                 .karmaScore(question.getKarmaScore())
                 .userVote(userVote)
-                .commentCount(commentRepository.countByQuestionId(question.getId()))
+                .commentCount(toIntExact(commentCount))
                 .verifiedAnswerId(question.getVerifiedAnswerId())
-                .isBookmarked(bookmarkRepository.existsByUserIdAndQuestionId(currentUserId, question.getId()))
+                .isBookmarked(isBookmarked)
                 .createdAt(question.getCreatedAt())
                 .updatedAt(question.getUpdatedAt())
                 .build();

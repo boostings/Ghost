@@ -7,7 +7,6 @@ import com.ghost.dto.response.QuestionResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
-import com.ghost.mapper.QuestionMapper;
 import com.ghost.model.Question;
 import com.ghost.model.Topic;
 import com.ghost.model.User;
@@ -42,7 +41,7 @@ public class QuestionService {
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
-    private final QuestionMapper questionMapper;
+    private final QuestionResponseAssembler questionResponseAssembler;
     private final SearchService searchService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -74,7 +73,11 @@ public class QuestionService {
                 "Question", question.getId(), null, question.getTitle()
         );
 
-        QuestionResponse response = questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+        QuestionResponse response = questionResponseAssembler.toResponse(
+                question,
+                userId,
+                membership.getRole() == Role.FACULTY
+        );
         publishQuestionEvent(whiteboardId, "QUESTION_CREATED", response);
         return response;
     }
@@ -126,7 +129,11 @@ public class QuestionService {
                 "title=" + question.getTitle() + "; body=" + question.getBody()
         );
 
-        QuestionResponse response = questionMapper.toResponse(question, userId, isFaculty(userId, whiteboardId));
+        QuestionResponse response = questionResponseAssembler.toResponse(
+                question,
+                userId,
+                isFaculty(userId, whiteboardId)
+        );
         publishQuestionEvent(question.getWhiteboard().getId(), "QUESTION_EDITED", response);
         return response;
     }
@@ -180,25 +187,34 @@ public class QuestionService {
     public QuestionResponse getQuestionById(UUID userId, UUID questionId) {
         Question question = getQuestionById(questionId);
         var membership = whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
-        if (question.isHidden()) {
+        if (question.isHidden() && membership.getRole() != Role.FACULTY) {
             throw new ResourceNotFoundException("Question", "id", questionId);
         }
-        return questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+        return questionResponseAssembler.toResponse(question, userId, membership.getRole() == Role.FACULTY);
     }
 
     @Transactional
-    public void markVerifiedAnswerAndClose(UUID questionId, UUID commentId) {
+    public QuestionResponse markVerifiedAnswerAndClose(UUID facultyId, UUID questionId, UUID commentId) {
         Question question = getQuestionById(questionId);
         question.setVerifiedAnswerId(commentId);
         question.setStatus(QuestionStatus.CLOSED);
         questionRepository.save(question);
+        QuestionResponse response = questionResponseAssembler.toResponse(question, facultyId, true);
+        publishQuestionEvent(question.getWhiteboard().getId(), "QUESTION_UPDATED", response);
+        return response;
     }
 
     @Transactional(readOnly = true)
     public QuestionResponse getQuestionByIdAndWhiteboard(UUID userId, UUID questionId, UUID whiteboardId) {
         var membership = whiteboardService.verifyMembership(userId, whiteboardId);
-        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
-        return questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+        Question question = getQuestionById(questionId);
+        if (!question.getWhiteboard().getId().equals(whiteboardId)) {
+            throw new ResourceNotFoundException("Question", "id", questionId);
+        }
+        if (question.isHidden() && membership.getRole() != Role.FACULTY) {
+            throw new ResourceNotFoundException("Question", "id", questionId);
+        }
+        return questionResponseAssembler.toResponse(question, userId, membership.getRole() == Role.FACULTY);
     }
 
     private Question getQuestionEntityByIdAndWhiteboard(UUID questionId, UUID whiteboardId) {
@@ -231,7 +247,7 @@ public class QuestionService {
         publishQuestionEvent(
                 question.getWhiteboard().getId(),
                 "QUESTION_UPDATED",
-                questionMapper.toResponse(question, facultyId, true)
+                questionResponseAssembler.toResponse(question, facultyId, true)
         );
     }
 
@@ -266,9 +282,9 @@ public class QuestionService {
         publishQuestionEvent(
                 question.getWhiteboard().getId(),
                 "QUESTION_UPDATED",
-                questionMapper.toResponse(question, facultyId, true)
+                questionResponseAssembler.toResponse(question, facultyId, true)
         );
-        return questionMapper.toResponse(question, facultyId, true);
+        return questionResponseAssembler.toResponse(question, facultyId, true);
     }
 
     @Transactional
@@ -295,9 +311,9 @@ public class QuestionService {
         publishQuestionEvent(
                 question.getWhiteboard().getId(),
                 "QUESTION_UPDATED",
-                questionMapper.toResponse(question, facultyId, true)
+                questionResponseAssembler.toResponse(question, facultyId, true)
         );
-        return questionMapper.toResponse(question, facultyId, true);
+        return questionResponseAssembler.toResponse(question, facultyId, true);
     }
 
     @Transactional
@@ -313,19 +329,21 @@ public class QuestionService {
 
         // Create notification for target faculty
         notificationService.createAndSend(
+                facultyId,
                 targetFaculty.getId(),
                 NotificationType.QUESTION_FORWARDED,
                 "Question Forwarded",
                 "A question has been forwarded to you: " + question.getTitle(),
                 "Question",
-                questionId
+                questionId,
+                question.getWhiteboard().getId()
         );
 
         auditLogService.logAction(
                 question.getWhiteboard().getId(), facultyId, AuditAction.QUESTION_FORWARDED,
                 "Question", questionId, null, "Forwarded to: " + targetFaculty.getId()
         );
-        return questionMapper.toResponse(question, facultyId, true);
+        return questionResponseAssembler.toResponse(question, facultyId, true);
     }
 
     private boolean isFaculty(UUID userId, UUID whiteboardId) {

@@ -167,11 +167,13 @@ class WhiteboardServiceTest {
                 JoinRequestStatus.APPROVED.name()
         );
         verify(notificationService).createAndSend(
+                facultyId,
                 studentId,
                 NotificationType.JOIN_REQUEST_APPROVED,
                 "Join Request Approved",
                 "Your request to join " + joinRequest.getWhiteboard().getCourse().getCourseCode() + " was approved.",
                 "Whiteboard",
+                whiteboardId,
                 whiteboardId
         );
     }

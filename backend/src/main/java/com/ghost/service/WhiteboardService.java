@@ -7,7 +7,6 @@ import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
-import com.ghost.mapper.WhiteboardMapper;
 import com.ghost.model.Course;
 import com.ghost.model.JoinRequest;
 import com.ghost.model.Semester;
@@ -17,8 +16,6 @@ import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
 import com.ghost.model.enums.Role;
-import com.ghost.repository.CourseRepository;
-import com.ghost.repository.SemesterRepository;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.repository.WhiteboardRepository;
@@ -29,7 +26,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -40,21 +36,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WhiteboardService {
 
-    private final CourseRepository courseRepository;
-    private final SemesterRepository semesterRepository;
     private final WhiteboardRepository whiteboardRepository;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final CourseService courseService;
+    private final SemesterService semesterService;
+    private final InviteCodeService inviteCodeService;
     private final TopicService topicService;
-    private final WhiteboardMapper whiteboardMapper;
+    private final WhiteboardResponseAssembler whiteboardResponseAssembler;
     private final WhiteboardMembershipService whiteboardMembershipService;
     private final WhiteboardJoinRequestService whiteboardJoinRequestService;
-
-    private static final String INVITE_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    private static final int INVITE_CODE_LENGTH = 8;
-    private static final int INVITE_CODE_MAX_ATTEMPTS = 10;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public Whiteboard createWhiteboard(UUID facultyId, CreateWhiteboardRequest req) {
@@ -70,8 +62,8 @@ public class WhiteboardService {
         String normalizedCourseName = req.getCourseName().trim();
         String normalizedSection = normalizeSection(req.getSection());
 
-        Course course = getOrCreateCourse(normalizedCourseCode, normalizedCourseName, normalizedSection);
-        Semester semester = getOrCreateSemester(normalizedSemester);
+        Course course = courseService.findOrCreate(normalizedCourseCode, normalizedCourseName, normalizedSection);
+        Semester semester = semesterService.findOrCreate(normalizedSemester);
 
         Optional<Whiteboard> existing = whiteboardRepository.findByCourseCourseCodeAndSemesterName(
                 normalizedCourseCode,
@@ -101,7 +93,7 @@ public class WhiteboardService {
             return existingWhiteboard;
         }
 
-        String inviteCode = generateInviteCode();
+        String inviteCode = inviteCodeService.generate();
 
         Whiteboard whiteboard = Whiteboard.builder()
                 .course(course)
@@ -137,7 +129,7 @@ public class WhiteboardService {
     @Transactional
     public WhiteboardResponse createWhiteboardResponse(UUID facultyId, CreateWhiteboardRequest req) {
         Whiteboard whiteboard = createWhiteboard(facultyId, req);
-        return whiteboardMapper.toResponse(whiteboard, true);
+        return whiteboardResponseAssembler.toResponse(whiteboard, true);
     }
 
     @Transactional
@@ -257,7 +249,7 @@ public class WhiteboardService {
     @Transactional(readOnly = true)
     public Page<WhiteboardResponse> getWhiteboardResponsesForUser(UUID userId, Pageable pageable) {
         return whiteboardMembershipRepository.findByUserId(userId, pageable)
-                .map(membership -> whiteboardMapper.toResponse(
+                .map(membership -> whiteboardResponseAssembler.toResponse(
                         membership.getWhiteboard(),
                         membership.getRole() == Role.FACULTY
                 ));
@@ -269,14 +261,14 @@ public class WhiteboardService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         return whiteboardRepository.findDiscoverableForUser(userId, pageable)
-                .map(whiteboard -> whiteboardMapper.toResponse(whiteboard, false));
+                .map(whiteboard -> whiteboardResponseAssembler.toResponse(whiteboard, false));
     }
 
     @Transactional(readOnly = true)
     public WhiteboardResponse getWhiteboardResponse(UUID userId, UUID whiteboardId) {
         WhiteboardMembership membership = verifyMembership(userId, whiteboardId);
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
-        return whiteboardMapper.toResponse(whiteboard, membership.getRole() == Role.FACULTY);
+        return whiteboardResponseAssembler.toResponse(whiteboard, membership.getRole() == Role.FACULTY);
     }
 
     @Transactional(readOnly = true)
@@ -315,21 +307,6 @@ public class WhiteboardService {
         return whiteboardMembershipService.verifyFacultyRole(userId, whiteboardId);
     }
 
-    private String generateInviteCode() {
-        int attempts = 0;
-        while (attempts++ < INVITE_CODE_MAX_ATTEMPTS) {
-            StringBuilder code = new StringBuilder(INVITE_CODE_LENGTH);
-            for (int i = 0; i < INVITE_CODE_LENGTH; i++) {
-                code.append(INVITE_CODE_CHARS.charAt(secureRandom.nextInt(INVITE_CODE_CHARS.length())));
-            }
-            String inviteCode = code.toString();
-            if (!whiteboardRepository.existsByInviteCodeIgnoreCase(inviteCode)) {
-                return inviteCode;
-            }
-        }
-        throw new IllegalStateException("Failed to generate a unique invite code");
-    }
-
     private String normalizeCourseCode(String courseCode) {
         return courseCode.trim().toUpperCase(Locale.ROOT);
     }
@@ -348,30 +325,5 @@ public class WhiteboardService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private Course getOrCreateCourse(String courseCode, String courseName, String section) {
-        Optional<Course> existing = courseRepository.findByCourseCode(courseCode);
-        if (existing.isPresent()) {
-            Course course = existing.get();
-            if ((course.getSection() == null || course.getSection().isBlank()) && section != null) {
-                course.setSection(section);
-                return courseRepository.save(course);
-            }
-            return course;
-        }
-
-        return courseRepository.save(Course.builder()
-                .courseCode(courseCode)
-                .courseName(courseName)
-                .section(section)
-                .build());
-    }
-
-    private Semester getOrCreateSemester(String semesterName) {
-        return semesterRepository.findByName(semesterName)
-                .orElseGet(() -> semesterRepository.save(Semester.builder()
-                        .name(semesterName)
-                        .build()));
     }
 }

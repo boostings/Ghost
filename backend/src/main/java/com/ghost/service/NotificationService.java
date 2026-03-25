@@ -2,7 +2,6 @@ package com.ghost.service;
 
 import com.ghost.dto.response.NotificationResponse;
 import com.ghost.mapper.NotificationMapper;
-import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.Notification;
 import com.ghost.model.User;
@@ -11,7 +10,6 @@ import com.ghost.model.enums.NotificationType;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.repository.NotificationRepository;
 import com.ghost.repository.UserRepository;
-import com.ghost.repository.WhiteboardMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,7 +33,6 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
-    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final AuditLogService auditLogService;
     private final NotificationMapper notificationMapper;
     private final SimpMessagingTemplate messagingTemplate;
@@ -43,8 +40,16 @@ public class NotificationService {
     private static final String EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
     @Transactional
-    public void createAndSend(UUID recipientId, NotificationType type, String title,
-                              String body, String refType, UUID refId) {
+    public void createAndSend(
+            UUID actorId,
+            UUID recipientId,
+            NotificationType type,
+            String title,
+            String body,
+            String refType,
+            UUID refId,
+            UUID whiteboardId
+    ) {
         User recipient = userRepository.findById(recipientId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", recipientId));
 
@@ -60,7 +65,8 @@ public class NotificationService {
         notification = notificationRepository.save(notification);
         NotificationResponse payload = notificationMapper.toResponse(notification);
         logNotificationAction(
-                recipientId,
+                whiteboardId,
+                actorId,
                 notification.getId(),
                 AuditAction.NOTIFICATION_CREATED,
                 null,
@@ -88,6 +94,18 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public void createAndSend(
+            UUID recipientId,
+            NotificationType type,
+            String title,
+            String body,
+            String refType,
+            UUID refId
+    ) {
+        createAndSend(null, recipientId, type, title, body, refType, refId, null);
+    }
+
     @Transactional(readOnly = true)
     public Page<NotificationResponse> getNotifications(UUID userId, Pageable pageable) {
         return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable)
@@ -106,7 +124,7 @@ public class NotificationService {
         if (!notification.isRead()) {
             notification.setRead(true);
             notificationRepository.save(notification);
-            logNotificationAction(userId, notificationId, AuditAction.NOTIFICATION_READ, "unread", "read");
+            logNotificationAction(null, userId, notificationId, AuditAction.NOTIFICATION_READ, "unread", "read");
         }
     }
 
@@ -116,6 +134,7 @@ public class NotificationService {
         notificationRepository.markAllAsReadByRecipientId(userId);
         if (unreadBefore > 0) {
             logNotificationAction(
+                    null,
                     userId,
                     null,
                     AuditAction.NOTIFICATIONS_MARKED_READ,
@@ -158,17 +177,22 @@ public class NotificationService {
         }
     }
 
-    private void logNotificationAction(UUID actorId, UUID targetId, AuditAction action, String oldValue, String newValue) {
-        for (WhiteboardMembership membership : whiteboardMembershipRepository.findByUserId(actorId)) {
-            auditLogService.logAction(
-                    membership.getWhiteboard().getId(),
-                    actorId,
-                    action,
-                    "Notification",
-                    targetId,
-                    oldValue,
-                    newValue
-            );
-        }
+    private void logNotificationAction(
+            UUID whiteboardId,
+            UUID actorId,
+            UUID targetId,
+            AuditAction action,
+            String oldValue,
+            String newValue
+    ) {
+        auditLogService.logAction(
+                whiteboardId,
+                actorId,
+                action,
+                "Notification",
+                targetId,
+                oldValue,
+                newValue
+        );
     }
 }

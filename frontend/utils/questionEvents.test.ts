@@ -39,7 +39,7 @@ describe('questionEvents', () => {
     expect(sorted.map((question) => question.id)).toEqual(['q-1', 'q-2']);
   });
 
-  it('parses websocket envelopes with question payloads', () => {
+  it('AC6 parses websocket envelopes with question payloads', () => {
     const message = JSON.stringify({
       type: 'QUESTION_UPDATED',
       payload: makeQuestion({ id: 'q-9' }),
@@ -56,7 +56,7 @@ describe('questionEvents', () => {
     expect(isQuestionDeleteEvent('QUESTION_UPDATED')).toBe(false);
   });
 
-  it('removes questions on delete events', () => {
+  it('AC6 removes questions on delete events', () => {
     const next = reconcileQuestionEvent(
       [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],
       JSON.stringify({

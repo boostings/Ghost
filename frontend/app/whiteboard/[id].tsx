@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   StyleSheet,
   Platform,
@@ -9,13 +9,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   ScrollView,
-  Alert,
   type GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -24,206 +22,44 @@ import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import ReportModal from '../../components/ReportModal';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { useAuthStore } from '../../stores/authStore';
-import { useWhiteboardStore } from '../../stores/whiteboardStore';
-import { whiteboardService } from '../../services/whiteboardService';
-import { questionService } from '../../services/questionService';
-import { bookmarkService } from '../../services/bookmarkService';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import {
+  FEED_STATUS_FILTERS,
+  useWhiteboardDetailModel,
+} from '../../hooks/useWhiteboardDetailModel';
 import { formatDate } from '../../utils/formatDate';
-import { reconcileQuestionEvent } from '../../utils/questionEvents';
-import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
-
-type FeedStatusFilter = 'ALL' | QuestionStatus;
-
-const FEED_STATUS_FILTERS: Array<{ label: string; value: FeedStatusFilter }> = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Open', value: 'OPEN' },
-  { label: 'Closed', value: 'CLOSED' },
-];
+import type { QuestionResponse } from '../../types';
 
 export default function WhiteboardDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const user = useAuthStore((state) => state.user);
-  const setCurrentWhiteboard = useWhiteboardStore((state) => state.setCurrentWhiteboard);
-
-  const [whiteboard, setWhiteboard] = useState<WhiteboardResponse | null>(null);
-  const [questions, setQuestions] = useState<QuestionResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>('ALL');
-  const [topicFilter, setTopicFilter] = useState<'ALL' | string>('ALL');
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{
-    questionId?: string;
-    commentId?: string;
-  } | null>(null);
-  const lastFetchRef = useRef(0);
-  const PAGE_SIZE = 20;
-  const { subscribe } = useWebSocket();
-
-  const isFaculty = user?.role === 'FACULTY';
-
-  const fetchData = useCallback(
-    async (options?: { page?: number; replace?: boolean }) => {
-      if (!id) {
-        setLoadError('Missing whiteboard id.');
-        setLoading(false);
-        return;
-      }
-
-      const nextPage = options?.page ?? 0;
-      const replace = options?.replace ?? true;
-      if (!replace && (!hasMore || loadingMore)) {
-        return;
-      }
-
-      try {
-        if (replace) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
-        }
-
-        const [wb, qs] = await Promise.all([
-          replace ? whiteboardService.getById(id) : Promise.resolve(whiteboard),
-          questionService.list(id, { page: nextPage, size: PAGE_SIZE }),
-        ]);
-        if (wb) {
-          setWhiteboard(wb);
-          setCurrentWhiteboard(wb);
-        }
-        setQuestions((prev) => (replace ? qs.content : [...prev, ...qs.content]));
-        setPage(nextPage);
-        setHasMore(nextPage + 1 < qs.totalPages);
-        lastFetchRef.current = Date.now();
-        setLoadError(null);
-      } catch {
-        setLoadError('Failed to load this whiteboard.');
-        if (replace) {
-          setWhiteboard(null);
-          setQuestions([]);
-        }
-        setHasMore(false);
-      } finally {
-        if (replace) {
-          setLoading(false);
-        } else {
-          setLoadingMore(false);
-        }
-      }
-    },
-    [hasMore, id, loadingMore, setCurrentWhiteboard, whiteboard]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      const now = Date.now();
-      const isStale = now - lastFetchRef.current > 30000;
-      if (!whiteboard || questions.length === 0 || isStale) {
-        fetchData({ page: 0, replace: true });
-      }
-    }, [fetchData, questions.length, whiteboard])
-  );
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchData({ page: 0, replace: true });
-    setRefreshing(false);
-  };
-
-  const handleLoadMore = async () => {
-    if (loading || loadingMore || !hasMore) {
-      return;
-    }
-    await fetchData({ page: page + 1, replace: false });
-  };
-
-  const handleToggleBookmark = useCallback(
-    async (questionId: string) => {
-      const question = questions.find((item) => item.id === questionId);
-      if (!question) {
-        return;
-      }
-
-      try {
-        if (question.isBookmarked) {
-          await bookmarkService.remove(questionId);
-        } else {
-          await bookmarkService.add(questionId);
-        }
-        setQuestions((prev) =>
-          prev.map((item) =>
-            item.id === questionId
-              ? {
-                  ...item,
-                  isBookmarked: !item.isBookmarked,
-                }
-              : item
-          )
-        );
-      } catch {
-        Alert.alert('Error', 'Failed to update bookmark.');
-      }
-    },
-    [questions]
-  );
-
-  const handleOpenReportModal = useCallback((questionId: string) => {
-    setReportTarget({ questionId });
-    setReportModalVisible(true);
-  }, []);
+  const {
+    whiteboard,
+    questions,
+    filteredQuestions,
+    pinnedQuestions,
+    topicFilters,
+    loading,
+    refreshing,
+    loadError,
+    loadingMore,
+    statusFilter,
+    topicFilter,
+    reportModalVisible,
+    reportTarget,
+    isFaculty,
+    handleRefresh,
+    handleLoadMore,
+    handleToggleBookmark,
+    handleStatusFilter,
+    handleTopicFilter,
+    clearFilters,
+    openReportModal: handleOpenReportModal,
+    closeReportModal,
+  } = useWhiteboardDetailModel(id);
 
   const stopCardPress = (event: GestureResponderEvent) => {
     event.stopPropagation();
   };
-
-  const pinnedQuestions = useMemo(() => questions.filter((q) => q.isPinned), [questions]);
-  const regularQuestions = useMemo(() => questions.filter((q) => !q.isPinned), [questions]);
-  const orderedQuestions = useMemo(
-    () => [...pinnedQuestions, ...regularQuestions],
-    [pinnedQuestions, regularQuestions]
-  );
-
-  const topicFilters = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          questions
-            .filter((question) => question.topicId && question.topicName)
-            .map((question) => [question.topicId as string, question.topicName as string])
-        ),
-        ([id, name]) => ({ id, name })
-      ),
-    [questions]
-  );
-
-  const filteredQuestions = useMemo(() => {
-    return orderedQuestions.filter((question) => {
-      const statusMatch = statusFilter === 'ALL' || question.status === statusFilter;
-      const topicMatch = topicFilter === 'ALL' || question.topicId === topicFilter;
-      return statusMatch && topicMatch;
-    });
-  }, [orderedQuestions, statusFilter, topicFilter]);
-
-  useEffect(() => {
-    if (!id) {
-      return;
-    }
-
-    const subscription = subscribe(`/topic/whiteboard/${id}/questions`, (frame) => {
-      setQuestions((prev) => reconcileQuestionEvent(prev, frame.body));
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [id, subscribe]);
 
   const renderQuestionCard = useCallback(
     ({ item }: { item: QuestionResponse }) => (
@@ -387,7 +223,7 @@ export default function WhiteboardDetailScreen() {
                   styles.filterChip,
                   statusFilter === filter.value && styles.filterChipActive,
                 ]}
-                onPress={() => setStatusFilter(filter.value)}
+                onPress={() => handleStatusFilter(filter.value)}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter by ${filter.label}`}
               >
@@ -413,7 +249,7 @@ export default function WhiteboardDetailScreen() {
           >
             <TouchableOpacity
               style={[styles.filterChip, topicFilter === 'ALL' && styles.filterChipActive]}
-              onPress={() => setTopicFilter('ALL')}
+              onPress={() => handleTopicFilter('ALL')}
               accessibilityRole="button"
               accessibilityLabel="Filter by all topics"
             >
@@ -430,7 +266,7 @@ export default function WhiteboardDetailScreen() {
               <TouchableOpacity
                 key={topic.id}
                 style={[styles.filterChip, topicFilter === topic.id && styles.filterChipActive]}
-                onPress={() => setTopicFilter(topic.id)}
+                onPress={() => handleTopicFilter(topic.id)}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter by topic ${topic.name}`}
               >
@@ -476,10 +312,7 @@ export default function WhiteboardDetailScreen() {
                 title="No Matching Questions"
                 subtitle="Adjust filters to see more questions."
                 actionLabel="Clear Filters"
-                onAction={() => {
-                  setStatusFilter('ALL');
-                  setTopicFilter('ALL');
-                }}
+                onAction={clearFilters}
               />
             ) : (
               <EmptyState
@@ -524,7 +357,7 @@ export default function WhiteboardDetailScreen() {
         </TouchableOpacity>
         <ReportModal
           visible={reportModalVisible}
-          onClose={() => setReportModalVisible(false)}
+          onClose={closeReportModal}
           target={reportTarget}
           title="Report Question"
         />

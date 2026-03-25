@@ -1,6 +1,7 @@
 package com.ghost.service;
 
 import com.ghost.dto.response.BookmarkResponse;
+import com.ghost.dto.response.QuestionResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.mapper.BookmarkMapper;
@@ -32,6 +33,7 @@ public class BookmarkService {
     private final UserRepository userRepository;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
+    private final QuestionResponseAssembler questionResponseAssembler;
     private final BookmarkMapper bookmarkMapper;
 
     @Transactional
@@ -64,11 +66,12 @@ public class BookmarkService {
                 null,
                 "bookmarked"
         );
-        return bookmarkMapper.toResponse(
-                saved,
+        QuestionResponse questionResponse = questionResponseAssembler.toResponse(
+                saved.getQuestion(),
                 userId,
                 membership.getRole() == Role.FACULTY
         );
+        return bookmarkMapper.toResponse(saved, questionResponse);
     }
 
     @Transactional
@@ -97,7 +100,12 @@ public class BookmarkService {
                             bookmark.getQuestion().getWhiteboard().getId()
                     );
                     boolean includeModerationData = membership.getRole() == Role.FACULTY;
-                    return bookmarkMapper.toResponse(bookmark, userId, includeModerationData);
+                    QuestionResponse questionResponse = questionResponseAssembler.toResponse(
+                            bookmark.getQuestion(),
+                            userId,
+                            includeModerationData
+                    );
+                    return bookmarkMapper.toResponse(bookmark, questionResponse);
                 });
     }
 

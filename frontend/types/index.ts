@@ -156,6 +156,10 @@ export interface ReportResponse {
   reporterName: string;
   questionId: string | null;
   commentId: string | null;
+  threadQuestionId: string | null;
+  contentTitle: string | null;
+  contentPreview: string | null;
+  contentHidden: boolean;
   reason: ReportReason;
   notes: string | null;
   status: ReportStatus;

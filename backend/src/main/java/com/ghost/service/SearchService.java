@@ -2,7 +2,6 @@ package com.ghost.service;
 
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.exception.BadRequestException;
-import com.ghost.mapper.QuestionMapper;
 import com.ghost.model.Question;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.QuestionStatus;
@@ -31,7 +30,7 @@ public class SearchService {
     private final QuestionRepository questionRepository;
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final WhiteboardService whiteboardService;
-    private final QuestionMapper questionMapper;
+    private final QuestionResponseAssembler questionResponseAssembler;
 
     @Transactional(readOnly = true)
     public Page<QuestionResponse> search(
@@ -87,7 +86,7 @@ public class SearchService {
                 .map(question -> {
                     Role role = whiteboardRoles.get(question.getWhiteboard().getId());
                     boolean includeModerationData = role == Role.FACULTY;
-                    return questionMapper.toResponse(question, userId, includeModerationData);
+                    return questionResponseAssembler.toResponse(question, userId, includeModerationData);
                 });
     }
 }

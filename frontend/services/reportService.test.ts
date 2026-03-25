@@ -17,7 +17,7 @@ describe('reportService', () => {
     jest.clearAllMocks();
   });
 
-  it('requests paginated moderation reports for a whiteboard', async () => {
+  it('AC5 requests paginated moderation reports for a whiteboard', async () => {
     const response = {
       data: {
         content: [],
@@ -37,7 +37,7 @@ describe('reportService', () => {
     });
   });
 
-  it('submits and reviews reports through the reports endpoints', async () => {
+  it('AC5 submits and reviews reports through the reports endpoints', async () => {
     apiMock.post.mockResolvedValue({
       data: {
         id: 'r-1',
@@ -45,6 +45,10 @@ describe('reportService', () => {
         reporterName: 'Taylor Student',
         questionId: 'q-1',
         commentId: null,
+        threadQuestionId: 'q-1',
+        contentTitle: 'Question title',
+        contentPreview: 'Question preview',
+        contentHidden: false,
         reason: 'SPAM',
         notes: null,
         status: 'PENDING',
@@ -58,6 +62,10 @@ describe('reportService', () => {
         reporterName: 'Taylor Student',
         questionId: 'q-1',
         commentId: null,
+        threadQuestionId: 'q-1',
+        contentTitle: 'Question title',
+        contentPreview: 'Question preview',
+        contentHidden: true,
         reason: 'SPAM',
         notes: null,
         status: 'REVIEWED',

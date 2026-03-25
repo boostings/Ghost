@@ -144,11 +144,13 @@ public class WhiteboardJoinRequestService {
                 : "Your request to join " + joinRequest.getWhiteboard().getCourse().getCourseCode() + " was rejected.";
 
         notificationService.createAndSend(
+                facultyId,
                 joinRequest.getUser().getId(),
                 notificationType,
                 title,
                 body,
                 "Whiteboard",
+                whiteboardId,
                 whiteboardId
         );
     }

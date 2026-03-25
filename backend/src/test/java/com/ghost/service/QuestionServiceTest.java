@@ -12,20 +12,22 @@ import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
-import com.ghost.mapper.QuestionMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,10 +51,13 @@ class QuestionServiceTest {
     private NotificationService notificationService;
 
     @Mock
-    private QuestionMapper questionMapper;
+    private QuestionResponseAssembler questionResponseAssembler;
 
     @Mock
     private SearchService searchService;
+
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     private QuestionService questionService;
@@ -152,12 +157,40 @@ class QuestionServiceTest {
 
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(whiteboardService.verifyMembership(userId, whiteboardId)).thenReturn(membership);
-        when(questionMapper.toResponse(question, userId, false)).thenReturn(response);
+        when(questionResponseAssembler.toResponse(question, userId, false)).thenReturn(response);
 
         QuestionResponse result = questionService.getQuestionById(userId, questionId);
 
         assertThat(result).isEqualTo(response);
         verify(whiteboardService).verifyMembership(userId, whiteboardId);
-        verify(questionMapper).toResponse(question, userId, false);
+        verify(questionResponseAssembler).toResponse(question, userId, false);
+    }
+
+    @Test
+    void AC3_AC6_markVerifiedAnswerAndCloseShouldPublishQuestionUpdate() {
+        QuestionResponse response = QuestionResponse.builder()
+                .id(questionId)
+                .whiteboardId(whiteboardId)
+                .status(QuestionStatus.CLOSED)
+                .verifiedAnswerId(UUID.randomUUID())
+                .build();
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(questionResponseAssembler.toResponse(question, facultyId, true)).thenReturn(response);
+
+        QuestionResponse result = questionService.markVerifiedAnswerAndClose(
+                facultyId,
+                questionId,
+                response.getVerifiedAnswerId()
+        );
+
+        assertThat(question.getStatus()).isEqualTo(QuestionStatus.CLOSED);
+        assertThat(question.getVerifiedAnswerId()).isEqualTo(response.getVerifiedAnswerId());
+        assertThat(result).isEqualTo(response);
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/whiteboard/" + whiteboardId + "/questions"),
+                any(Map.class)
+        );
     }
 }

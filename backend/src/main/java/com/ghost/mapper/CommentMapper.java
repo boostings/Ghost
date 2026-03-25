@@ -3,23 +3,15 @@ package com.ghost.mapper;
 import com.ghost.dto.response.CommentResponse;
 import com.ghost.model.Comment;
 import com.ghost.model.enums.VoteType;
-import com.ghost.repository.KarmaVoteRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 public class CommentMapper {
 
-    private final KarmaVoteRepository karmaVoteRepository;
-
-    public CommentResponse toResponse(Comment comment, UUID currentUserId) {
-        VoteType userVote = karmaVoteRepository.findByUserIdAndCommentId(currentUserId, comment.getId())
-                .map(v -> v.getVoteType())
-                .orElse(null);
+    public CommentResponse toResponse(Comment comment, UUID currentUserId, VoteType userVote) {
         boolean canEdit = comment.getAuthor().getId().equals(currentUserId)
                 && comment.getEditDeadline() != null
                 && comment.getEditDeadline().isAfter(LocalDateTime.now());

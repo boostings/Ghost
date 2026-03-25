@@ -175,7 +175,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginShouldRejectUnverifiedUser() {
+    void AC1_loginShouldRejectUnverifiedUser() {
         User user = User.builder()
                 .id(UUID.randomUUID())
                 .email("student@ilstu.edu")
@@ -198,7 +198,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginShouldAutoJoinDemoWhiteboardForVerifiedUser() {
+    void AC1_loginShouldAutoJoinDemoWhiteboardForVerifiedUser() {
         UUID userId = UUID.randomUUID();
         User user = User.builder()
                 .id(userId)
