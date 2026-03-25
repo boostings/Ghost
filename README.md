@@ -14,7 +14,7 @@ Install these first:
 
 1. **Git** (to clone the project)
 2. **Docker Desktop** (must be open and running)
-3. **Node.js LTS** (Node 18+ recommended; npm is included)
+3. **Bun** (latest stable release recommended)
 
 ## Step 1: Open the Project Folder
 
@@ -68,13 +68,13 @@ cd /path/to/Ghost/frontend
 Install dependencies (first time only, or after dependency changes):
 
 ```bash
-npm install
+bun install
 ```
 
 Start Expo:
 
 ```bash
-npx expo start
+bun run start
 ```
 
 What to do after Expo starts:
@@ -104,10 +104,10 @@ In another terminal:
 
 ```bash
 cd frontend
-npx expo start
+bun run start
 ```
 
-Use `npm install` again only when dependencies change.
+Use `bun install` again only when dependencies change.
 
 ## Stopping Everything
 
@@ -156,7 +156,7 @@ EXPO_PUBLIC_WS_URL=ws://YOUR_COMPUTER_LOCAL_IP:8080
 Then restart Expo:
 
 ```bash
-npx expo start
+bun run start
 ```
 
 Your phone and computer must be on the same Wi-Fi network.

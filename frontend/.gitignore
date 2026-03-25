@@ -8,6 +8,7 @@ node_modules/
 dist/
 dist-smoke/
 dist-smoke-ci/
+coverage/
 web-build/
 expo-env.d.ts
 
@@ -24,7 +25,7 @@ expo-env.d.ts
 .metro-health-check*
 
 # debug
-npm-debug.*
+bun-debug.*
 yarn-debug.*
 yarn-error.*
 
