@@ -180,7 +180,10 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     setTopicFilter('ALL');
   }, []);
 
-  const pinnedQuestions = useMemo(() => questions.filter((question) => question.isPinned), [questions]);
+  const pinnedQuestions = useMemo(
+    () => questions.filter((question) => question.isPinned),
+    [questions]
+  );
   const regularQuestions = useMemo(
     () => questions.filter((question) => !question.isPinned),
     [questions]

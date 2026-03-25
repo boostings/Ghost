@@ -88,119 +88,120 @@ export default function ReportsScreen() {
 
     return (
       <GlassCard style={styles.reportCard}>
-      {/* Report Header */}
-      <View style={styles.reportHeader}>
-        <View
-          style={[
-            styles.reasonBadge,
-            { backgroundColor: `${REASON_COLORS[item.reason] || '#9E9E9E'}20` },
-          ]}
-        >
-          <Text style={[styles.reasonText, { color: REASON_COLORS[item.reason] || '#9E9E9E' }]}>
-            {REASON_LABELS[item.reason] || item.reason}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.statusBadge,
-            item.status === 'PENDING' && styles.pendingBadge,
-            item.status === 'REVIEWED' && styles.reviewedBadge,
-            item.status === 'DISMISSED' && styles.dismissedBadge,
-          ]}
-        >
-          <Text
+        {/* Report Header */}
+        <View style={styles.reportHeader}>
+          <View
             style={[
-              styles.statusText,
-              item.status === 'PENDING' && styles.pendingText,
-              item.status === 'REVIEWED' && styles.reviewedText,
-              item.status === 'DISMISSED' && styles.dismissedText,
+              styles.reasonBadge,
+              { backgroundColor: `${REASON_COLORS[item.reason] || '#9E9E9E'}20` },
             ]}
           >
-            {item.status}
-          </Text>
+            <Text style={[styles.reasonText, { color: REASON_COLORS[item.reason] || '#9E9E9E' }]}>
+              {REASON_LABELS[item.reason] || item.reason}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              item.status === 'PENDING' && styles.pendingBadge,
+              item.status === 'REVIEWED' && styles.reviewedBadge,
+              item.status === 'DISMISSED' && styles.dismissedBadge,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                item.status === 'PENDING' && styles.pendingText,
+                item.status === 'REVIEWED' && styles.reviewedText,
+                item.status === 'DISMISSED' && styles.dismissedText,
+              ]}
+            >
+              {item.status}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {/* Content Info */}
-      <View style={styles.contentInfo}>
-        <Text style={styles.contentType}>{item.questionId ? 'Question' : 'Comment'} Report</Text>
-        <Text style={styles.reporterText}>Reported by {item.reporterName}</Text>
-        <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
-      </View>
+        {/* Content Info */}
+        <View style={styles.contentInfo}>
+          <Text style={styles.contentType}>{item.questionId ? 'Question' : 'Comment'} Report</Text>
+          <Text style={styles.reporterText}>Reported by {item.reporterName}</Text>
+          <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+        </View>
 
-      {(item.contentTitle || item.contentPreview) && (
-        <View style={styles.previewContainer}>
-          <View style={styles.previewHeader}>
-            <Text style={styles.previewLabel}>Reported Content</Text>
-            {item.contentHidden && (
-              <View style={styles.hiddenBadge}>
-                <Text style={styles.hiddenBadgeText}>Hidden</Text>
-              </View>
+        {(item.contentTitle || item.contentPreview) && (
+          <View style={styles.previewContainer}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewLabel}>Reported Content</Text>
+              {item.contentHidden && (
+                <View style={styles.hiddenBadge}>
+                  <Text style={styles.hiddenBadgeText}>Hidden</Text>
+                </View>
+              )}
+            </View>
+            {item.contentTitle ? (
+              <Text style={styles.previewTitle}>{item.contentTitle}</Text>
+            ) : null}
+            {item.contentPreview ? (
+              <Text style={styles.previewText} numberOfLines={4}>
+                {item.contentPreview}
+              </Text>
+            ) : (
+              <Text style={styles.previewPlaceholder}>Preview unavailable.</Text>
             )}
           </View>
-          {item.contentTitle ? <Text style={styles.previewTitle}>{item.contentTitle}</Text> : null}
-          {item.contentPreview ? (
-            <Text style={styles.previewText} numberOfLines={4}>
-              {item.contentPreview}
-            </Text>
-          ) : (
-            <Text style={styles.previewPlaceholder}>Preview unavailable.</Text>
-          )}
-        </View>
-      )}
+        )}
 
-      {/* Notes */}
-      {item.notes && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.notesLabel}>Notes:</Text>
-          <Text style={styles.notesText}>{item.notes}</Text>
-        </View>
-      )}
+        {/* Notes */}
+        {item.notes && (
+          <View style={styles.notesContainer}>
+            <Text style={styles.notesLabel}>Notes:</Text>
+            <Text style={styles.notesText}>{item.notes}</Text>
+          </View>
+        )}
 
-      {/* Actions */}
-      {item.status === 'PENDING' && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={() => handleDismiss(item.id)}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss report"
-          >
-            <Text style={styles.dismissButtonText}>Dismiss</Text>
-          </TouchableOpacity>
+        {/* Actions */}
+        {item.status === 'PENDING' && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.dismissButton}
+              onPress={() => handleDismiss(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss report"
+            >
+              <Text style={styles.dismissButtonText}>Dismiss</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={() => handleRemoveContent(item)}
-            accessibilityRole="button"
-            accessibilityLabel="Remove reported content"
-          >
-            <Text style={styles.removeButtonText}>Remove Content</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => handleRemoveContent(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Remove reported content"
+            >
+              <Text style={styles.removeButtonText}>Remove Content</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        </View>
-      )}
-
-      {/* View Content Link */}
-      <TouchableOpacity
-        style={[styles.viewLink, !threadQuestionId && styles.viewLinkDisabled]}
-        onPress={() => {
-          if (threadQuestionId) {
-            router.push({
-              pathname: '/question/[id]',
-              params: { id: threadQuestionId, whiteboardId },
-            });
-          }
-        }}
-        disabled={!threadQuestionId}
-        accessibilityRole="button"
-        accessibilityLabel="View reported content"
-      >
-        <Text style={styles.viewLinkText}>
-          {item.questionId ? 'View Question' : 'Open Thread'} {'\u203A'}
-        </Text>
-      </TouchableOpacity>
-    </GlassCard>
+        {/* View Content Link */}
+        <TouchableOpacity
+          style={[styles.viewLink, !threadQuestionId && styles.viewLinkDisabled]}
+          onPress={() => {
+            if (threadQuestionId) {
+              router.push({
+                pathname: '/question/[id]',
+                params: { id: threadQuestionId, whiteboardId },
+              });
+            }
+          }}
+          disabled={!threadQuestionId}
+          accessibilityRole="button"
+          accessibilityLabel="View reported content"
+        >
+          <Text style={styles.viewLinkText}>
+            {item.questionId ? 'View Question' : 'Open Thread'} {'\u203A'}
+          </Text>
+        </TouchableOpacity>
+      </GlassCard>
     );
   };
 
