@@ -262,7 +262,7 @@ export interface ReviewReportRequest {
 export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
-  settingsJson?: Record<string, unknown>;
+  settingsJson?: string;
 }
 
 // ---- Query Parameter Types ----
@@ -275,8 +275,6 @@ export interface PaginationParams {
 export interface QuestionQueryParams extends PaginationParams {
   topicId?: string;
   status?: QuestionStatus;
-  sort?: 'recent' | 'popular';
-  search?: string;
 }
 
 export interface SearchParams extends PaginationParams {

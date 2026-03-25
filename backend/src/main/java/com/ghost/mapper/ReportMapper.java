@@ -10,6 +10,8 @@ public class ReportMapper {
     public ReportResponse toResponse(Report report) {
         return ReportResponse.builder()
                 .id(report.getId())
+                .reporterId(report.getReporter().getId())
+                .reporterName(report.getReporter().getFirstName() + " " + report.getReporter().getLastName())
                 .questionId(report.getQuestion() != null ? report.getQuestion().getId() : null)
                 .commentId(report.getComment() != null ? report.getComment().getId() : null)
                 .reason(report.getReason())

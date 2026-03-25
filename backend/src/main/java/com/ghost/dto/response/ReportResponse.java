@@ -18,6 +18,10 @@ public class ReportResponse {
 
     private UUID id;
 
+    private UUID reporterId;
+
+    private String reporterName;
+
     private UUID questionId;
 
     private UUID commentId;

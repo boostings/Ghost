@@ -17,7 +17,7 @@ import type {
  */
 export const questionService = {
   /**
-   * Get questions for a whiteboard with optional filtering, sorting, and pagination.
+   * Get questions for a whiteboard with optional filtering and pagination.
    * GET /whiteboards/{wbId}/questions
    */
   getQuestions: async (
@@ -35,13 +35,6 @@ export const questionService = {
     if (params?.status) {
       queryParams.status = params.status;
     }
-    if (params?.sort) {
-      queryParams.sort = params.sort;
-    }
-    if (params?.search && params.search.trim().length > 0) {
-      queryParams.search = params.search.trim();
-    }
-
     const response = await api.get<PageResponse<QuestionResponse>>(
       `/whiteboards/${wbId}/questions`,
       {

@@ -1,6 +1,6 @@
 # Ghost
 
-Ghost is an anonymous Q&A platform for Illinois State University classes.
+Ghost is a class-specific Q&A platform for Illinois State University classes with faculty-verified answers and shared course whiteboards.
 
 ## What You Will Run
 

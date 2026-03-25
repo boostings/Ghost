@@ -10,7 +10,8 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -211,8 +212,22 @@ export default function AuditLogScreen() {
         URL.revokeObjectURL(url);
         Alert.alert('Export', 'Audit log CSV download started.');
       } else {
-        await Clipboard.setStringAsync(csv);
-        Alert.alert('Export', 'Audit log CSV copied to clipboard.');
+        const canShare = await Sharing.isAvailableAsync();
+        const cacheDirectory = FileSystem.cacheDirectory;
+        if (!canShare || !cacheDirectory) {
+          throw new Error('Native file sharing is unavailable.');
+        }
+
+        const fileUri = `${cacheDirectory}ghost-audit-log-${whiteboardId}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          UTI: 'public.comma-separated-values-text',
+          dialogTitle: 'Share audit log CSV',
+        });
+        Alert.alert('Export', 'Audit log CSV ready to share.');
       }
     } catch {
       Alert.alert('Error', 'Failed to export audit logs.');

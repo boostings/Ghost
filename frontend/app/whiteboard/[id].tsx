@@ -31,6 +31,7 @@ import { questionService } from '../../services/questionService';
 import { bookmarkService } from '../../services/bookmarkService';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { formatDate } from '../../utils/formatDate';
+import { reconcileQuestionEvent } from '../../utils/questionEvents';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
 
 type FeedStatusFilter = 'ALL' | QuestionStatus;
@@ -40,53 +41,6 @@ const FEED_STATUS_FILTERS: Array<{ label: string; value: FeedStatusFilter }> = [
   { label: 'Open', value: 'OPEN' },
   { label: 'Closed', value: 'CLOSED' },
 ];
-
-function sortQuestionsForFeed(questions: QuestionResponse[]): QuestionResponse[] {
-  return [...questions].sort((a, b) => {
-    if (a.isPinned !== b.isPinned) {
-      return a.isPinned ? -1 : 1;
-    }
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-}
-
-function parseQuestionMessage(body: string): {
-  type?: string;
-  question?: QuestionResponse;
-  questionId?: string;
-} {
-  try {
-    const parsed: unknown = JSON.parse(body);
-    if (!parsed || typeof parsed !== 'object') {
-      return {};
-    }
-
-    const envelope = parsed as { type?: unknown; payload?: unknown; id?: unknown };
-    const type = typeof envelope.type === 'string' ? envelope.type : undefined;
-    const payload = envelope.payload ?? parsed;
-
-    if (payload && typeof payload === 'object') {
-      const payloadObj = payload as Record<string, unknown>;
-      const payloadId = typeof payloadObj.id === 'string' ? payloadObj.id : undefined;
-      const hasQuestionShape =
-        typeof payloadObj.title === 'string' &&
-        typeof payloadObj.body === 'string' &&
-        typeof payloadObj.status === 'string';
-
-      if (hasQuestionShape && payloadId) {
-        return { type, question: payloadObj as unknown as QuestionResponse };
-      }
-      if (payloadId) {
-        return { type, questionId: payloadId };
-      }
-    }
-
-    const rootId = typeof envelope.id === 'string' ? envelope.id : undefined;
-    return { type, questionId: rootId };
-  } catch {
-    return {};
-  }
-}
 
 export default function WhiteboardDetailScreen() {
   const router = useRouter();
@@ -138,7 +92,7 @@ export default function WhiteboardDetailScreen() {
 
         const [wb, qs] = await Promise.all([
           replace ? whiteboardService.getById(id) : Promise.resolve(whiteboard),
-          questionService.list(id, { page: nextPage, size: PAGE_SIZE, sort: 'recent' }),
+          questionService.list(id, { page: nextPage, size: PAGE_SIZE }),
         ]);
         if (wb) {
           setWhiteboard(wb);
@@ -263,26 +217,7 @@ export default function WhiteboardDetailScreen() {
     }
 
     const subscription = subscribe(`/topic/whiteboard/${id}/questions`, (frame) => {
-      const { type, question, questionId } = parseQuestionMessage(frame.body);
-      const normalizedType = type?.toUpperCase() ?? '';
-      const isDeleteEvent = normalizedType.includes('DELETE') || normalizedType.includes('REMOVE');
-
-      if (isDeleteEvent && questionId) {
-        setQuestions((prev) => prev.filter((existing) => existing.id !== questionId));
-        return;
-      }
-
-      if (question) {
-        setQuestions((prev) => {
-          const index = prev.findIndex((existing) => existing.id === question.id);
-          if (index >= 0) {
-            const next = [...prev];
-            next[index] = question;
-            return sortQuestionsForFeed(next);
-          }
-          return sortQuestionsForFeed([question, ...prev]);
-        });
-      }
+      setQuestions((prev) => reconcileQuestionEvent(prev, frame.body));
     });
 
     return () => {

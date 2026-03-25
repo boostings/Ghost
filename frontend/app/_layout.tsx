@@ -41,13 +41,13 @@ function RootLayoutNav() {
       return;
     }
 
-    if (!inAuthGroup && hasJoinedWhiteboard === true) {
-      return;
-    }
-
     let cancelled = false;
-    const checkMembership = async () => {
-      setIsMembershipLoading(true);
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const checkMembership = async (showLoader: boolean) => {
+      if (showLoader) {
+        setIsMembershipLoading(true);
+      }
+
       try {
         const hasWhiteboards = await whiteboardService.hasAnyWhiteboard();
         if (!cancelled) {
@@ -56,18 +56,25 @@ function RootLayoutNav() {
       } catch {
         if (!cancelled) {
           // Do not block navigation if membership check fails temporarily.
-          setHasJoinedWhiteboard(true);
+          setHasJoinedWhiteboard((previousValue) => previousValue ?? true);
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && showLoader) {
           setIsMembershipLoading(false);
         }
       }
     };
 
-    void checkMembership();
+    void checkMembership(hasJoinedWhiteboard === null || inAuthGroup);
+    intervalId = setInterval(() => {
+      void checkMembership(false);
+    }, 30_000);
+
     return () => {
       cancelled = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [accessToken, hasJoinedWhiteboard, hasValidSession, inAuthGroup, isLoading, segmentPath]);
 

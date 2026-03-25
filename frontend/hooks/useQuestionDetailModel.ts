@@ -9,6 +9,7 @@ import { bookmarkService } from '../services/bookmarkService';
 import { sanitizeText } from '../utils/sanitize';
 import { extractErrorMessage } from './useApi';
 import { reconcileCommentEvent, sortCommentsByCreatedAt } from '../utils/questionCommentEvents';
+import { isQuestionDeleteEvent, parseQuestionMessage } from '../utils/questionEvents';
 import type { CommentResponse, QuestionResponse, VoteType } from '../types';
 
 type ReportTarget = {
@@ -100,6 +101,48 @@ export function useQuestionDetailModel({
       subscription?.unsubscribe();
     };
   }, [questionId, subscribe]);
+
+  useEffect(() => {
+    const resolvedWhiteboardId = whiteboardId || question?.whiteboardId;
+    if (!questionId || !resolvedWhiteboardId) {
+      return;
+    }
+
+    const subscription = subscribe(
+      `/topic/whiteboard/${resolvedWhiteboardId}/questions`,
+      (frame) => {
+        const {
+          type,
+          question: nextQuestion,
+          questionId: eventQuestionId,
+        } = parseQuestionMessage(frame.body);
+        const affectedQuestionId = nextQuestion?.id ?? eventQuestionId;
+
+        if (affectedQuestionId !== questionId) {
+          return;
+        }
+
+        if (isQuestionDeleteEvent(type)) {
+          onQuestionDeleted?.();
+          return;
+        }
+
+        if (!nextQuestion) {
+          return;
+        }
+
+        setQuestion(nextQuestion);
+        setIsBookmarked(nextQuestion.isBookmarked || false);
+        if (nextQuestion.status === 'CLOSED') {
+          setEditingCommentId(null);
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [onQuestionDeleted, question?.whiteboardId, questionId, subscribe, whiteboardId]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);

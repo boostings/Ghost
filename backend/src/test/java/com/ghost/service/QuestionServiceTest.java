@@ -6,6 +6,8 @@ import com.ghost.model.Question;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
+import com.ghost.model.WhiteboardMembership;
+import com.ghost.dto.response.QuestionResponse;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.QuestionRepository;
@@ -21,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -127,5 +130,34 @@ class QuestionServiceTest {
                 .hasMessageContaining("not pinned");
 
         verify(questionRepository, never()).save(any(Question.class));
+    }
+
+    @Test
+    void getQuestionByIdShouldVerifyMembershipAndReturnMappedResponse() {
+        UUID userId = UUID.randomUUID();
+        User member = User.builder()
+                .id(userId)
+                .role(Role.STUDENT)
+                .build();
+        WhiteboardMembership membership = WhiteboardMembership.builder()
+                .whiteboard(question.getWhiteboard())
+                .user(member)
+                .role(Role.STUDENT)
+                .build();
+        QuestionResponse response = QuestionResponse.builder()
+                .id(questionId)
+                .whiteboardId(whiteboardId)
+                .status(QuestionStatus.OPEN)
+                .build();
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(whiteboardService.verifyMembership(userId, whiteboardId)).thenReturn(membership);
+        when(questionMapper.toResponse(question, userId, false)).thenReturn(response);
+
+        QuestionResponse result = questionService.getQuestionById(userId, questionId);
+
+        assertThat(result).isEqualTo(response);
+        verify(whiteboardService).verifyMembership(userId, whiteboardId);
+        verify(questionMapper).toResponse(question, userId, false);
     }
 }

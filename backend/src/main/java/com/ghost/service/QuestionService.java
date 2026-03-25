@@ -176,6 +176,16 @@ public class QuestionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Question", "id", questionId));
     }
 
+    @Transactional(readOnly = true)
+    public QuestionResponse getQuestionById(UUID userId, UUID questionId) {
+        Question question = getQuestionById(questionId);
+        var membership = whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
+        if (question.isHidden()) {
+            throw new ResourceNotFoundException("Question", "id", questionId);
+        }
+        return questionMapper.toResponse(question, userId, membership.getRole() == Role.FACULTY);
+    }
+
     @Transactional
     public void markVerifiedAnswerAndClose(UUID questionId, UUID commentId) {
         Question question = getQuestionById(questionId);
