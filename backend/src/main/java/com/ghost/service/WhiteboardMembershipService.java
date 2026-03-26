@@ -145,7 +145,7 @@ public class WhiteboardMembershipService {
         User faculty = userRepository.findByEmail(normalizeEmail(facultyEmail))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", facultyEmail));
 
-        if (faculty.getRole() != Role.FACULTY) {
+        if (!faculty.isFaculty()) {
             throw new BadRequestException("Can only invite users with FACULTY role");
         }
 

@@ -323,7 +323,7 @@ public class QuestionService {
         whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
         User targetFaculty = userRepository.findById(req.getTargetFacultyId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", req.getTargetFacultyId()));
-        if (targetFaculty.getRole() != Role.FACULTY) {
+        if (!targetFaculty.isFaculty()) {
             throw new BadRequestException("Question can only be forwarded to a faculty member");
         }
 

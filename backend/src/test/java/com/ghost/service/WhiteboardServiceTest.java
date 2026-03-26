@@ -3,6 +3,7 @@ package com.ghost.service;
 import com.ghost.exception.BadRequestException;
 import com.ghost.mapper.JoinRequestMapper;
 import com.ghost.model.Course;
+import com.ghost.model.FacultyUser;
 import com.ghost.model.JoinRequest;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
@@ -11,7 +12,6 @@ import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
 import com.ghost.model.enums.NotificationType;
-import com.ghost.model.enums.Role;
 import com.ghost.repository.JoinRequestRepository;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
@@ -75,9 +75,8 @@ class WhiteboardServiceTest {
         requestId = UUID.randomUUID();
         facultyId = UUID.randomUUID();
 
-        reviewer = User.builder()
+        reviewer = FacultyUser.builder()
                 .id(facultyId)
-                .role(Role.FACULTY)
                 .build();
 
         Whiteboard whiteboard = Whiteboard.builder()
@@ -94,7 +93,6 @@ class WhiteboardServiceTest {
 
         User student = User.builder()
                 .id(UUID.randomUUID())
-                .role(Role.STUDENT)
                 .build();
 
         joinRequest = JoinRequest.builder()

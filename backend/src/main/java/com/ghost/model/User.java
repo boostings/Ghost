@@ -3,6 +3,7 @@ package com.ghost.model;
 import com.ghost.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -12,9 +13,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "role", discriminatorType = DiscriminatorType.STRING, length = 20)
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
@@ -35,11 +38,6 @@ public class User {
 
     @Column(name = "last_name", nullable = false)
     private String lastName;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
-    @Builder.Default
-    private Role role = Role.STUDENT;
 
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
@@ -70,4 +68,16 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public Role getRole() {
+        return isFaculty() ? Role.FACULTY : Role.STUDENT;
+    }
+
+    public boolean isFaculty() {
+        return this instanceof FacultyUser;
+    }
+
+    public boolean isStudent() {
+        return !isFaculty();
+    }
 }

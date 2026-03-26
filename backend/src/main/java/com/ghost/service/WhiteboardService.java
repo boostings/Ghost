@@ -53,7 +53,7 @@ public class WhiteboardService {
         User faculty = userRepository.findById(facultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", facultyId));
 
-        if (faculty.getRole() != Role.FACULTY) {
+        if (!faculty.isFaculty()) {
             throw new UnauthorizedException("Only faculty members can create whiteboards");
         }
 
@@ -178,7 +178,7 @@ public class WhiteboardService {
         User newOwner = userRepository.findByEmail(normalizeEmail(newOwnerEmail))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", newOwnerEmail));
 
-        if (newOwner.getRole() != Role.FACULTY) {
+        if (!newOwner.isFaculty()) {
             throw new UnauthorizedException("Ownership can only be transferred to a faculty member");
         }
 

@@ -8,6 +8,7 @@ import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.AuditTargetType;
+import jakarta.persistence.EntityManager;
 import com.ghost.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,13 +29,14 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final AuditLogMapper auditLogMapper;
+    private final EntityManager entityManager;
 
     @Transactional
     public void logAction(UUID whiteboardId, UUID actorId, AuditAction action,
                           String targetType, UUID targetId, String oldValue, String newValue) {
         AuditLog auditLog = AuditLog.builder()
-                .whiteboard(whiteboardId == null ? null : Whiteboard.builder().id(whiteboardId).build())
-                .actor(actorId == null ? null : User.builder().id(actorId).build())
+                .whiteboard(whiteboardId == null ? null : entityManager.getReference(Whiteboard.class, whiteboardId))
+                .actor(actorId == null ? null : entityManager.getReference(User.class, actorId))
                 .action(action)
                 .targetType(AuditTargetType.from(targetType))
                 .targetId(targetId)

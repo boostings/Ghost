@@ -9,9 +9,9 @@ import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
+import com.ghost.model.StudentUser;
 import com.ghost.model.User;
 import com.ghost.model.enums.AuditAction;
-import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.repository.WhiteboardRepository;
@@ -61,12 +61,11 @@ public class AuthService {
         String verificationCode = generateVerificationCode();
 
         // Create user with BCrypt hashed password
-        User user = User.builder()
+        User user = StudentUser.builder()
                 .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .firstName(req.getFirstName().trim())
                 .lastName(req.getLastName().trim())
-                .role(Role.STUDENT)
                 .emailVerified(false)
                 .verificationCode(verificationCode)
                 .verificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15))

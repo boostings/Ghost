@@ -4,6 +4,7 @@ import com.ghost.dto.response.CommentResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.model.Comment;
 import com.ghost.model.Course;
+import com.ghost.model.FacultyUser;
 import com.ghost.model.Question;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
@@ -93,11 +94,10 @@ class CommentServiceTest {
                 .lastName("Author")
                 .build();
 
-        facultyUser = User.builder()
+        facultyUser = FacultyUser.builder()
                 .id(facultyId)
                 .firstName("Faculty")
                 .lastName("Verifier")
-                .role(Role.FACULTY)
                 .build();
 
         question = Question.builder()

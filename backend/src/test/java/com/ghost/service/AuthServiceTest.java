@@ -5,6 +5,7 @@ import com.ghost.dto.request.RegisterRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.response.AuthResponse;
 import com.ghost.exception.BadRequestException;
+import com.ghost.model.StudentUser;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.enums.AuditAction;
@@ -95,6 +96,7 @@ class AuthServiceTest {
         verify(jwtTokenProvider, never()).generateRefreshToken(any());
 
         User savedUser = userCaptor.getValue();
+        assertThat(savedUser).isInstanceOf(StudentUser.class);
         assertThat(savedUser.getEmail()).isEqualTo("student@ilstu.edu");
         assertThat(savedUser.getPasswordHash()).isEqualTo("hashed-password");
         assertThat(savedUser.getFirstName()).isEqualTo("Test");
@@ -123,7 +125,6 @@ class AuthServiceTest {
                 .passwordHash("hashed-password")
                 .firstName("Test")
                 .lastName("User")
-                .role(Role.STUDENT)
                 .emailVerified(false)
                 .verificationCode("123456")
                 .verificationCodeExpiresAt(LocalDateTime.now().plusMinutes(5))
@@ -159,7 +160,6 @@ class AuthServiceTest {
                 .passwordHash("hashed-password")
                 .firstName("Test")
                 .lastName("User")
-                .role(Role.STUDENT)
                 .emailVerified(false)
                 .verificationCode("111111")
                 .verificationCodeExpiresAt(LocalDateTime.now().minusMinutes(1))
@@ -182,7 +182,6 @@ class AuthServiceTest {
                 .passwordHash("hashed-password")
                 .firstName("Test")
                 .lastName("User")
-                .role(Role.STUDENT)
                 .emailVerified(false)
                 .build();
 
@@ -206,7 +205,6 @@ class AuthServiceTest {
                 .passwordHash("hashed-password")
                 .firstName("Test")
                 .lastName("User")
-                .role(Role.STUDENT)
                 .emailVerified(true)
                 .build();
 

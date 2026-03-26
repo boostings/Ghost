@@ -7,7 +7,6 @@ import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
-import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.repository.WhiteboardRepository;
@@ -54,7 +53,6 @@ class WhiteboardMembershipServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .role(Role.STUDENT)
                 .build();
         Whiteboard demoWhiteboard = Whiteboard.builder()
                 .id(demoWhiteboardId)
@@ -92,7 +90,6 @@ class WhiteboardMembershipServiceTest {
         UUID userId = UUID.randomUUID();
         User user = User.builder()
                 .id(userId)
-                .role(Role.STUDENT)
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -120,7 +117,6 @@ class WhiteboardMembershipServiceTest {
 
         User user = User.builder()
                 .id(userId)
-                .role(Role.STUDENT)
                 .build();
         Whiteboard demoWhiteboard = Whiteboard.builder()
                 .id(demoWhiteboardId)

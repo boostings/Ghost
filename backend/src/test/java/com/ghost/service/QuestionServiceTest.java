@@ -87,7 +87,6 @@ class QuestionServiceTest {
 
         User author = User.builder()
                 .id(UUID.randomUUID())
-                .role(Role.STUDENT)
                 .build();
 
         question = Question.builder()
@@ -142,7 +141,6 @@ class QuestionServiceTest {
         UUID userId = UUID.randomUUID();
         User member = User.builder()
                 .id(userId)
-                .role(Role.STUDENT)
                 .build();
         WhiteboardMembership membership = WhiteboardMembership.builder()
                 .whiteboard(question.getWhiteboard())
