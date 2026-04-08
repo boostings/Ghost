@@ -22,6 +22,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <bucket4j.version>8.7.0</bucket4j.version>
         <lombok.version>1.18.40</lombok.version>
+        <junit.excludedTags>smoke,integration</junit.excludedTags>
     </properties>
 
     <dependencies>
@@ -132,6 +133,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>@{argLine} -Dnet.bytebuddy.experimental=true</argLine>
+                    <excludedGroups>${junit.excludedTags}</excludedGroups>
                 </configuration>
             </plugin>
             <plugin>
@@ -165,12 +167,29 @@
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.25</minimum>
+                                            <minimum>0.70</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes>
+                                        <include>*AuthService</include>
+                                        <include>*QuestionService</include>
+                                        <include>*CommentService</include>
+                                        <include>*SearchService</include>
+                                        <include>*JwtTokenProvider</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.70</minimum>
                                         </limit>
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.20</minimum>
+                                            <minimum>0.50</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

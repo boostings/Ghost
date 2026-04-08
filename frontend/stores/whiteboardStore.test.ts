@@ -45,4 +45,19 @@ describe('whiteboardStore', () => {
     expect(next.whiteboards).toHaveLength(0);
     expect(next.currentWhiteboard).toBeNull();
   });
+
+  it('preserves the current selection when other whiteboards change', () => {
+    const first = makeWhiteboard('wb-1', 'Data Structures');
+    const second = makeWhiteboard('wb-2', 'Algorithms');
+    const updatedSecond = { ...second, courseName: 'Advanced Algorithms' };
+
+    useWhiteboardStore.getState().setWhiteboards([first, second]);
+    useWhiteboardStore.getState().setCurrentWhiteboard(first);
+    useWhiteboardStore.getState().updateWhiteboard(updatedSecond);
+    useWhiteboardStore.getState().removeWhiteboard('wb-2');
+
+    const next = useWhiteboardStore.getState();
+    expect(next.currentWhiteboard).toEqual(first);
+    expect(next.whiteboards).toEqual([first]);
+  });
 });

@@ -6,6 +6,14 @@ import {
 } from './notificationPayloads';
 
 describe('notificationPayloads', () => {
+  it('returns null when the foreground push payload has no structured data', () => {
+    expect(
+      toForegroundNotification({
+        identifier: 'expo-id',
+      })
+    ).toBeNull();
+  });
+
   it('maps foreground push payloads into app notifications', () => {
     const notification = toForegroundNotification({
       identifier: 'expo-id',
@@ -27,6 +35,24 @@ describe('notificationPayloads', () => {
         referenceType: 'QUESTION',
         referenceId: 'q-1',
         isRead: false,
+      })
+    );
+  });
+
+  it('defaults notification identifiers and metadata when optional fields are missing', () => {
+    const notification = toForegroundNotification({
+      identifier: 'expo-fallback',
+      data: {},
+    });
+
+    expect(notification).toEqual(
+      expect.objectContaining({
+        id: 'expo-fallback',
+        type: 'COMMENT_ADDED',
+        title: '',
+        body: null,
+        referenceType: null,
+        referenceId: null,
       })
     );
   });
@@ -62,7 +88,29 @@ describe('notificationPayloads', () => {
     });
   });
 
+  it('resolves whiteboard notifications directly to whiteboard pages', () => {
+    expect(
+      resolveNotificationRoute({
+        referenceType: 'WHITEBOARD',
+        referenceId: 'wb-9',
+      })
+    ).toEqual({
+      pathname: '/whiteboard/[id]',
+      params: {
+        id: 'wb-9',
+      },
+    });
+  });
+
   it('falls back to the notifications tab for unsupported targets', () => {
+    expect(resolveNotificationRoute(undefined)).toBeNull();
+    expect(resolveNotificationRoute({ referenceType: 'QUESTION' })).toBeNull();
+    expect(
+      resolveNotificationRoute({
+        referenceType: 'COMMENT',
+        referenceId: 'c-2',
+      })
+    ).toBe('/(tabs)/notifications');
     expect(
       resolveNotificationRoute({
         referenceType: 'SYSTEM',
@@ -73,6 +121,7 @@ describe('notificationPayloads', () => {
 
   it('extracts read ids and parses realtime notification messages', () => {
     expect(getNotificationReadId({ notificationId: 'n-9' })).toBe('n-9');
+    expect(getNotificationReadId({ notificationId: 9 })).toBeNull();
     expect(
       parseRealtimeNotificationMessage(
         JSON.stringify({
@@ -96,5 +145,20 @@ describe('notificationPayloads', () => {
       isRead: false,
       createdAt: '2026-01-04T00:00:00.000Z',
     });
+  });
+
+  it('returns null for invalid realtime messages and defaults missing message fields', () => {
+    expect(parseRealtimeNotificationMessage('{invalid json')).toBeNull();
+    expect(parseRealtimeNotificationMessage(JSON.stringify({ id: 'n-10' }))).toEqual(
+      expect.objectContaining({
+        id: 'n-10',
+        type: 'COMMENT_ADDED',
+        title: '',
+        body: null,
+        referenceType: null,
+        referenceId: null,
+        isRead: false,
+      })
+    );
   });
 });

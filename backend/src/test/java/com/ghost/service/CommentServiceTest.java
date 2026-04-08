@@ -1,15 +1,21 @@
 package com.ghost.service;
 
+import com.ghost.dto.request.CreateCommentRequest;
+import com.ghost.dto.request.EditCommentRequest;
 import com.ghost.dto.response.CommentResponse;
 import com.ghost.exception.BadRequestException;
+import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.model.Comment;
 import com.ghost.model.Course;
 import com.ghost.model.FacultyUser;
+import com.ghost.model.Bookmark;
 import com.ghost.model.Question;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
+import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.CommentRepository;
@@ -24,6 +30,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -66,17 +75,21 @@ class CommentServiceTest {
     private UUID questionId;
     private UUID commentId;
     private UUID facultyId;
+    private UUID authorId;
     private User facultyUser;
+    private User authorUser;
     private Question question;
     private Comment comment;
+    private Whiteboard whiteboard;
 
     @BeforeEach
     void setUp() {
         questionId = UUID.randomUUID();
         commentId = UUID.randomUUID();
         facultyId = UUID.randomUUID();
+        authorId = UUID.randomUUID();
 
-        Whiteboard whiteboard = Whiteboard.builder()
+        whiteboard = Whiteboard.builder()
                 .id(UUID.randomUUID())
                 .course(Course.builder()
                         .courseCode("IT326")
@@ -88,8 +101,8 @@ class CommentServiceTest {
                         .build())
                 .build();
 
-        User author = User.builder()
-                .id(UUID.randomUUID())
+        authorUser = User.builder()
+                .id(authorId)
                 .firstName("Question")
                 .lastName("Author")
                 .build();
@@ -103,7 +116,7 @@ class CommentServiceTest {
         question = Question.builder()
                 .id(questionId)
                 .whiteboard(whiteboard)
-                .author(author)
+                .author(authorUser)
                 .title("Question title")
                 .status(QuestionStatus.OPEN)
                 .build();
@@ -111,10 +124,178 @@ class CommentServiceTest {
         comment = Comment.builder()
                 .id(commentId)
                 .question(question)
-                .author(author)
+                .author(authorUser)
                 .body("Answer body")
                 .isHidden(false)
+                .editDeadline(LocalDateTime.now().plusMinutes(10))
                 .build();
+    }
+
+    @Test
+    void createCommentShouldPersistAuditNotifyAndPublish() {
+        UUID commenterId = UUID.randomUUID();
+        User commenter = User.builder()
+                .id(commenterId)
+                .firstName("Casey")
+                .lastName("Commenter")
+                .build();
+        WhiteboardMembership membership = WhiteboardMembership.builder()
+                .whiteboard(whiteboard)
+                .user(commenter)
+                .role(Role.STUDENT)
+                .build();
+        CommentResponse response = CommentResponse.builder()
+                .id(commentId)
+                .questionId(questionId)
+                .authorId(commenterId)
+                .authorName("Casey Commenter")
+                .body("New comment")
+                .build();
+
+        when(questionService.getQuestionById(questionId)).thenReturn(question);
+        when(whiteboardService.verifyMembership(commenterId, whiteboard.getId())).thenReturn(membership);
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> {
+            Comment saved = invocation.getArgument(0);
+            saved.setId(commentId);
+            return saved;
+        });
+        when(commentResponseAssembler.toResponse(any(Comment.class), eq(commenterId))).thenReturn(response);
+
+        CommentResponse result = commentService.createComment(
+                commenterId,
+                questionId,
+                CreateCommentRequest.builder().body("New comment").build()
+        );
+
+        assertThat(result).isEqualTo(response);
+        verify(auditLogService).logAction(
+                whiteboard.getId(),
+                commenterId,
+                AuditAction.COMMENT_CREATED,
+                "Comment",
+                commentId,
+                null,
+                "New comment"
+        );
+        verify(notificationService).createAndSend(
+                commenterId,
+                authorId,
+                NotificationType.COMMENT_ADDED,
+                "New Comment",
+                "Someone commented on your question: " + question.getTitle(),
+                "Question",
+                questionId,
+                whiteboard.getId()
+        );
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/question/" + questionId + "/comments"),
+                any(java.util.Map.class)
+        );
+    }
+
+    @Test
+    void createCommentShouldRejectClosedQuestion() {
+        question.setStatus(QuestionStatus.CLOSED);
+        when(questionService.getQuestionById(questionId)).thenReturn(question);
+
+        assertThatThrownBy(() -> commentService.createComment(
+                authorId,
+                questionId,
+                CreateCommentRequest.builder().body("Late comment").build()
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("closed question");
+    }
+
+    @Test
+    void editCommentShouldUpdateAuditAndPublish() {
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(commentResponseAssembler.toResponse(comment, authorId)).thenReturn(
+                CommentResponse.builder()
+                        .id(commentId)
+                        .questionId(questionId)
+                        .authorId(authorId)
+                        .authorName("Question Author")
+                        .body("Edited body")
+                        .build()
+        );
+
+        CommentResponse response = commentService.editComment(
+                authorId,
+                questionId,
+                commentId,
+                EditCommentRequest.builder().body("Edited body").build()
+        );
+
+        assertThat(response.getBody()).isEqualTo("Edited body");
+        assertThat(comment.getBody()).isEqualTo("Edited body");
+        verify(auditLogService).logAction(
+                whiteboard.getId(),
+                authorId,
+                AuditAction.COMMENT_EDITED,
+                "Comment",
+                commentId,
+                "Answer body",
+                "Edited body"
+        );
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/question/" + questionId + "/comments"),
+                any(java.util.Map.class)
+        );
+    }
+
+    @Test
+    void editCommentShouldRejectExpiredDeadline() {
+        comment.setEditDeadline(LocalDateTime.now().minusMinutes(1));
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        assertThatThrownBy(() -> commentService.editComment(
+                authorId,
+                questionId,
+                commentId,
+                EditCommentRequest.builder().body("Too late").build()
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Edit deadline has passed");
+    }
+
+    @Test
+    void deleteCommentShouldAllowFacultyAndPublishDeleteEvent() {
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        commentService.deleteComment(facultyId, questionId, commentId);
+
+        verify(whiteboardService).verifyMembership(facultyId, whiteboard.getId());
+        verify(whiteboardService).verifyFacultyRole(facultyId, whiteboard.getId());
+        verify(auditLogService).logAction(
+                whiteboard.getId(),
+                facultyId,
+                AuditAction.COMMENT_DELETED,
+                "Comment",
+                commentId,
+                "Answer body",
+                null
+        );
+        verify(commentRepository).delete(comment);
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/question/" + questionId + "/comments"),
+                any(java.util.Map.class)
+        );
+    }
+
+    @Test
+    void deleteCommentShouldRejectNonAuthorNonFaculty() {
+        UUID otherUserId = UUID.randomUUID();
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(whiteboardService.verifyFacultyRole(otherUserId, whiteboard.getId()))
+                .thenThrow(new com.ghost.exception.UnauthorizedException("No faculty role"));
+
+        assertThatThrownBy(() -> commentService.deleteComment(otherUserId, questionId, commentId))
+                .isInstanceOf(com.ghost.exception.UnauthorizedException.class)
+                .hasMessageContaining("Only the author or faculty");
+
+        verify(commentRepository, never()).delete(any(Comment.class));
     }
 
     @Test
@@ -140,7 +321,17 @@ class CommentServiceTest {
                         .role(Role.FACULTY)
                         .build()
         );
-        when(bookmarkService.getBookmarksByQuestionId(questionId)).thenReturn(List.of());
+        when(bookmarkService.getBookmarksByQuestionId(questionId)).thenReturn(List.of(
+                Bookmark.builder()
+                        .user(User.builder().id(UUID.randomUUID()).build())
+                        .build(),
+                Bookmark.builder()
+                        .user(User.builder().id(facultyId).build())
+                        .build(),
+                Bookmark.builder()
+                        .user(User.builder().id(question.getAuthor().getId()).build())
+                        .build()
+        ));
 
         CommentResponse response = commentService.markAsVerifiedAnswer(facultyId, questionId, commentId);
 
@@ -157,6 +348,16 @@ class CommentServiceTest {
         );
         assertThat(response.getVerifiedById()).isEqualTo(facultyId);
         assertThat(response.isVerifiedAnswer()).isTrue();
+        verify(notificationService).createAndSend(
+                eq(facultyId),
+                any(UUID.class),
+                eq(NotificationType.QUESTION_ANSWERED),
+                eq("Bookmarked Question Answered"),
+                eq("A verified answer has been provided for: " + question.getTitle()),
+                eq("Question"),
+                eq(question.getId()),
+                eq(question.getWhiteboard().getId())
+        );
     }
 
     @Test
@@ -176,5 +377,36 @@ class CommentServiceTest {
                 .hasMessageContaining("already marked as verified answer");
 
         verify(commentRepository, never()).save(any(Comment.class));
+    }
+
+    @Test
+    void getCommentsByQuestionShouldRejectHiddenQuestion() {
+        question.setHidden(true);
+        when(questionService.getQuestionById(questionId)).thenReturn(question);
+
+        assertThatThrownBy(() -> commentService.getCommentsByQuestion(authorId, questionId, PageRequest.of(0, 20)))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Question");
+    }
+
+    @Test
+    void getCommentsByQuestionShouldMapVisibleComments() {
+        when(questionService.getQuestionById(questionId)).thenReturn(question);
+        when(commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(eq(questionId), any()))
+                .thenReturn(new PageImpl<>(List.of(comment), PageRequest.of(0, 20), 1));
+        when(commentResponseAssembler.toResponse(comment, authorId)).thenReturn(
+                CommentResponse.builder()
+                        .id(commentId)
+                        .questionId(questionId)
+                        .authorId(authorId)
+                        .authorName("Question Author")
+                        .body("Answer body")
+                        .build()
+        );
+
+        var page = commentService.getCommentsByQuestion(authorId, questionId, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().get(0).getId()).isEqualTo(commentId);
     }
 }

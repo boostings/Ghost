@@ -1,0 +1,24 @@
+server:
+  port: 0
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ghost_db}
+    username: ${SPRING_DATASOURCE_USERNAME:ghost_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:ghost_pass}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+jwt:
+  secret: ${JWT_SECRET:ghost-test-secret-change-this-value-please-32b}
+  access-expiration-ms: 900000
+  refresh-expiration-ms: 604800000
+
+logging:
+  level:
+    root: WARN
+    com.ghost: INFO

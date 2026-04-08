@@ -47,20 +47,18 @@ public class AuthService {
         String normalizedEmail = normalizeEmail(req.getEmail());
         log.debug("Processing registration for normalizedEmail={}", normalizedEmail);
 
-        // Validate email ends with @ilstu.edu
         if (!normalizedEmail.endsWith("@ilstu.edu")) {
+            log.warn("Registration rejected email={} reason=INVALID_EMAIL_DOMAIN", normalizedEmail);
             throw new BadRequestException("Email must end with @ilstu.edu");
         }
 
-        // Check if email already exists
         if (userRepository.existsByEmail(normalizedEmail)) {
+            log.warn("Registration rejected email={} reason=EMAIL_ALREADY_REGISTERED", normalizedEmail);
             throw new BadRequestException("Email is already registered");
         }
 
-        // Generate 6-digit verification code
         String verificationCode = generateVerificationCode();
 
-        // Create user with BCrypt hashed password
         User user = StudentUser.builder()
                 .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
@@ -74,10 +72,8 @@ public class AuthService {
         user = userRepository.save(user);
         log.info("User account created userId={} email={}", user.getId(), user.getEmail());
 
-        // Log verification code to console
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
         logUserAction(user.getId(), AuditAction.USER_ENLISTED, user.getId(), null, "registered");
-
     }
 
     @Transactional
@@ -88,6 +84,8 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         if (user.isEmailVerified()) {
+            log.warn("Resend verification rejected userId={} email={} reason=EMAIL_ALREADY_VERIFIED",
+                    user.getId(), user.getEmail());
             throw new BadRequestException("Email is already verified");
         }
 
@@ -98,7 +96,6 @@ public class AuthService {
         logUserAction(user.getId(), AuditAction.USER_UPDATED, user.getId(), "verification_code=rotated", "verification_code=rotated");
         log.info("Verification code rotated for userId={} email={}", user.getId(), user.getEmail());
 
-        // Log verification code to console in development.
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
     }
 
@@ -112,15 +109,21 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", req.getEmail()));
 
         if (user.isEmailVerified()) {
+            log.warn("Verify email rejected userId={} email={} reason=EMAIL_ALREADY_VERIFIED",
+                    user.getId(), user.getEmail());
             throw new BadRequestException("Email is already verified");
         }
 
         if (user.getVerificationCode() == null || !user.getVerificationCode().equals(submittedCode)) {
+            log.warn("Verify email rejected userId={} email={} reason=INVALID_CODE",
+                    user.getId(), user.getEmail());
             throw new BadRequestException("Invalid verification code");
         }
 
         if (user.getVerificationCodeExpiresAt() == null
                 || user.getVerificationCodeExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("Verify email rejected userId={} email={} reason=EXPIRED_CODE",
+                    user.getId(), user.getEmail());
             throw new BadRequestException("Verification code has expired");
         }
 
@@ -142,13 +145,19 @@ public class AuthService {
         log.debug("Processing login for normalizedEmail={}", normalizedEmail);
 
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    log.warn("Login rejected email={} reason=INVALID_CREDENTIALS", normalizedEmail);
+                    return new UnauthorizedException("Invalid email or password");
+                });
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
+            log.warn("Login rejected email={} reason=INVALID_CREDENTIALS", normalizedEmail);
             throw new UnauthorizedException("Invalid email or password");
         }
 
         if (!user.isEmailVerified()) {
+            log.warn("Login rejected userId={} email={} reason=EMAIL_NOT_VERIFIED",
+                    user.getId(), user.getEmail());
             throw new BadRequestException("Email is not verified. Please verify your email first.");
         }
 
@@ -164,6 +173,7 @@ public class AuthService {
         if (!jwtTokenProvider.validateToken(req.getRefreshToken())
                 || !jwtTokenProvider.validateTokenType(
                         req.getRefreshToken(), jwtTokenProvider.getRefreshTokenType())) {
+            log.warn("Refresh token rejected reason=INVALID_OR_EXPIRED_TOKEN");
             throw new UnauthorizedException("Invalid or expired refresh token");
         }
 
@@ -182,16 +192,17 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         if (!whiteboardRepository.findByOwnerId(userId).isEmpty()) {
+            log.warn("Delete account rejected userId={} reason=OWNS_WHITEBOARDS", userId);
             throw new BadRequestException("Transfer ownership of your whiteboards before deleting your account");
         }
 
         logUserDeletion(userId, "account_status=active", "account_status=deleted");
         userRepository.delete(user);
-        log.info("Account deleted for user: {}", userId);
+        log.info("Account deleted userId={}", userId);
     }
 
     private String generateVerificationCode() {
-        int code = 100000 + secureRandom.nextInt(900000); // generates 6-digit code
+        int code = 100000 + secureRandom.nextInt(900000);
         return String.valueOf(code);
     }
 
