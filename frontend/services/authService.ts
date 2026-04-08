@@ -4,6 +4,8 @@ import type {
   RegisterRequest,
   LoginRequest,
   VerifyEmailRequest,
+  VerifyPasswordResetCodeRequest,
+  ResetPasswordRequest,
   RefreshTokenRequest,
   UserResponse,
   UpdateUserRequest,
@@ -37,6 +39,31 @@ export const authService = {
    */
   resendVerificationCode: async (email: string): Promise<void> => {
     await api.post('/auth/resend-verification', { email });
+  },
+
+  /**
+   * Generate a password reset code for a user.
+   * POST /auth/forgot-password
+   */
+  forgotPassword: async (email: string): Promise<void> => {
+    await api.post('/auth/forgot-password', { email });
+  },
+
+  /**
+   * Verify a password reset code before allowing password change.
+   * POST /auth/verify-password-reset
+   */
+  verifyPasswordResetCode: async (data: VerifyPasswordResetCodeRequest): Promise<void> => {
+    await api.post('/auth/verify-password-reset', data);
+  },
+
+  /**
+   * Reset the user's password and return a fresh session.
+   * POST /auth/reset-password
+   */
+  resetPassword: async (data: ResetPasswordRequest): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/reset-password', data);
+    return response.data;
   },
 
   /**

@@ -3,7 +3,9 @@ package com.ghost.service;
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RefreshTokenRequest;
 import com.ghost.dto.request.RegisterRequest;
+import com.ghost.dto.request.ResetPasswordRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
+import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
@@ -103,6 +105,58 @@ public class AuthService {
     }
 
     @Transactional
+    public void startPasswordReset(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        log.debug("Processing forgot-password for normalizedEmail={}", normalizedEmail);
+
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        if (!user.isEmailVerified()) {
+            throw new BadRequestException("Email is not verified. Please verify your email first.");
+        }
+
+        String passwordResetCode = generateVerificationCode();
+        user.setPasswordResetCode(passwordResetCode);
+        user.setPasswordResetCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+        log.info("PASSWORD RESET CODE for {}: {}", user.getEmail(), passwordResetCode);
+    }
+
+    @Transactional(readOnly = true)
+    public void verifyPasswordResetCode(VerifyPasswordResetCodeRequest req) {
+        User user = getUserForPasswordReset(req.getEmail(), req.getCode());
+        log.debug("Password reset code verified for userId={} email={}", user.getId(), user.getEmail());
+    }
+
+    @Transactional
+    public AuthResponse resetPassword(ResetPasswordRequest req) {
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new BadRequestException("New password and confirm password must match");
+        }
+
+        User user = getUserForPasswordReset(req.getEmail(), req.getCode());
+        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
+        user.setPasswordResetCode(null);
+        user.setPasswordResetCodeExpiresAt(null);
+        userRepository.save(user);
+        logUserAction(
+                user.getId(),
+                AuditAction.USER_UPDATED,
+                user.getId(),
+                "password_reset=pending",
+                "password_reset=completed"
+        );
+
+        if (whiteboardMembershipService.joinDemoWhiteboardIfAvailable(user.getId())) {
+            log.info("User auto-enrolled into demo class after password reset userId={}", user.getId());
+        }
+
+        log.info("Password reset completed for userId={} email={}", user.getId(), user.getEmail());
+        return createAuthResponse(user);
+    }
+
+    @Transactional
     public AuthResponse verifyEmail(VerifyEmailRequest req) {
         String normalizedEmail = normalizeEmail(req.getEmail());
         String submittedCode = req.getCode().trim();
@@ -197,6 +251,29 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private User getUserForPasswordReset(String email, String code) {
+        String normalizedEmail = normalizeEmail(email);
+        String submittedCode = code.trim();
+
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        if (!user.isEmailVerified()) {
+            throw new BadRequestException("Email is not verified. Please verify your email first.");
+        }
+
+        if (user.getPasswordResetCode() == null || !user.getPasswordResetCode().equals(submittedCode)) {
+            throw new BadRequestException("Invalid password reset code");
+        }
+
+        if (user.getPasswordResetCodeExpiresAt() == null
+                || user.getPasswordResetCodeExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Password reset code has expired");
+        }
+
+        return user;
     }
 
     private AuthResponse createAuthResponse(User user) {

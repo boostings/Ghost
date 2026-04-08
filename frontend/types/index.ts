@@ -205,6 +205,18 @@ export interface VerifyEmailRequest {
   code: string;
 }
 
+export interface VerifyPasswordResetCodeRequest {
+  email: string;
+  code: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface RefreshTokenRequest {
   refreshToken: string;
 }
