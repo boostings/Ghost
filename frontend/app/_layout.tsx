@@ -27,6 +27,8 @@ function RootLayoutNav() {
   const inAuthGroup = segments[0] === '(auth)';
   const inOnboarding = segmentPath === '(auth)/onboarding';
   const hasValidSession = isAuthenticated && !!accessToken;
+  const shouldResolveMembership =
+    hasValidSession && (hasJoinedWhiteboard === null || inAuthGroup || isAtEntryRoute);
   const isAwaitingMembershipResolution =
     hasValidSession && hasJoinedWhiteboard === null && (inAuthGroup || isAtEntryRoute);
 
@@ -45,12 +47,14 @@ function RootLayoutNav() {
       return;
     }
 
+    if (!shouldResolveMembership) {
+      setIsMembershipLoading(false);
+      return;
+    }
+
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-    const checkMembership = async (showLoader: boolean) => {
-      if (showLoader) {
-        setIsMembershipLoading(true);
-      }
+    const checkMembership = async () => {
+      setIsMembershipLoading(true);
 
       try {
         const hasWhiteboards = await whiteboardService.hasAnyWhiteboard();
@@ -63,24 +67,18 @@ function RootLayoutNav() {
           setHasJoinedWhiteboard((previousValue) => previousValue ?? true);
         }
       } finally {
-        if (!cancelled && showLoader) {
+        if (!cancelled) {
           setIsMembershipLoading(false);
         }
       }
     };
 
-    void checkMembership(hasJoinedWhiteboard === null || inAuthGroup);
-    intervalId = setInterval(() => {
-      void checkMembership(false);
-    }, 30_000);
+    void checkMembership();
 
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
     };
-  }, [accessToken, hasJoinedWhiteboard, hasValidSession, inAuthGroup, isLoading, segmentPath]);
+  }, [accessToken, hasValidSession, isLoading, shouldResolveMembership]);
 
   useEffect(() => {
     if (!isLayoutMounted || !isRouterReady || isLoading || isMembershipLoading) {

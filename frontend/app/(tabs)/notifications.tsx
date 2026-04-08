@@ -57,16 +57,22 @@ export default function NotificationsScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const lastFetchRef = useRef(0);
+  const requestInFlightRef = useRef(false);
   const PAGE_SIZE = 20;
 
   const fetchNotifications = useCallback(
     async (options?: { page?: number; replace?: boolean }) => {
       const nextPage = options?.page ?? 0;
       const replace = options?.replace ?? true;
+      if (requestInFlightRef.current) {
+        return;
+      }
 
       if (!replace && (!hasMore || loadingMore)) {
         return;
       }
+
+      requestInFlightRef.current = true;
 
       try {
         if (replace) {
@@ -95,6 +101,7 @@ export default function NotificationsScreen() {
         } else {
           setLoadingMore(false);
         }
+        requestInFlightRef.current = false;
       }
     },
     [hasMore, loadingMore, setLoading, setNotifications]

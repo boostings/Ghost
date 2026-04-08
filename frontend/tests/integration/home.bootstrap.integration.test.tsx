@@ -35,14 +35,14 @@ const mockWhiteboardStoreState = {
 };
 
 jest.mock('expo-router', () => {
-  const React = require('react');
+  const ReactModule = require('react');
 
   return {
     useRouter: () => ({
       push: mockRouterPush,
     }),
     useFocusEffect: (callback: () => void | (() => void)) => {
-      React.useEffect(() => {
+      ReactModule.useEffect(() => {
         const cleanup = callback();
         const duplicateCleanup = callback();
 
@@ -60,32 +60,32 @@ jest.mock('expo-router', () => {
 });
 
 jest.mock('react-native-safe-area-context', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   const { View } = require('react-native');
 
   return {
     SafeAreaView: ({ children }: { children?: React.ReactNode }) =>
-      React.createElement(View, null, children),
+      ReactModule.createElement(View, null, children),
   };
 });
 
 jest.mock('expo-linear-gradient', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   const { View } = require('react-native');
 
   return {
     LinearGradient: ({ children }: { children?: React.ReactNode }) =>
-      React.createElement(View, null, children),
+      ReactModule.createElement(View, null, children),
   };
 });
 
 jest.mock('expo-camera', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   const { View } = require('react-native');
 
   return {
     CameraView: ({ children }: { children?: React.ReactNode }) =>
-      React.createElement(View, null, children),
+      ReactModule.createElement(View, null, children),
     useCameraPermissions: () =>
       [
         {
@@ -113,13 +113,13 @@ jest.mock('../../services/whiteboardService', () => ({
   },
 }));
 
-import HomeScreen from './home';
+import HomeScreen from '../../app/(tabs)/home';
 
 function createPendingPage() {
   return new Promise(() => undefined);
 }
 
-describe('HomeScreen', () => {
+describe('HomeScreen bootstrap integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockWhiteboardStoreState.whiteboards = [];

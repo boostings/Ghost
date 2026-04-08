@@ -47,4 +47,5 @@ class ApplicationSmokeTest {
                                 """))
                 .andExpect(status().isBadRequest());
     }
+
 }

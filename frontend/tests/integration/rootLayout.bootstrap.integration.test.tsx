@@ -21,15 +21,15 @@ const mockColors = {
 };
 
 jest.mock('expo-router', () => {
-  const React = require('react');
+  const ReactModule = require('react');
 
-  const Stack = ({ children }: { children?: React.ReactNode }) =>
-    React.createElement(React.Fragment, null, children);
+  const StackComponent = ({ children }: { children?: React.ReactNode }) =>
+    ReactModule.createElement(ReactModule.Fragment, null, children);
 
-  Stack.Screen = () => null;
+  StackComponent.Screen = () => null;
 
   return {
-    Stack,
+    Stack: StackComponent,
     useRootNavigationState: () => ({ key: 'root' }),
     useRouter: () => ({
       replace: mockRouterReplace,
@@ -39,11 +39,11 @@ jest.mock('expo-router', () => {
 });
 
 jest.mock('react-native-safe-area-context', () => {
-  const React = require('react');
+  const ReactModule = require('react');
 
   return {
     SafeAreaProvider: ({ children }: { children?: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
+      ReactModule.createElement(ReactModule.Fragment, null, children),
   };
 });
 
@@ -51,38 +51,38 @@ jest.mock('expo-status-bar', () => ({
   StatusBar: () => null,
 }));
 
-jest.mock('../constants/colors', () => ({
+jest.mock('../../constants/colors', () => ({
   useThemeColors: () => mockColors,
 }));
 
-jest.mock('../components', () => {
-  const React = require('react');
+jest.mock('../../components', () => {
+  const ReactModule = require('react');
 
   return {
     ErrorBoundary: ({ children }: { children?: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
+      ReactModule.createElement(ReactModule.Fragment, null, children),
     NetworkStatusBanner: () => null,
   };
 });
 
-jest.mock('../hooks/useNotifications', () => ({
+jest.mock('../../hooks/useNotifications', () => ({
   useNotifications: jest.fn(),
 }));
 
-jest.mock('../stores/authStore', () => ({
+jest.mock('../../stores/authStore', () => ({
   useAuthStore: (selector: (state: typeof mockAuthStoreState) => unknown) =>
     selector(mockAuthStoreState),
 }));
 
-jest.mock('../services/whiteboardService', () => ({
+jest.mock('../../services/whiteboardService', () => ({
   whiteboardService: {
     hasAnyWhiteboard: () => mockHasAnyWhiteboard(),
   },
 }));
 
-import RootLayout from './_layout';
+import RootLayout from '../../app/_layout';
 
-describe('RootLayout', () => {
+describe('RootLayout bootstrap integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

@@ -129,13 +129,21 @@ api.interceptors.response.use(
 
     const status = error.response?.status;
     const isAuthError = status === 401 || status === 403;
+    const isNetworkError = error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || !status;
     const isAuthEndpoint =
       originalRequest?.url?.includes('/auth/refresh') ||
       originalRequest?.url?.includes('/auth/login');
-
+      originalRequest?.url?.includes('/auth/forgot-password') ||
+      originalRequest?.url?.includes('/auth-verify-password-reset') ||
+      originalRequest?.url?.includes('/auth/reset-password');
+      
     if (__DEV__) {
-      const logLabel = isAuthError ? '[API RESPONSE AUTH]' : '[API RESPONSE ERROR]';
-      const logMethod = isAuthError ? console.warn : console.error;
+      const logLabel = isAuthError
+        ? '[API RESPONSE AUTH]'
+        : isNetworkError
+          ? '[API RESPONSE NETWORK]'
+          : '[API RESPONSE ERROR]';
+      const logMethod = isAuthError || isNetworkError ? console.warn : console.error;
 
       logMethod(logLabel, {
         method: originalRequest?.method?.toUpperCase(),
