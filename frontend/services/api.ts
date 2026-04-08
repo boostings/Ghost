@@ -131,7 +131,10 @@ api.interceptors.response.use(
     const isAuthError = status === 401 || status === 403;
     const isAuthEndpoint =
       originalRequest?.url?.includes('/auth/refresh') ||
-      originalRequest?.url?.includes('/auth/login');
+      originalRequest?.url?.includes('/auth/login') ||
+      originalRequest?.url?.includes('/auth/forgot-password') ||
+      originalRequest?.url?.includes('/auth/verify-password-reset') ||
+      originalRequest?.url?.includes('/auth/reset-password');
 
     if (__DEV__) {
       const logLabel = isAuthError ? '[API RESPONSE AUTH]' : '[API RESPONSE ERROR]';
