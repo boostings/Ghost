@@ -132,11 +132,11 @@ api.interceptors.response.use(
     const isNetworkError = error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || !status;
     const isAuthEndpoint =
       originalRequest?.url?.includes('/auth/refresh') ||
-      originalRequest?.url?.includes('/auth/login');
+      originalRequest?.url?.includes('/auth/login') ||
       originalRequest?.url?.includes('/auth/forgot-password') ||
-      originalRequest?.url?.includes('/auth-verify-password-reset') ||
+      originalRequest?.url?.includes('/auth/verify-password-reset') ||
       originalRequest?.url?.includes('/auth/reset-password');
-      
+
     if (__DEV__) {
       const logLabel = isAuthError
         ? '[API RESPONSE AUTH]'
