@@ -29,26 +29,26 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Register request received for email={}", request.getEmail());
+        log.debug("Register request received for email={}", request.getEmail());
         authService.register(request);
-        log.info("Register request completed for email={}", request.getEmail());
+        log.debug("Register request completed for email={}", request.getEmail());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PostMapping("/verify-email")
     public ResponseEntity<AuthResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
-        log.info("Verify-email request received for email={}", request.getEmail());
+        log.debug("Verify-email request received for email={}", request.getEmail());
         AuthResponse response = authService.verifyEmail(request);
-        log.info("Verify-email request completed for email={}", request.getEmail());
+        log.debug("Verify-email request completed for email={}", request.getEmail());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/resend-verification")
     public ResponseEntity<Void> resendVerification(
             @Valid @RequestBody ResendVerificationRequest request) {
-        log.info("Resend-verification request received for email={}", request.getEmail());
+        log.debug("Resend-verification request received for email={}", request.getEmail());
         authService.resendVerificationCode(request.getEmail());
-        log.info("Resend-verification request completed for email={}", request.getEmail());
+        log.debug("Resend-verification request completed for email={}", request.getEmail());
         return ResponseEntity.noContent().build();
     }
 
@@ -80,9 +80,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.info("Login request received for email={}", request.getEmail());
+        log.debug("Login request received for email={}", request.getEmail());
         AuthResponse response = authService.login(request);
-        log.info("Login request completed for email={}", request.getEmail());
+        log.debug("Login request completed for email={}", request.getEmail());
         return ResponseEntity.ok(response);
     }
 
@@ -97,9 +97,9 @@ public class AuthController {
     @DeleteMapping("/account")
     public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal String userIdStr) {
         UUID userId = UUID.fromString(userIdStr);
-        log.info("Delete-account request received for userId={}", userId);
+        log.debug("Delete-account request received for userId={}", userId);
         authService.deleteAccount(userId);
-        log.info("Delete-account request completed for userId={}", userId);
+        log.debug("Delete-account request completed for userId={}", userId);
         return ResponseEntity.noContent().build();
     }
 }

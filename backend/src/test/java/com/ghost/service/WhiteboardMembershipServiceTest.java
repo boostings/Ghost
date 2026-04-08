@@ -1,12 +1,18 @@
 package com.ghost.service;
 
+import com.ghost.dto.response.InviteInfoResponse;
+import com.ghost.dto.response.UserResponse;
+import com.ghost.exception.BadRequestException;
+import com.ghost.exception.UnauthorizedException;
 import com.ghost.mapper.UserMapper;
 import com.ghost.model.Course;
+import com.ghost.model.FacultyUser;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.Role;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import com.ghost.repository.WhiteboardRepository;
@@ -15,13 +21,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -147,5 +159,159 @@ class WhiteboardMembershipServiceTest {
                 any(),
                 any(String.class)
         );
+    }
+
+    @Test
+    void joinByInviteCodeShouldRejectWhenWhiteboardDoesNotMatchRequestedId() {
+        UUID userId = UUID.randomUUID();
+        UUID requestedWhiteboardId = UUID.randomUUID();
+        Whiteboard foundWhiteboard = Whiteboard.builder()
+                .id(UUID.randomUUID())
+                .inviteCode("JOIN326")
+                .build();
+
+        when(whiteboardRepository.findByInviteCodeIgnoreCase("JOIN326")).thenReturn(Optional.of(foundWhiteboard));
+
+        assertThatThrownBy(() -> whiteboardMembershipService.joinByInviteCode(userId, requestedWhiteboardId, " JOIN326 "))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("does not match whiteboard");
+    }
+
+    @Test
+    void joinByInviteCodeShouldCreateMembershipAndAudit() {
+        UUID userId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+        User user = User.builder().id(userId).build();
+        Whiteboard whiteboard = Whiteboard.builder()
+                .id(whiteboardId)
+                .inviteCode("JOIN326")
+                .build();
+
+        when(whiteboardRepository.findByInviteCodeIgnoreCase("JOIN326")).thenReturn(Optional.of(whiteboard));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, userId)).thenReturn(false);
+
+        whiteboardMembershipService.joinByInviteCode(userId, " JOIN326 ");
+
+        verify(whiteboardMembershipRepository).save(any(WhiteboardMembership.class));
+        verify(auditLogService).logAction(
+                whiteboardId,
+                userId,
+                AuditAction.USER_ENLISTED,
+                "User",
+                userId,
+                null,
+                "Joined via invite code"
+        );
+    }
+
+    @Test
+    void inviteFacultyShouldSaveFacultyMembershipAndLeaveWhiteboardShouldDeleteMembership() {
+        UUID ownerId = UUID.randomUUID();
+        UUID facultyId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+
+        Whiteboard whiteboard = Whiteboard.builder()
+                .id(whiteboardId)
+                .owner(User.builder().id(ownerId).build())
+                .inviteCode("JOIN326")
+                .build();
+        User faculty = FacultyUser.builder()
+                .id(facultyId)
+                .email("faculty@ilstu.edu")
+                .build();
+        WhiteboardMembership membership = WhiteboardMembership.builder()
+                .whiteboard(whiteboard)
+                .user(faculty)
+                .role(Role.FACULTY)
+                .build();
+
+        when(whiteboardRepository.findById(whiteboardId)).thenReturn(Optional.of(whiteboard));
+        when(userRepository.findByEmail("faculty@ilstu.edu")).thenReturn(Optional.of(faculty));
+        when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, facultyId)).thenReturn(false);
+        when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, facultyId))
+                .thenReturn(Optional.of(membership));
+
+        whiteboardMembershipService.inviteFaculty(ownerId, whiteboardId, " Faculty@ilstu.edu ");
+        whiteboardMembershipService.leaveWhiteboard(facultyId, whiteboardId);
+
+        verify(whiteboardMembershipRepository).save(any(WhiteboardMembership.class));
+        verify(auditLogService).logAction(
+                whiteboardId,
+                ownerId,
+                AuditAction.FACULTY_INVITED,
+                "User",
+                facultyId,
+                null,
+                "faculty@ilstu.edu"
+        );
+        verify(whiteboardMembershipRepository).delete(membership);
+        verify(auditLogService).logAction(
+                whiteboardId,
+                facultyId,
+                AuditAction.USER_LEFT_WHITEBOARD,
+                "User",
+                facultyId,
+                "member",
+                "left"
+        );
+    }
+
+    @Test
+    void getInviteInfoAndMembersShouldRequireMembershipAndFacultyRole() {
+        UUID userId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+        Whiteboard whiteboard = Whiteboard.builder()
+                .id(whiteboardId)
+                .inviteCode("JOIN326")
+                .build();
+        WhiteboardMembership facultyMembership = WhiteboardMembership.builder()
+                .whiteboard(whiteboard)
+                .role(Role.FACULTY)
+                .build();
+        User member = User.builder()
+                .id(UUID.randomUUID())
+                .email("student@ilstu.edu")
+                .build();
+        WhiteboardMembership memberRecord = WhiteboardMembership.builder()
+                .whiteboard(whiteboard)
+                .user(member)
+                .role(Role.STUDENT)
+                .build();
+        UserResponse memberResponse = UserResponse.builder()
+                .id(member.getId())
+                .email(member.getEmail())
+                .build();
+
+        when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId))
+                .thenReturn(Optional.of(facultyMembership), Optional.of(facultyMembership));
+        when(whiteboardRepository.findById(whiteboardId)).thenReturn(Optional.of(whiteboard));
+        when(whiteboardMembershipRepository.findByWhiteboardId(eq(whiteboardId), any()))
+                .thenReturn(new PageImpl<>(List.of(memberRecord), PageRequest.of(0, 20), 1));
+        when(userMapper.toResponse(member)).thenReturn(memberResponse);
+
+        InviteInfoResponse inviteInfo = whiteboardMembershipService.getInviteInfo(userId, whiteboardId);
+        var page = whiteboardMembershipService.getMemberResponses(userId, whiteboardId, PageRequest.of(0, 20));
+
+        assertThat(inviteInfo.getInviteCode()).isEqualTo("JOIN326");
+        assertThat(inviteInfo.getQrData()).isEqualTo("ghost://join/JOIN326");
+        assertThat(page.getContent()).containsExactly(memberResponse);
+    }
+
+    @Test
+    void verifyFacultyRoleShouldRejectNonFacultyMembers() {
+        UUID userId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+        WhiteboardMembership studentMembership = WhiteboardMembership.builder()
+                .whiteboard(Whiteboard.builder().id(whiteboardId).build())
+                .role(Role.STUDENT)
+                .build();
+
+        when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId))
+                .thenReturn(Optional.of(studentMembership));
+
+        assertThatThrownBy(() -> whiteboardMembershipService.verifyFacultyRole(userId, whiteboardId))
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("Only faculty members");
     }
 }

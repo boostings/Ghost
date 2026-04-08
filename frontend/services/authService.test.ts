@@ -18,6 +18,103 @@ describe('authService', () => {
     jest.clearAllMocks();
   });
 
+  it('registers, resends verification, logs in, and deletes accounts through auth endpoints', async () => {
+    apiMock.post
+      .mockResolvedValueOnce({ data: undefined })
+      .mockResolvedValueOnce({ data: undefined })
+      .mockResolvedValueOnce({
+        data: {
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          user: {
+            id: 'u-1',
+            email: 'student@ilstu.edu',
+            firstName: 'Taylor',
+            lastName: 'Student',
+            role: 'STUDENT',
+            karmaScore: 0,
+            emailVerified: true,
+            createdAt: '2026-03-25T12:00:00.000Z',
+          },
+        },
+      });
+    apiMock.delete.mockResolvedValue({ data: undefined });
+
+    await authService.register({
+      email: 'student@ilstu.edu',
+      firstName: 'Taylor',
+      lastName: 'Student',
+      password: 'Passw0rd',
+    });
+    await authService.resendVerificationCode('student@ilstu.edu');
+    const authResult = await authService.login({
+      email: 'student@ilstu.edu',
+      password: 'Passw0rd',
+    });
+    await authService.deleteAccount();
+
+    expect(authResult.accessToken).toBe('access-token');
+    expect(apiMock.post).toHaveBeenNthCalledWith(1, '/auth/register', {
+      email: 'student@ilstu.edu',
+      firstName: 'Taylor',
+      lastName: 'Student',
+      password: 'Passw0rd',
+    });
+    expect(apiMock.post).toHaveBeenNthCalledWith(2, '/auth/resend-verification', {
+      email: 'student@ilstu.edu',
+    });
+    expect(apiMock.post).toHaveBeenNthCalledWith(3, '/auth/login', {
+      email: 'student@ilstu.edu',
+      password: 'Passw0rd',
+    });
+    expect(apiMock.delete).toHaveBeenCalledWith('/auth/account');
+  });
+
+  it('verifies email and loads the authenticated user profile', async () => {
+    apiMock.post.mockResolvedValue({
+      data: {
+        accessToken: 'verified-access',
+        refreshToken: 'verified-refresh',
+        user: {
+          id: 'u-1',
+          email: 'student@ilstu.edu',
+          firstName: 'Taylor',
+          lastName: 'Student',
+          role: 'STUDENT',
+          karmaScore: 0,
+          emailVerified: true,
+          createdAt: '2026-03-25T12:00:00.000Z',
+        },
+      },
+    });
+    apiMock.get.mockResolvedValue({
+      data: {
+        id: 'u-1',
+        email: 'student@ilstu.edu',
+        firstName: 'Taylor',
+        lastName: 'Student',
+        role: 'STUDENT',
+        karmaScore: 12,
+        emailVerified: true,
+        createdAt: '2026-03-25T12:00:00.000Z',
+      },
+    });
+
+    const verified = await authService.verifyEmail({
+      email: 'student@ilstu.edu',
+      code: '123456',
+    });
+    const me = await authService.getMe();
+
+    expect(verified.user.emailVerified).toBe(true);
+    expect(me.karmaScore).toBe(12);
+    expect(apiMock.post).toHaveBeenCalledWith('/auth/verify-email', {
+      email: 'student@ilstu.edu',
+      code: '123456',
+    });
+    expect(apiMock.get).toHaveBeenCalledWith('/users/me');
+  });
+
   it('updates the current user profile through the users endpoint', async () => {
     const response = {
       data: {

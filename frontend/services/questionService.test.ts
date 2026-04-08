@@ -122,4 +122,58 @@ describe('questionService', () => {
     });
     expect(apiMock.post).toHaveBeenNthCalledWith(2, '/whiteboards/wb-1/questions/q-2/close');
   });
+
+  it('edits, forwards, and deletes questions through their scoped endpoints', async () => {
+    apiMock.put.mockResolvedValue({
+      data: {
+        id: 'q-1',
+        title: 'Updated title',
+        body: 'Updated body',
+      },
+    });
+    apiMock.post.mockResolvedValue({ data: undefined });
+    apiMock.delete.mockResolvedValue({ data: undefined });
+
+    const updated = await questionService.editQuestion('wb-1', 'q-1', {
+      title: 'Updated title',
+      body: 'Updated body',
+    });
+    await questionService.forwardQuestion('wb-1', 'q-1', {
+      facultyEmail: 'faculty@ilstu.edu',
+      reason: 'Please take this one',
+    });
+    await questionService.deleteQuestion('wb-1', 'q-1');
+
+    expect(updated).toEqual({
+      id: 'q-1',
+      title: 'Updated title',
+      body: 'Updated body',
+    });
+    expect(apiMock.put).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1', {
+      title: 'Updated title',
+      body: 'Updated body',
+    });
+    expect(apiMock.post).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1/forward', {
+      facultyEmail: 'faculty@ilstu.edu',
+      reason: 'Please take this one',
+    });
+    expect(apiMock.delete).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1');
+  });
+
+  it('supports pinning and vote aliases used by screen models', async () => {
+    apiMock.post.mockResolvedValue({ data: undefined });
+    apiMock.delete.mockResolvedValue({ data: undefined });
+
+    await questionService.pin('wb-1', 'q-1');
+    await questionService.unpin('wb-1', 'q-1');
+    await questionService.vote('q-1', 'UPVOTE');
+    await questionService.removeVote('q-1');
+
+    expect(apiMock.post).toHaveBeenNthCalledWith(1, '/whiteboards/wb-1/questions/q-1/pin');
+    expect(apiMock.delete).toHaveBeenNthCalledWith(1, '/whiteboards/wb-1/questions/q-1/pin');
+    expect(apiMock.post).toHaveBeenNthCalledWith(2, '/karma/questions/q-1/vote', {
+      voteType: 'UPVOTE',
+    });
+    expect(apiMock.delete).toHaveBeenNthCalledWith(2, '/karma/questions/q-1/vote');
+  });
 });

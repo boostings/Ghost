@@ -8,6 +8,7 @@ import { useThemeColors } from '../constants/colors';
 import { ErrorBoundary, NetworkStatusBanner } from '../components';
 import { useNotifications } from '../hooks/useNotifications';
 import { whiteboardService } from '../services/whiteboardService';
+import { getAuthRedirectTarget } from '../utils/authRedirect';
 
 function RootLayoutNav() {
   const colors = useThemeColors();
@@ -22,9 +23,14 @@ function RootLayoutNav() {
   const [hasJoinedWhiteboard, setHasJoinedWhiteboard] = useState<boolean | null>(null);
   const [isMembershipLoading, setIsMembershipLoading] = useState(false);
   const segmentPath = segments.join('/');
+  const isAtEntryRoute = segmentPath.length === 0 || segmentPath === 'index';
   const inAuthGroup = segments[0] === '(auth)';
   const inOnboarding = segmentPath === '(auth)/onboarding';
   const hasValidSession = isAuthenticated && !!accessToken;
+  const shouldResolveMembership =
+    hasValidSession && (hasJoinedWhiteboard === null || inAuthGroup || isAtEntryRoute);
+  const isAwaitingMembershipResolution =
+    hasValidSession && hasJoinedWhiteboard === null && (inAuthGroup || isAtEntryRoute);
 
   useEffect(() => {
     setIsLayoutMounted(true);
@@ -41,12 +47,14 @@ function RootLayoutNav() {
       return;
     }
 
+    if (!shouldResolveMembership) {
+      setIsMembershipLoading(false);
+      return;
+    }
+
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-    const checkMembership = async (showLoader: boolean) => {
-      if (showLoader) {
-        setIsMembershipLoading(true);
-      }
+    const checkMembership = async () => {
+      setIsMembershipLoading(true);
 
       try {
         const hasWhiteboards = await whiteboardService.hasAnyWhiteboard();
@@ -59,48 +67,38 @@ function RootLayoutNav() {
           setHasJoinedWhiteboard((previousValue) => previousValue ?? true);
         }
       } finally {
-        if (!cancelled && showLoader) {
+        if (!cancelled) {
           setIsMembershipLoading(false);
         }
       }
     };
 
-    void checkMembership(hasJoinedWhiteboard === null || inAuthGroup);
-    intervalId = setInterval(() => {
-      void checkMembership(false);
-    }, 30_000);
+    void checkMembership();
 
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
     };
-  }, [accessToken, hasJoinedWhiteboard, hasValidSession, inAuthGroup, isLoading, segmentPath]);
+  }, [accessToken, hasValidSession, isLoading, shouldResolveMembership]);
 
   useEffect(() => {
     if (!isLayoutMounted || !isRouterReady || isLoading || isMembershipLoading) {
       return;
     }
 
+    const redirectTarget = getAuthRedirectTarget({
+      hasValidSession,
+      hasJoinedWhiteboard,
+      inAuthGroup,
+      inOnboarding,
+      isAtEntryRoute,
+    });
+
+    if (!redirectTarget) {
+      return;
+    }
+
     const redirectTimer = setTimeout(() => {
-      if (!hasValidSession) {
-        if (!inAuthGroup) {
-          router.replace('/(auth)/login');
-        }
-        return;
-      }
-
-      if (hasJoinedWhiteboard === false) {
-        if (!inOnboarding) {
-          router.replace('/(auth)/onboarding');
-        }
-        return;
-      }
-
-      if (inAuthGroup) {
-        router.replace('/(tabs)/home');
-      }
+      router.replace(redirectTarget);
     }, 0);
 
     return () => {
@@ -109,6 +107,7 @@ function RootLayoutNav() {
   }, [
     hasJoinedWhiteboard,
     hasValidSession,
+    isAtEntryRoute,
     inAuthGroup,
     inOnboarding,
     isLayoutMounted,
@@ -118,7 +117,7 @@ function RootLayoutNav() {
     router,
   ]);
 
-  const showBlockingLoader = isLoading || (inAuthGroup && isMembershipLoading);
+  const showBlockingLoader = isLoading || isAwaitingMembershipResolution || isMembershipLoading;
 
   return (
     <>

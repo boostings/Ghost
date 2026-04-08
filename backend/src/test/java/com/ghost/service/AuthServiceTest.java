@@ -306,7 +306,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void deleteAccountShouldWriteAuditLogForMemberships() {
+    void regressionC8d8d8fDeleteAccountShouldWriteAuditLogForMembershipIds() {
         UUID userId = UUID.randomUUID();
         UUID whiteboardId = UUID.randomUUID();
 
