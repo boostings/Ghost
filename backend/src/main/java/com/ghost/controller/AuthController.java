@@ -3,8 +3,10 @@ package com.ghost.controller;
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RefreshTokenRequest;
 import com.ghost.dto.request.RegisterRequest;
+import com.ghost.dto.request.ResetPasswordRequest;
 import com.ghost.dto.request.ResendVerificationRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
+import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
 import com.ghost.service.AuthService;
 import jakarta.validation.Valid;
@@ -48,6 +50,32 @@ public class AuthController {
         authService.resendVerificationCode(request.getEmail());
         log.debug("Resend-verification request completed for email={}", request.getEmail());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ResendVerificationRequest request) {
+        log.info("Forgot-password request received for email={}", request.getEmail());
+        authService.startPasswordReset(request.getEmail());
+        log.info("Forgot-password request completed for email={}", request.getEmail());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/verify-password-reset")
+    public ResponseEntity<Void> verifyPasswordResetCode(
+            @Valid @RequestBody VerifyPasswordResetCodeRequest request) {
+        log.info("Verify-password-reset request received for email={}", request.getEmail());
+        authService.verifyPasswordResetCode(request);
+        log.info("Verify-password-reset request completed for email={}", request.getEmail());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        log.info("Reset-password request received for email={}", request.getEmail());
+        AuthResponse response = authService.resetPassword(request);
+        log.info("Reset-password request completed for email={}", request.getEmail());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")

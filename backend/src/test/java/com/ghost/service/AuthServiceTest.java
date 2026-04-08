@@ -2,7 +2,9 @@ package com.ghost.service;
 
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RegisterRequest;
+import com.ghost.dto.request.ResetPasswordRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
+import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.model.StudentUser;
@@ -172,6 +174,85 @@ class AuthServiceTest {
         verify(userRepository).save(user);
         assertThat(user.getVerificationCode()).matches("^\\d{6}$");
         assertThat(user.getVerificationCodeExpiresAt()).isAfter(LocalDateTime.now());
+    }
+
+    @Test
+    void startPasswordResetShouldGenerateANewCode() {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("student@ilstu.edu")
+                .passwordHash("hashed-password")
+                .firstName("Test")
+                .lastName("User")
+                .emailVerified(true)
+                .build();
+
+        when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
+
+        authService.startPasswordReset("student@ilstu.edu");
+
+        verify(userRepository).save(user);
+        assertThat(user.getPasswordResetCode()).matches("^\\d{6}$");
+        assertThat(user.getPasswordResetCodeExpiresAt()).isAfter(LocalDateTime.now());
+    }
+
+    @Test
+    void verifyPasswordResetCodeShouldRejectExpiredCode() {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("student@ilstu.edu")
+                .passwordHash("hashed-password")
+                .firstName("Test")
+                .lastName("User")
+                .emailVerified(true)
+                .passwordResetCode("123456")
+                .passwordResetCodeExpiresAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.verifyPasswordResetCode(VerifyPasswordResetCodeRequest.builder()
+                .email("student@ilstu.edu")
+                .code("123456")
+                .build()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("expired");
+    }
+
+    @Test
+    void resetPasswordShouldUpdateHashClearResetCodeAndIssueTokens() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("student@ilstu.edu")
+                .passwordHash("old-hash")
+                .firstName("Test")
+                .lastName("User")
+                .emailVerified(true)
+                .passwordResetCode("123456")
+                .passwordResetCodeExpiresAt(LocalDateTime.now().plusMinutes(5))
+                .build();
+
+        when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("password1")).thenReturn("new-hash");
+        when(jwtTokenProvider.generateAccessToken(userId, "student@ilstu.edu", Role.STUDENT.name()))
+                .thenReturn("access-token");
+        when(jwtTokenProvider.generateRefreshToken(userId)).thenReturn("refresh-token");
+
+        AuthResponse response = authService.resetPassword(ResetPasswordRequest.builder()
+                .email("student@ilstu.edu")
+                .code("123456")
+                .newPassword("password1")
+                .confirmPassword("password1")
+                .build());
+
+        verify(userRepository).save(user);
+        verify(whiteboardMembershipService).joinDemoWhiteboardIfAvailable(userId);
+        assertThat(user.getPasswordHash()).isEqualTo("new-hash");
+        assertThat(user.getPasswordResetCode()).isNull();
+        assertThat(user.getPasswordResetCodeExpiresAt()).isNull();
+        assertThat(response.getAccessToken()).isEqualTo("access-token");
+        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
     }
 
     @Test

@@ -49,6 +49,12 @@ public class User {
     @Column(name = "verification_code_expires_at")
     private LocalDateTime verificationCodeExpiresAt;
 
+    @Column(name = "password_reset_code")
+    private String passwordResetCode;
+
+    @Column(name = "password_reset_code_expires_at")
+    private LocalDateTime passwordResetCodeExpiresAt;
+
     @Column(name = "karma_score", nullable = false)
     @Builder.Default
     private int karmaScore = 0;
