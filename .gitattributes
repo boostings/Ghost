@@ -1,0 +1,9 @@
+# Linux-executed scripts must keep LF line endings across Windows checkouts.
+backend/mvnw text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+Dockerfile* text eol=lf
+
+# Windows wrapper scripts should keep CRLF line endings.
+*.cmd text eol=crlf
+*.bat text eol=crlf

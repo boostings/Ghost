@@ -7,7 +7,7 @@ WORKDIR /app
 COPY pom.xml ./
 COPY .mvn .mvn
 COPY mvnw ./
-RUN chmod +x mvnw
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
 
 # Download dependencies (cached layer unless pom.xml changes)
 RUN ./mvnw dependency:go-offline -B
