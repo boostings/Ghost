@@ -139,8 +139,7 @@ describe('questionService', () => {
       body: 'Updated body',
     });
     await questionService.forwardQuestion('wb-1', 'q-1', {
-      facultyEmail: 'faculty@ilstu.edu',
-      reason: 'Please take this one',
+      targetFacultyId: 'faculty-1',
     });
     await questionService.deleteQuestion('wb-1', 'q-1');
 
@@ -154,8 +153,7 @@ describe('questionService', () => {
       body: 'Updated body',
     });
     expect(apiMock.post).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1/forward', {
-      facultyEmail: 'faculty@ilstu.edu',
-      reason: 'Please take this one',
+      targetFacultyId: 'faculty-1',
     });
     expect(apiMock.delete).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1');
   });

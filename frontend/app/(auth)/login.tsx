@@ -14,11 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaskedView from '@react-native-masked-view/masked-view';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger } from '../../constants/motion';
+import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
@@ -56,17 +59,22 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (!validate()) return;
+    if (!validate()) {
+      haptic.error();
+      return;
+    }
 
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
       const response = await authService.login({ email: normalizedEmail, password });
+      haptic.success();
       setAuth(response.user, response.accessToken, response.refreshToken);
     } catch (error: unknown) {
       const errorMessage = extractErrorMessage(error);
 
       if (errorMessage.toLowerCase().includes('email is not verified')) {
+        haptic.warning();
         const normalizedEmail = email.trim().toLowerCase();
         router.push({
           pathname: '/(auth)/verify-email',
@@ -79,6 +87,7 @@ export default function LoginScreen() {
         return;
       }
 
+      haptic.error();
       Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
@@ -109,7 +118,10 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.header}>
+            <Animated.View
+              style={styles.header}
+              entering={FadeInDown.duration(420).delay(Stagger.hero)}
+            >
               <MaskedView
                 style={styles.logoMask}
                 maskElement={
@@ -129,9 +141,13 @@ export default function LoginScreen() {
               </MaskedView>
               <Text style={styles.title}>Ghost</Text>
               <Text style={styles.subtitle}>Office hours, 24/7.</Text>
-            </View>
+            </Animated.View>
 
-            <GlassCard style={styles.card} blurIntensity={75}>
+            <GlassCard
+              style={styles.card}
+              blurIntensity={75}
+              entering={FadeInDown.duration(460).delay(Stagger.card)}
+            >
               <Text style={styles.cardTitle}>Welcome Back</Text>
               <Text style={styles.cardSubtitle}>Sign in to continue</Text>
 
@@ -172,25 +188,27 @@ export default function LoginScreen() {
               />
             </GlassCard>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity
-                onPress={() => router.push('/(auth)/register')}
-                accessibilityRole="button"
-                accessibilityLabel="Register for a new account"
-              >
-                <Text style={styles.footerLink}>Register</Text>
-              </TouchableOpacity>
-            </View>
+            <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <TouchableOpacity
+                  onPress={() => router.push('/(auth)/register')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Register for a new account"
+                >
+                  <Text style={styles.footerLink}>Register</Text>
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity
-              style={styles.forgotPasswordButton}
-              onPress={() => router.push('/(auth)/forgot-password')}
-              accessibilityRole="button"
-              accessibilityLabel="Forgot your password"
-            >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={() => router.push('/(auth)/forgot-password')}
+                accessibilityRole="button"
+                accessibilityLabel="Forgot your password"
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

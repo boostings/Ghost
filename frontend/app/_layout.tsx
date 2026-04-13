@@ -126,6 +126,7 @@ function RootLayoutNav() {
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
           animation: 'slide_from_right',
+          animationDuration: 300,
         }}
       >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />

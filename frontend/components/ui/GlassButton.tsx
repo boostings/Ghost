@@ -1,15 +1,11 @@
 import React from 'react';
-import {
-  StyleSheet,
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { StyleSheet, Pressable, Text, ActivityIndicator, View, useColorScheme } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { type AppColors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { PRESSED_SCALE, Spring } from '../../constants/motion';
+import { haptic } from '../../utils/haptics';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -23,6 +19,8 @@ interface GlassButtonProps {
   accessibilityLabel?: string;
   solid?: boolean;
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const GlassButton: React.FC<GlassButtonProps> = ({
   title,
@@ -38,12 +36,33 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   const colors = useThemeColors();
   const variantStyles = getVariantStyles(variant, colors, solid);
 
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    if (!disabled && !loading) {
+      haptic.light();
+    }
+    scale.value = withSpring(PRESSED_SCALE, Spring.press);
+  };
+  const handlePressOut = () => {
+    scale.value = withSpring(1, Spring.press);
+  };
+
   return (
-    <TouchableOpacity
-      style={[styles.base, { borderColor: colors.surfaceBorder }, disabled && styles.disabled]}
+    <AnimatedPressable
+      style={[
+        styles.base,
+        { borderColor: colors.surfaceBorder },
+        disabled && styles.disabled,
+        animatedStyle,
+      ]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
-      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
     >
@@ -59,7 +78,7 @@ const GlassButton: React.FC<GlassButtonProps> = ({
           )}
         </View>
       </BlurView>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 

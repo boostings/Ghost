@@ -4,3 +4,8 @@ dist
 dist-smoke
 coverage
 bun.lock
+
+# Tests are exempt from Prettier checks
+**/*.test.ts
+**/*.test.tsx
+tests/

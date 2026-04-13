@@ -1,7 +1,10 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
+import { Duration } from '../constants/motion';
+import { haptic } from '../utils/haptics';
 import { CommentResponse } from '../types';
 import GlassCard from './ui/GlassCard';
 import Avatar from './ui/Avatar';
@@ -60,95 +63,112 @@ const CommentCard: React.FC<CommentCardProps> = ({
   const wasEdited = comment.updatedAt !== comment.createdAt;
 
   return (
-    <GlassCard style={[styles.card, comment.isVerifiedAnswer && styles.verifiedCard]}>
-      {/* Verified Answer Badge */}
-      {comment.isVerifiedAnswer && (
-        <View style={styles.verifiedBadge}>
-          <Text style={styles.verifiedCheckmark}>✓</Text>
-          <Text style={styles.verifiedText}>
-            {comment.verifiedByName ? `Verified by ${comment.verifiedByName}` : 'Verified Answer'}
-          </Text>
-        </View>
-      )}
+    <Animated.View
+      entering={FadeInDown.duration(Duration.slow).springify().damping(18)}
+      layout={LinearTransition.duration(Duration.slow)}
+    >
+      <GlassCard style={[styles.card, comment.isVerifiedAnswer && styles.verifiedCard]}>
+        {/* Verified Answer Badge */}
+        {comment.isVerifiedAnswer && (
+          <View style={styles.verifiedBadge}>
+            <Text style={styles.verifiedCheckmark}>✓</Text>
+            <Text style={styles.verifiedText}>
+              {comment.verifiedByName ? `Verified by ${comment.verifiedByName}` : 'Verified Answer'}
+            </Text>
+          </View>
+        )}
 
-      {/* Header: Avatar + Name + Timestamp */}
-      <View style={styles.header}>
-        <View style={styles.authorRow}>
-          <Avatar firstName={firstName} lastName={lastName} size={32} />
-          <View style={styles.authorInfo}>
-            <Text style={styles.authorName}>{comment.authorName}</Text>
-            <View style={styles.timestampRow}>
-              <Text style={styles.timestamp}>{formatTimestamp(comment.createdAt)}</Text>
-              {wasEdited && <Text style={styles.editedLabel}> (edited)</Text>}
+        {/* Header: Avatar + Name + Timestamp */}
+        <View style={styles.header}>
+          <View style={styles.authorRow}>
+            <Avatar firstName={firstName} lastName={lastName} size={32} />
+            <View style={styles.authorInfo}>
+              <Text style={styles.authorName}>{comment.authorName}</Text>
+              <View style={styles.timestampRow}>
+                <Text style={styles.timestamp}>{formatTimestamp(comment.createdAt)}</Text>
+                {wasEdited && <Text style={styles.editedLabel}> (edited)</Text>}
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Body */}
-      <Text style={styles.body}>{comment.body}</Text>
+        {/* Body */}
+        <Text style={styles.body}>{comment.body}</Text>
 
-      {/* Bottom Row: Karma + Actions */}
-      <View style={styles.bottomRow}>
-        <KarmaDisplay
-          score={comment.karmaScore}
-          userVote={comment.userVote}
-          onUpvote={onUpvote}
-          onDownvote={onDownvote}
-          size="small"
-        />
+        {/* Bottom Row: Karma + Actions */}
+        <View style={styles.bottomRow}>
+          <KarmaDisplay
+            score={comment.karmaScore}
+            userVote={comment.userVote}
+            onUpvote={onUpvote}
+            onDownvote={onDownvote}
+            size="small"
+          />
 
-        <View style={styles.actions}>
-          {/* Verify Button (faculty only) */}
-          {onVerify && !comment.isVerifiedAnswer && (
-            <TouchableOpacity
-              onPress={onVerify}
-              style={styles.actionButton}
-              accessibilityRole="button"
-              accessibilityLabel="Verify answer"
-            >
-              <Text style={styles.verifyActionText}>✓ Verify</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.actions}>
+            {/* Verify Button (faculty only) */}
+            {onVerify && !comment.isVerifiedAnswer && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptic.success();
+                  onVerify();
+                }}
+                style={styles.actionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Verify answer"
+              >
+                <Text style={styles.verifyActionText}>✓ Verify</Text>
+              </TouchableOpacity>
+            )}
 
-          {/* Edit Button (own comment, within edit window) */}
-          {isCurrentUser && comment.canEdit && onEdit && (
-            <TouchableOpacity
-              onPress={onEdit}
-              style={styles.actionButton}
-              accessibilityRole="button"
-              accessibilityLabel="Edit comment"
-            >
-              <Text style={styles.actionText}>Edit</Text>
-            </TouchableOpacity>
-          )}
+            {/* Edit Button (own comment, within edit window) */}
+            {isCurrentUser && comment.canEdit && onEdit && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptic.selection();
+                  onEdit();
+                }}
+                style={styles.actionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Edit comment"
+              >
+                <Text style={styles.actionText}>Edit</Text>
+              </TouchableOpacity>
+            )}
 
-          {/* Delete Button (own comment) */}
-          {(canDelete ?? isCurrentUser) && onDelete && (
-            <TouchableOpacity
-              onPress={onDelete}
-              style={styles.actionButton}
-              accessibilityRole="button"
-              accessibilityLabel="Delete comment"
-            >
-              <Text style={styles.dangerActionText}>Delete</Text>
-            </TouchableOpacity>
-          )}
+            {/* Delete Button (own comment) */}
+            {(canDelete ?? isCurrentUser) && onDelete && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptic.warning();
+                  onDelete();
+                }}
+                style={styles.actionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Delete comment"
+              >
+                <Text style={styles.dangerActionText}>Delete</Text>
+              </TouchableOpacity>
+            )}
 
-          {/* Report Button (not own comment) */}
-          {!isCurrentUser && onReport && (
-            <TouchableOpacity
-              onPress={onReport}
-              style={styles.actionButton}
-              accessibilityRole="button"
-              accessibilityLabel="Report comment"
-            >
-              <Text style={styles.actionText}>Report</Text>
-            </TouchableOpacity>
-          )}
+            {/* Report Button (not own comment) */}
+            {!isCurrentUser && onReport && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptic.warning();
+                  onReport();
+                }}
+                style={styles.actionButton}
+                accessibilityRole="button"
+                accessibilityLabel="Report comment"
+              >
+                <Text style={styles.actionText}>Report</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
-    </GlassCard>
+      </GlassCard>
+    </Animated.View>
   );
 };
 

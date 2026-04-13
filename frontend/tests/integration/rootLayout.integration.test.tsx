@@ -13,8 +13,6 @@ let mockAuthState = {
 let mockSegments: string[] = [];
 
 jest.mock('expo-router', () => {
-  const ReactModule = require('react');
-
   const StackComponent = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
   StackComponent.Screen = () => null;
 

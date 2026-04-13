@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   Modal,
@@ -11,9 +11,12 @@ import {
   Dimensions,
   useColorScheme,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration } from '../../constants/motion';
+import { haptic } from '../../utils/haptics';
 
 interface GlassModalProps {
   visible: boolean;
@@ -29,27 +32,45 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
   const colors = useThemeColors();
   const colorScheme = useColorScheme();
 
+  useEffect(() => {
+    if (visible) {
+      haptic.soft();
+    }
+  }, [visible]);
+
+  const handleClose = () => {
+    haptic.light();
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       statusBarTranslucent
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+        <Animated.View
+          entering={FadeIn.duration(Duration.normal)}
+          exiting={FadeOut.duration(Duration.fast)}
+          style={[styles.overlay, { backgroundColor: colors.overlay }]}
+        >
           <TouchableOpacity
             style={styles.overlayTouchable}
             activeOpacity={1}
-            onPress={onClose}
+            onPress={handleClose}
             accessibilityRole="button"
             accessibilityLabel="Close modal"
           />
-          <View style={styles.modalContainer}>
+          <Animated.View
+            entering={ZoomIn.duration(Duration.slow).springify().damping(20)}
+            style={styles.modalContainer}
+          >
             <View style={[styles.cardWrapper, { borderColor: colors.cardBorder }]}>
               <BlurView
                 intensity={80}
@@ -63,7 +84,7 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
                       {title}
                     </Text>
                     <TouchableOpacity
-                      onPress={onClose}
+                      onPress={handleClose}
                       style={[styles.closeButton, { backgroundColor: colors.surfaceLight }]}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       accessibilityRole="button"
@@ -91,8 +112,8 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
                 </View>
               </BlurView>
             </View>
-          </View>
-        </View>
+          </Animated.View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );

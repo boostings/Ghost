@@ -276,7 +276,8 @@ describe('whiteboardService', () => {
     await expect(module.whiteboardService.hasAnyWhiteboard()).resolves.toBe(false);
     await module.whiteboardService.createWhiteboard({
       courseCode: 'IT326',
-      semesterId: 'sem-1',
+      courseName: 'Systems Analysis',
+      semester: 'Spring 2026',
     });
     await expect(module.whiteboardService.hasAnyWhiteboard()).resolves.toBe(true);
     await module.whiteboardService.leaveWhiteboard('wb-1');
@@ -285,7 +286,8 @@ describe('whiteboardService', () => {
 
     expect(apiMock.post).toHaveBeenCalledWith('/whiteboards', {
       courseCode: 'IT326',
-      semesterId: 'sem-1',
+      courseName: 'Systems Analysis',
+      semester: 'Spring 2026',
     });
     expect(apiMock.post).toHaveBeenCalledWith('/whiteboards/wb-1/leave');
     expect(apiMock.delete).toHaveBeenCalledWith('/whiteboards/wb-1');

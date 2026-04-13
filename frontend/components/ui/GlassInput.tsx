@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   TextInput,
@@ -8,8 +8,15 @@ import {
   StyleProp,
   TextInputProps,
 } from 'react-native';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Ease } from '../../constants/motion';
 
 interface GlassInputProps {
   placeholder?: string;
@@ -53,24 +60,38 @@ const GlassInput: React.FC<GlassInputProps> = ({
 
   const inputHeight = multiline ? Math.max(48, numberOfLines * 24 + 24) : 48;
 
+  const focusProgress = useSharedValue(0);
+
+  useEffect(() => {
+    focusProgress.value = withTiming(isFocused ? 1 : 0, {
+      duration: Duration.normal,
+      easing: Ease.out,
+    });
+  }, [isFocused, focusProgress]);
+
+  const animatedBorderStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(
+      focusProgress.value,
+      [0, 1],
+      [colors.inputBorder, colors.primary]
+    ),
+    backgroundColor: interpolateColor(
+      focusProgress.value,
+      [0, 1],
+      [colors.inputBg, colors.surfaceLight]
+    ),
+  }));
+
   return (
     <View style={[styles.wrapper, style]}>
       {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
-      <View
+      <Animated.View
         style={[
           styles.container,
-          {
-            minHeight: inputHeight,
-            backgroundColor: colors.inputBg,
-            borderColor: colors.inputBorder,
-          },
-          isFocused
-            ? {
-                borderColor: colors.primary,
-                backgroundColor: colors.surfaceLight,
-              }
-            : null,
-          error ? { borderColor: colors.error } : null,
+          { minHeight: inputHeight },
+          error
+            ? { borderColor: colors.error, backgroundColor: colors.inputBg }
+            : animatedBorderStyle,
           !editable && styles.containerDisabled,
         ]}
       >
@@ -100,7 +121,7 @@ const GlassInput: React.FC<GlassInputProps> = ({
           onBlur={() => setIsFocused(false)}
           selectionColor={colors.primary}
         />
-      </View>
+      </Animated.View>
       {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );

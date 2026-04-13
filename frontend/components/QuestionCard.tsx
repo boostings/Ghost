@@ -1,7 +1,10 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
+import { Duration } from '../constants/motion';
+import { haptic } from '../utils/haptics';
 import { QuestionResponse } from '../types';
 import GlassCard from './ui/GlassCard';
 import Avatar from './ui/Avatar';
@@ -55,89 +58,102 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const { firstName, lastName } = parseAuthorName(question.authorName);
 
   return (
-    <GlassCard onPress={onPress} style={styles.card}>
-      {/* Hidden overlay */}
-      {question.isHidden && (
-        <View style={styles.hiddenOverlay}>
-          <Text style={styles.hiddenText}>[hidden]</Text>
-        </View>
-      )}
+    <Animated.View
+      entering={FadeInDown.duration(Duration.slow).springify().damping(18)}
+      layout={LinearTransition.duration(Duration.slow)}
+    >
+      <GlassCard onPress={onPress} style={styles.card}>
+        {/* Hidden overlay */}
+        {question.isHidden && (
+          <View style={styles.hiddenOverlay}>
+            <Text style={styles.hiddenText}>[hidden]</Text>
+          </View>
+        )}
 
-      {/* Top Row: Topic + Status + Pin */}
-      <View style={styles.topRow}>
-        <View style={styles.badges}>
-          {question.topicName && <TopicBadge name={question.topicName} style={styles.topicBadge} />}
-          <StatusBadge status={question.status} />
-        </View>
-        {question.isPinned && <Text style={styles.pinIcon}>📌</Text>}
-      </View>
-
-      {/* Title */}
-      <Text style={styles.title} numberOfLines={2}>
-        {question.title}
-      </Text>
-
-      {/* Body Preview */}
-      <Text style={styles.body} numberOfLines={3}>
-        {question.isHidden ? '[hidden]' : question.body}
-      </Text>
-
-      {/* Bottom Row */}
-      <View style={styles.bottomRow}>
-        {/* Author */}
-        <View style={styles.authorSection}>
-          <Avatar firstName={firstName} lastName={lastName} size={28} />
-          <Text style={styles.authorName} numberOfLines={1}>
-            {question.authorName}
-          </Text>
+        {/* Top Row: Topic + Status + Pin */}
+        <View style={styles.topRow}>
+          <View style={styles.badges}>
+            {question.topicName && (
+              <TopicBadge name={question.topicName} style={styles.topicBadge} />
+            )}
+            <StatusBadge status={question.status} />
+          </View>
+          {question.isPinned && <Text style={styles.pinIcon}>📌</Text>}
         </View>
 
-        {/* Actions */}
-        <View style={styles.actionsSection}>
-          {/* Karma */}
-          <KarmaDisplay
-            score={question.karmaScore}
-            userVote={question.userVote}
-            onUpvote={onUpvote}
-            onDownvote={onDownvote}
-            size="small"
-          />
+        {/* Title */}
+        <Text style={styles.title} numberOfLines={2}>
+          {question.title}
+        </Text>
 
-          {/* Comment Count */}
-          <View style={styles.commentCount}>
-            <Text style={styles.commentIcon}>💬</Text>
-            <Text style={styles.commentText}>{question.commentCount}</Text>
+        {/* Body Preview */}
+        <Text style={styles.body} numberOfLines={3}>
+          {question.isHidden ? '[hidden]' : question.body}
+        </Text>
+
+        {/* Bottom Row */}
+        <View style={styles.bottomRow}>
+          {/* Author */}
+          <View style={styles.authorSection}>
+            <Avatar firstName={firstName} lastName={lastName} size={28} />
+            <Text style={styles.authorName} numberOfLines={1}>
+              {question.authorName}
+            </Text>
           </View>
 
-          {/* Bookmark */}
-          {onBookmark && (
-            <TouchableOpacity
-              onPress={onBookmark}
-              style={styles.bookmarkButton}
-              accessibilityRole="button"
-              accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
-            >
-              <Text style={styles.bookmarkIcon}>{question.isBookmarked ? '🔖' : '🏷️'}</Text>
-            </TouchableOpacity>
-          )}
+          {/* Actions */}
+          <View style={styles.actionsSection}>
+            {/* Karma */}
+            <KarmaDisplay
+              score={question.karmaScore}
+              userVote={question.userVote}
+              onUpvote={onUpvote}
+              onDownvote={onDownvote}
+              size="small"
+            />
 
-          {/* Report */}
-          {onReport && (
-            <TouchableOpacity
-              onPress={onReport}
-              style={styles.bookmarkButton}
-              accessibilityRole="button"
-              accessibilityLabel="Report question"
-            >
-              <Text style={styles.bookmarkIcon}>{'\u{1F6A9}'}</Text>
-            </TouchableOpacity>
-          )}
+            {/* Comment Count */}
+            <View style={styles.commentCount}>
+              <Text style={styles.commentIcon}>💬</Text>
+              <Text style={styles.commentText}>{question.commentCount}</Text>
+            </View>
 
-          {/* Timestamp */}
-          <Text style={styles.timestamp}>{formatTimestamp(question.createdAt)}</Text>
+            {/* Bookmark */}
+            {onBookmark && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptic.selection();
+                  onBookmark();
+                }}
+                style={styles.bookmarkButton}
+                accessibilityRole="button"
+                accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              >
+                <Text style={styles.bookmarkIcon}>{question.isBookmarked ? '🔖' : '🏷️'}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Report */}
+            {onReport && (
+              <TouchableOpacity
+                onPress={() => {
+                  haptic.warning();
+                  onReport();
+                }}
+                style={styles.bookmarkButton}
+                accessibilityRole="button"
+                accessibilityLabel="Report question"
+              >
+                <Text style={styles.bookmarkIcon}>{'\u{1F6A9}'}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Timestamp */}
+            <Text style={styles.timestamp}>{formatTimestamp(question.createdAt)}</Text>
+          </View>
         </View>
-      </View>
-    </GlassCard>
+      </GlassCard>
+    </Animated.View>
   );
 };
 

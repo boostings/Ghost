@@ -1,9 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View, Text, useColorScheme } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { type AppColors, useThemeColors } from '../../constants/colors';
+import { Duration, Ease, Spring } from '../../constants/motion';
+import { haptic } from '../../utils/haptics';
 import { useNotificationStore } from '../../stores/notificationStore';
 
 function TabBarIcon({
@@ -31,8 +39,24 @@ function TabBarIcon({
     profile: 'Profile',
   };
 
+  const scale = useSharedValue(focused ? 1 : 0.92);
+  const opacity = useSharedValue(focused ? 1 : 0.75);
+
+  useEffect(() => {
+    scale.value = withSpring(focused ? 1.05 : 0.92, Spring.press);
+    opacity.value = withTiming(focused ? 1 : 0.75, {
+      duration: Duration.normal,
+      easing: Ease.out,
+    });
+  }, [focused, scale, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
   return (
-    <View style={tabIconStyles.container}>
+    <Animated.View style={[tabIconStyles.container, animatedStyle]}>
       <Ionicons
         name={icons[name] || 'help-circle-outline'}
         size={20}
@@ -46,7 +70,7 @@ function TabBarIcon({
       >
         {labels[name] || name}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -104,6 +128,10 @@ export default function TabLayout() {
   const colors = useThemeColors();
   const colorScheme = useColorScheme();
 
+  const tabPressListener = {
+    tabPress: () => haptic.selection(),
+  };
+
   return (
     <Tabs
       screenOptions={{
@@ -131,6 +159,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="home"
+        listeners={tabPressListener}
         options={{
           tabBarIcon: ({ focused }) => <TabBarIcon name="home" focused={focused} colors={colors} />,
           tabBarAccessibilityLabel: 'Home tab',
@@ -138,6 +167,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="search"
+        listeners={tabPressListener}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon name="search" focused={focused} colors={colors} />
@@ -147,6 +177,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="notifications"
+        listeners={tabPressListener}
         options={{
           tabBarIcon: ({ focused }) => (
             <View>
@@ -159,6 +190,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="bookmarks"
+        listeners={tabPressListener}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon name="bookmarks" focused={focused} colors={colors} />
@@ -168,6 +200,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="profile"
+        listeners={tabPressListener}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon name="profile" focused={focused} colors={colors} />

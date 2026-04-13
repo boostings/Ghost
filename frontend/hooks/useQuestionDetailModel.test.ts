@@ -113,6 +113,7 @@ function makeComment(overrides: Partial<CommentResponse> = {}): CommentResponse 
     isVerifiedAnswer: overrides.isVerifiedAnswer ?? false,
     verifiedById: overrides.verifiedById ?? null,
     verifiedByName: overrides.verifiedByName ?? null,
+    canEdit: overrides.canEdit ?? false,
     createdAt: overrides.createdAt ?? '2026-03-25T10:00:00.000Z',
     updatedAt: overrides.updatedAt ?? '2026-03-25T10:00:00.000Z',
   };
