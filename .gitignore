@@ -9,6 +9,7 @@ frontend/package-lock.json
 
 # Frontend
 frontend/node_modules/
+node_modules/
 frontend/.expo/
 frontend/dist/
 frontend/web-build/

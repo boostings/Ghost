@@ -45,7 +45,7 @@ jest.mock('../../services/authService', () => ({
   },
 }));
 
-import LoginScreen from './login';
+import LoginScreen from '../../app/(auth)/login';
 
 describe('LoginScreen', () => {
   beforeEach(() => {
