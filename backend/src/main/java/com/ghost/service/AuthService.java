@@ -91,11 +91,7 @@ public class AuthService {
             throw new BadRequestException("Email is already verified");
         }
 
-        String verificationCode = generateVerificationCode();
-        user.setVerificationCode(verificationCode);
-        user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
-        userRepository.save(user);
-        logUserAction(user.getId(), AuditAction.USER_UPDATED, user.getId(), "verification_code=rotated", "verification_code=rotated");
+        String verificationCode = rotateVerificationCode(user);
         log.info("Verification code rotated for userId={} email={}", user.getId(), user.getEmail());
 
         log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
@@ -210,9 +206,11 @@ public class AuthService {
         }
 
         if (!user.isEmailVerified()) {
+            String verificationCode = rotateVerificationCode(user);
             log.warn("Login rejected userId={} email={} reason=EMAIL_NOT_VERIFIED",
                     user.getId(), user.getEmail());
-            throw new BadRequestException("Email is not verified. Please verify your email first.");
+            log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
+            throw new BadRequestException("Email is not verified. We sent a new verification code.");
         }
 
         if (whiteboardMembershipService.joinDemoWhiteboardIfAvailable(user.getId())) {
@@ -262,6 +260,21 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String rotateVerificationCode(User user) {
+        String verificationCode = generateVerificationCode();
+        user.setVerificationCode(verificationCode);
+        user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+        logUserAction(
+                user.getId(),
+                AuditAction.USER_UPDATED,
+                user.getId(),
+                "verification_code=rotated",
+                "verification_code=rotated"
+        );
+        return verificationCode;
     }
 
     private User getUserForPasswordReset(String email, String code) {

@@ -178,3 +178,40 @@ docker compose up --build
 ```
 
 `-v` deletes persisted Postgres data.
+
+## Using a Render Postgres Database
+
+The backend now reads its datasource from environment variables first, with the local Docker database as the fallback.
+
+For a Render Postgres database, set:
+
+```bash
+SPRING_DATASOURCE_URL=jdbc:postgresql://<render-host>:5432/<render-db>?sslmode=require
+SPRING_DATASOURCE_USERNAME=<render-user>
+SPRING_DATASOURCE_PASSWORD=<render-password>
+```
+
+Notes:
+
+- Render gives you a `postgresql://...` connection string. Spring Boot should be given the JDBC form, which is the same value with `jdbc:` added in front and `?sslmode=require` appended.
+- Keep `docker compose` for local Postgres development only. If you point the backend at Render, the backend will use Render instead of the local container database.
+
+### One-Time Data Migration from Local Docker Postgres to Render
+
+Create a backup from the Dockerized local database:
+
+```bash
+docker exec ghost-postgres pg_dump -U ghost_user -d ghost_db --no-owner --no-privileges -Fc > /tmp/ghost-local.dump
+```
+
+Restore it into Render:
+
+```bash
+PGPASSWORD="<render-password>" pg_restore \
+  --no-owner \
+  --no-privileges \
+  --clean \
+  --if-exists \
+  --dbname="sslmode=require host=<render-host> port=5432 dbname=<render-db> user=<render-user> password=<render-password>" \
+  /tmp/ghost-local.dump
+```

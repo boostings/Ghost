@@ -5,15 +5,15 @@ spring:
   main:
     banner-mode: off
   datasource:
-    url: jdbc:postgresql://localhost:5432/ghost_db
-    username: ghost_user
-    password: ghost_pass
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ghost_db}
+    username: ${SPRING_DATASOURCE_USERNAME:ghost_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:ghost_pass}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      idle-timeout: 30000
-      connection-timeout: 20000
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:5}
+      idle-timeout: ${SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT:30000}
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:20000}
 
   jpa:
     hibernate:

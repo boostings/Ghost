@@ -256,7 +256,8 @@ class AuthServiceTest {
     }
 
     @Test
-    void AC1_loginShouldRejectUnverifiedUser() {
+    void AC1_loginShouldRotateVerificationCodeForUnverifiedUser() {
+        String originalCode = "111111";
         User user = User.builder()
                 .id(UUID.randomUUID())
                 .email("student@ilstu.edu")
@@ -264,6 +265,8 @@ class AuthServiceTest {
                 .firstName("Test")
                 .lastName("User")
                 .emailVerified(false)
+                .verificationCode(originalCode)
+                .verificationCodeExpiresAt(LocalDateTime.now().minusMinutes(1))
                 .build();
 
         when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
@@ -274,7 +277,12 @@ class AuthServiceTest {
                 .password("password1")
                 .build()))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("Email is not verified");
+                .hasMessageContaining("new verification code");
+
+        verify(userRepository).save(user);
+        assertThat(user.getVerificationCode()).matches("^\\d{6}$");
+        assertThat(user.getVerificationCode()).isNotEqualTo(originalCode);
+        assertThat(user.getVerificationCodeExpiresAt()).isAfter(LocalDateTime.now().minusSeconds(5));
     }
 
     @Test

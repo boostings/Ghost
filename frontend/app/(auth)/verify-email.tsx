@@ -26,8 +26,9 @@ const CODE_LENGTH = 6;
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email: string }>();
+  const params = useLocalSearchParams<{ email: string; source?: string }>();
   const email = params.email || '';
+  const source = params.source;
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
@@ -130,7 +131,11 @@ export default function VerifyEmailScreen() {
                 <Text style={styles.mailIcon}>{'✉️'}</Text>
               </View>
               <Text style={styles.title}>Check Your Email</Text>
-              <Text style={styles.subtitle}>We sent a 6-digit verification code to</Text>
+              <Text style={styles.subtitle}>
+                {source === 'login'
+                  ? 'We sent a new 6-digit verification code to'
+                  : 'We sent a 6-digit verification code to'}
+              </Text>
               <Text style={styles.emailText}>{email}</Text>
             </View>
 
@@ -178,8 +183,23 @@ export default function VerifyEmailScreen() {
             </View>
 
             {/* Back Link */}
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Text style={styles.backText}>Back to Registration</Text>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                if (source === 'login') {
+                  router.replace({
+                    pathname: '/(auth)/login',
+                    params: { email },
+                  });
+                  return;
+                }
+
+                router.back();
+              }}
+            >
+              <Text style={styles.backText}>
+                {source === 'login' ? 'Back to Sign In' : 'Back to Registration'}
+              </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

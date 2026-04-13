@@ -120,9 +120,9 @@ describe('smoke app shell', () => {
   });
 
   it('renders the login screen and shows required-field validation on submit', async () => {
-    const { getByText, findByText } = render(<LoginScreen />);
+    const { getByPlaceholderText, getByText, findByText } = render(<LoginScreen />);
 
-    fireEvent.press(getByText('Sign In'));
+    fireEvent(getByPlaceholderText('Enter your password'), 'submitEditing');
 
     expect(getByText('Welcome Back')).toBeTruthy();
     expect(await findByText('Email is required')).toBeTruthy();

@@ -58,10 +58,26 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const response = await authService.login({ email: email.trim().toLowerCase(), password });
+      const normalizedEmail = email.trim().toLowerCase();
+      const response = await authService.login({ email: normalizedEmail, password });
       setAuth(response.user, response.accessToken, response.refreshToken);
     } catch (error: unknown) {
-      Alert.alert('Login Failed', extractErrorMessage(error));
+      const errorMessage = extractErrorMessage(error);
+
+      if (errorMessage.toLowerCase().includes('email is not verified')) {
+        const normalizedEmail = email.trim().toLowerCase();
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: normalizedEmail, source: 'login' },
+        });
+        Alert.alert(
+          'Verify Email',
+          'We sent a new verification code to your email. Enter it to finish signing in.'
+        );
+        return;
+      }
+
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }
