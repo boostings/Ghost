@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -84,7 +85,19 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
+    <LinearGradient
+      colors={['#0B0D12', Colors.background, '#05070A']}
+      locations={[0, 0.55, 1]}
+      style={styles.gradient}
+    >
+      <View style={styles.heroGlow} pointerEvents="none">
+        <View style={[styles.glow, styles.glowOuter]} />
+        <View style={[styles.glow, styles.glowMiddle]} />
+        <View style={[styles.glow, styles.glowInner]} />
+        <View style={[styles.glow, styles.glowCore]} />
+      </View>
+      <View style={styles.ambientCorner} pointerEvents="none" />
+
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -95,18 +108,19 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Logo & Title */}
             <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoIcon}>{'👻'}</Text>
-              </View>
+              <Image
+                source={require('../../public/logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
               <Text style={styles.title}>Ghost</Text>
-              <Text style={styles.subtitle}>Office hours, but better.</Text>
+              <Text style={styles.subtitle}>Office hours, 24/7.</Text>
             </View>
 
-            {/* Login Card */}
-            <GlassCard style={styles.card}>
+            <GlassCard style={styles.card} blurIntensity={75}>
               <Text style={styles.cardTitle}>Welcome Back</Text>
+              <Text style={styles.cardSubtitle}>Sign in to continue</Text>
 
               <GlassInput
                 label="Email"
@@ -145,7 +159,6 @@ export default function LoginScreen() {
               />
             </GlassCard>
 
-            {/* Register Link */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
               <TouchableOpacity
@@ -175,6 +188,52 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -140,
+    left: 0,
+    right: 0,
+    height: 640,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glow: {
+    position: 'absolute',
+  },
+  glowOuter: {
+    width: 660,
+    height: 660,
+    borderRadius: 330,
+    backgroundColor: 'rgba(187, 39, 68, 0.05)',
+  },
+  glowMiddle: {
+    width: 500,
+    height: 500,
+    borderRadius: 250,
+    backgroundColor: 'rgba(187, 39, 68, 0.09)',
+  },
+  glowInner: {
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: 'rgba(187, 39, 68, 0.14)',
+  },
+  glowCore: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(187, 39, 68, 0.22)',
+  },
+  ambientCorner: {
+    position: 'absolute',
+    bottom: -220,
+    left: -140,
+    width: 460,
+    height: 460,
+    borderRadius: 230,
+    backgroundColor: 'rgba(142, 29, 52, 0.14)',
   },
   container: {
     flex: 1,
@@ -190,42 +249,43 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 36,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(187,39,68,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(187,39,68,0.4)',
-  },
-  logoIcon: {
-    fontSize: 40,
+  logo: {
+    width: 148,
+    height: 148,
+    tintColor: Colors.text,
+    marginBottom: 4,
   },
   title: {
-    fontSize: Fonts.sizes.title,
+    fontSize: 44,
     fontWeight: '800',
     color: Colors.text,
-    letterSpacing: 1,
+    letterSpacing: 2,
+    marginTop: 8,
   },
   subtitle: {
     fontSize: Fonts.sizes.lg,
     color: Colors.textSecondary,
-    marginTop: 8,
+    marginTop: 6,
+    letterSpacing: 0.3,
   },
   card: {
     marginBottom: 24,
+    borderRadius: 22,
   },
   cardTitle: {
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 24,
     textAlign: 'center',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: Fonts.sizes.md,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 22,
   },
   footer: {
     flexDirection: 'row',

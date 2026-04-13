@@ -55,6 +55,7 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers("/ws/**").authenticated()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()

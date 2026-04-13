@@ -39,6 +39,10 @@
           "cameraPermission": "Ghost needs camera access to scan QR codes for joining classes."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "apiUrl": "https://ghost-m8kb.onrender.com",
+      "wsUrl": "wss://ghost-m8kb.onrender.com"
+    }
   }
 }

@@ -1,13 +1,13 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   main:
     banner-mode: off
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ghost_db}
-    username: ${SPRING_DATASOURCE_USERNAME:ghost_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:ghost_pass}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ghost_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:ghost_user}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:ghost_pass}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}

@@ -1,0 +1,39 @@
+databases:
+  - name: ghost-db
+    databaseName: ghost_db
+    user: ghost_user
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: ghost-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_HOST
+        fromDatabase:
+          name: ghost-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ghost-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ghost-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ghost-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ghost-db
+          property: password
