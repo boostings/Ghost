@@ -44,6 +44,12 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const canSubmit =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length > 0 &&
+    confirmPassword.length > 0;
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -192,7 +198,8 @@ export default function RegisterScreen() {
                 title="Create Account"
                 onPress={handleRegister}
                 loading={loading}
-                disabled={loading}
+                disabled={loading || !canSubmit}
+                solid
               />
             </GlassCard>
 

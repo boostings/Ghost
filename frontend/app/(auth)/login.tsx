@@ -37,6 +37,8 @@ export default function LoginScreen() {
     }
   }, [params.email]);
 
+  const canSubmit = email.trim().length > 0 && password.length > 0;
+
   const validate = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
 
@@ -122,7 +124,8 @@ export default function LoginScreen() {
                 title="Sign In"
                 onPress={handleLogin}
                 loading={loading}
-                disabled={loading}
+                disabled={loading || !canSubmit}
+                solid
               />
             </GlassCard>
 

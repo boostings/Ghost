@@ -31,6 +31,7 @@ export default function NewPasswordScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const canSubmit = newPassword.length > 0 && confirmPassword.length > 0;
 
   const handleResetPassword = async () => {
     if (!email || !code) {
@@ -115,7 +116,8 @@ export default function NewPasswordScreen() {
                 title="Reset Password"
                 onPress={handleResetPassword}
                 loading={loading}
-                disabled={loading}
+                disabled={loading || !canSubmit}
+                solid
               />
             </GlassCard>
 

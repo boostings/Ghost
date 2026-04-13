@@ -81,8 +81,24 @@ const ReportModal: React.FC<ReportModalProps> = ({
     }
   };
 
+  const footer = (
+    <TouchableOpacity
+      onPress={handleSubmit}
+      style={[styles.submitButton, (!reason || submitting) && styles.submitButtonDisabled]}
+      disabled={!reason || submitting}
+      accessibilityRole="button"
+      accessibilityLabel="Send report"
+    >
+      {submitting ? (
+        <ActivityIndicator size="small" color={Colors.text} />
+      ) : (
+        <Text style={styles.submitText}>Send</Text>
+      )}
+    </TouchableOpacity>
+  );
+
   return (
-    <GlassModal visible={visible} onClose={onClose} title={title}>
+    <GlassModal visible={visible} onClose={onClose} title={title} footer={footer}>
       <Text style={styles.subtitle}>
         Select the reason and add optional context for faculty moderators.
       </Text>
@@ -115,20 +131,6 @@ const ReportModal: React.FC<ReportModalProps> = ({
         maxLength={500}
         selectionColor={Colors.primary}
       />
-
-      <TouchableOpacity
-        onPress={handleSubmit}
-        style={[styles.submitButton, (!reason || submitting) && styles.submitButtonDisabled]}
-        disabled={!reason || submitting}
-        accessibilityRole="button"
-        accessibilityLabel="Submit report"
-      >
-        {submitting ? (
-          <ActivityIndicator size="small" color={Colors.text} />
-        ) : (
-          <Text style={styles.submitText}>Submit Report</Text>
-        )}
-      </TouchableOpacity>
     </GlassModal>
   );
 };
@@ -188,7 +190,6 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.md,
     lineHeight: 20,
     textAlignVertical: 'top',
-    marginBottom: 14,
   },
   submitButton: {
     minHeight: 44,

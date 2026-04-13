@@ -33,6 +33,8 @@ function getNotificationIcon(type: string): string {
       return '\u{1F389}';
     case 'JOIN_REQUEST_REJECTED':
       return '\u274C';
+    case 'REPORT_SUBMITTED':
+      return '\u{1F6A9}';
     case 'CONTENT_HIDDEN':
       return '\u26A0\uFE0F';
     case 'POST_TRENDING':
@@ -142,7 +144,12 @@ export default function NotificationsScreen() {
         }
       }
 
-      if (notification.referenceType === 'QUESTION' && notification.referenceId) {
+      if (notification.type === 'REPORT_SUBMITTED' && notification.referenceId) {
+        router.push({
+          pathname: '/moderation/reports',
+          params: { whiteboardId: notification.referenceId },
+        });
+      } else if (notification.referenceType === 'QUESTION' && notification.referenceId) {
         router.push({
           pathname: '/question/[id]',
           params: { id: notification.referenceId },

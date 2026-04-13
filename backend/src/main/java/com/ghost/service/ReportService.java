@@ -66,6 +66,7 @@ public class ReportService {
         UUID whiteboardId;
         UUID targetId;
         String targetType;
+        String targetPreview;
 
         if (req.getQuestionId() != null) {
             Question question = questionRepository.findById(req.getQuestionId())
@@ -80,6 +81,7 @@ public class ReportService {
             whiteboardId = question.getWhiteboard().getId();
             targetId = question.getId();
             targetType = "Question";
+            targetPreview = question.getTitle();
 
             // Increment report count
             question.setReportCount(question.getReportCount() + 1);
@@ -113,6 +115,7 @@ public class ReportService {
             whiteboardId = comment.getQuestion().getWhiteboard().getId();
             targetId = comment.getId();
             targetType = "Comment";
+            targetPreview = comment.getBody();
 
             // Increment report count
             comment.setReportCount(comment.getReportCount() + 1);
@@ -137,6 +140,14 @@ public class ReportService {
 
         Report report = reportBuilder.build();
         report = reportRepository.save(report);
+        notifyFacultyOfSubmittedReport(
+                whiteboardId,
+                userId,
+                report.getId(),
+                targetType,
+                targetPreview,
+                req.getReason().name()
+        );
 
         auditLogService.logAction(
                 whiteboardId, userId, AuditAction.REPORT_SUBMITTED,
@@ -333,5 +344,51 @@ public class ReportService {
                 );
             }
         }
+    }
+
+    private void notifyFacultyOfSubmittedReport(
+            UUID whiteboardId,
+            UUID actorId,
+            UUID reportId,
+            String contentType,
+            String contentPreview,
+            String reason
+    ) {
+        List<WhiteboardMembership> members = whiteboardService.getMembers(whiteboardId);
+        String preview = contentPreview == null || contentPreview.isBlank()
+                ? "No preview available."
+                : truncate(contentPreview, 120);
+
+        for (WhiteboardMembership member : members) {
+            if (member.getRole() == Role.FACULTY) {
+                notificationService.createAndSend(
+                        actorId,
+                        member.getUser().getId(),
+                        NotificationType.REPORT_SUBMITTED,
+                        "New Report Submitted",
+                        contentType + " was reported for " + formatReason(reason) + ": " + preview,
+                        "Whiteboard",
+                        whiteboardId,
+                        whiteboardId
+                );
+                log.debug(
+                        "Report notification sent reportId={} recipientId={} whiteboardId={}",
+                        reportId,
+                        member.getUser().getId(),
+                        whiteboardId
+                );
+            }
+        }
+    }
+
+    private String formatReason(String reason) {
+        return reason == null ? "review" : reason.toLowerCase().replace('_', ' ');
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength - 3) + "...";
     }
 }

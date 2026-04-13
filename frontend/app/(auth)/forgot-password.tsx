@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { isAxiosError } from 'axios';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
@@ -25,6 +26,7 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const canSubmit = email.trim().length > 0;
 
   const validate = (): boolean => {
     if (!email.trim()) {
@@ -49,6 +51,14 @@ export default function ForgotPasswordScreen() {
         params: { email: normalizedEmail },
       });
     } catch (error: unknown) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        Alert.alert(
+          'Email Not Found',
+          'No account exists with that email. Please create an account using this email first.'
+        );
+        return;
+      }
+
       Alert.alert('Unable to Start Reset', extractErrorMessage(error));
     } finally {
       setLoading(false);
@@ -99,7 +109,8 @@ export default function ForgotPasswordScreen() {
                 title="Send Reset Code"
                 onPress={handleSendCode}
                 loading={loading}
-                disabled={loading}
+                disabled={loading || !canSubmit}
+                solid
               />
             </GlassCard>
 

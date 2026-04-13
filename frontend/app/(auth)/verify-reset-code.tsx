@@ -32,6 +32,7 @@ export default function VerifyResetCodeScreen() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const canSubmit = code.join('').length === CODE_LENGTH;
 
   const handleCodeChange = (text: string, index: number) => {
     const newCode = [...code];
@@ -159,7 +160,8 @@ export default function VerifyResetCodeScreen() {
                 title="Verify Code"
                 onPress={handleVerifyCode}
                 loading={loading}
-                disabled={loading || code.join('').length !== CODE_LENGTH}
+                disabled={loading || !canSubmit}
+                solid
               />
             </GlassCard>
 
@@ -250,18 +252,18 @@ const styles = StyleSheet.create({
   codeInput: {
     flex: 1,
     height: 56,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
-    color: Colors.text,
+    borderColor: '#D1D5DB',
+    color: '#111827',
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
     textAlign: 'center',
   },
   codeInputFilled: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(187,39,68,0.15)',
+    borderColor: '#9CA3AF',
+    backgroundColor: '#FFFFFF',
   },
   resendContainer: {
     flexDirection: 'row',

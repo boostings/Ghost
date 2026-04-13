@@ -20,11 +20,12 @@ interface GlassModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, children }) => {
+const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, children, footer }) => {
   const colors = useThemeColors();
   const colorScheme = useColorScheme();
 
@@ -81,6 +82,12 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
                   >
                     {children}
                   </ScrollView>
+
+                  {footer ? (
+                    <View style={[styles.footer, { borderTopColor: colors.surfaceBorder }]}>
+                      {footer}
+                    </View>
+                  ) : null}
                 </View>
               </BlurView>
             </View>
@@ -146,6 +153,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
+  },
+  footer: {
+    borderTopWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
 });
 

@@ -21,6 +21,7 @@ interface GlassButtonProps {
   loading?: boolean;
   icon?: React.ReactNode;
   accessibilityLabel?: string;
+  solid?: boolean;
 }
 
 const GlassButton: React.FC<GlassButtonProps> = ({
@@ -31,10 +32,11 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   loading = false,
   icon,
   accessibilityLabel,
+  solid = false,
 }) => {
   const colorScheme = useColorScheme();
   const colors = useThemeColors();
-  const variantStyles = getVariantStyles(variant, colors);
+  const variantStyles = getVariantStyles(variant, colors, solid);
 
   return (
     <TouchableOpacity
@@ -61,11 +63,11 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   );
 };
 
-function getVariantStyles(variant: ButtonVariant, colors: AppColors) {
+function getVariantStyles(variant: ButtonVariant, colors: AppColors, solid: boolean) {
   switch (variant) {
     case 'primary':
       return {
-        overlayColor: `${colors.primary}59`,
+        overlayColor: solid ? colors.primary : `${colors.primary}59`,
         textColor: '#FFFFFF',
         indicatorColor: '#FFFFFF',
       };
@@ -125,7 +127,7 @@ const styles = StyleSheet.create({
     fontWeight: Fonts.semiBold.fontWeight,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
 });
 
