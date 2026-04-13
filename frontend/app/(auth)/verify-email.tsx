@@ -194,7 +194,7 @@ export default function VerifyEmailScreen() {
                   return;
                 }
 
-                router.back();
+                router.replace('/(auth)/register');
               }}
             >
               <Text style={styles.backText}>

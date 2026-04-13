@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import MaskedView from '@react-native-masked-view/masked-view';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
@@ -109,11 +110,23 @@ export default function LoginScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Image
-                source={require('../../public/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
+              <MaskedView
+                style={styles.logoMask}
+                maskElement={
+                  <Image
+                    source={require('../../public/logo.png')}
+                    style={styles.logoMaskImage}
+                    resizeMode="contain"
+                  />
+                }
+              >
+                <LinearGradient
+                  colors={['#FFFFFF', '#F3F4F6', '#D1D5DB']}
+                  start={{ x: 0.2, y: 0 }}
+                  end={{ x: 0.8, y: 1 }}
+                  style={styles.logoFill}
+                />
+              </MaskedView>
               <Text style={styles.title}>Ghost</Text>
               <Text style={styles.subtitle}>Office hours, 24/7.</Text>
             </View>
@@ -251,11 +264,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 36,
   },
-  logo: {
+  logoMask: {
     width: 148,
     height: 148,
-    tintColor: Colors.text,
     marginBottom: 4,
+  },
+  logoMaskImage: {
+    width: 148,
+    height: 148,
+  },
+  logoFill: {
+    flex: 1,
   },
   title: {
     fontSize: 44,

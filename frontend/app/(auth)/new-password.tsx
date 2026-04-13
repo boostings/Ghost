@@ -121,7 +121,19 @@ export default function NewPasswordScreen() {
               />
             </GlassCard>
 
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                if (email) {
+                  router.replace({
+                    pathname: '/(auth)/verify-reset-code',
+                    params: { email },
+                  });
+                } else {
+                  router.replace('/(auth)/forgot-password');
+                }
+              }}
+            >
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
           </ScrollView>

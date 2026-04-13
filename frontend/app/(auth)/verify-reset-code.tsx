@@ -174,7 +174,10 @@ export default function VerifyResetCodeScreen() {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.replace('/(auth)/forgot-password')}
+            >
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
           </View>

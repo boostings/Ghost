@@ -1,38 +1,52 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Alert, Switch } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Alert, Switch, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
+import GlassModal from '../../components/ui/GlassModal';
 import Avatar from '../../components/ui/Avatar';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import { Colors } from '../../constants/colors';
+import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+
+  const performLogout = () => {
+    logout();
+    router.replace('/(auth)/login');
+  };
 
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      setLogoutDialogVisible(true);
+      return;
+    }
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => {
-          logout();
-          router.replace('/(auth)/login');
-        },
+        onPress: performLogout,
       },
     ]);
   };
 
   const handleDeleteAccount = () => {
+    if (Platform.OS === 'web') {
+      setDeleteDialogVisible(true);
+      return;
+    }
     Alert.alert(
       'Delete Account',
       'This action is permanent and cannot be undone. All your questions, comments, and data will be removed.',
@@ -41,21 +55,28 @@ export default function ProfileScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            setDeletingAccount(true);
-            try {
-              await authService.deleteAccount();
-              logout();
-              router.replace('/(auth)/login');
-            } catch {
-              Alert.alert('Error', 'Failed to delete account. Please try again.');
-            } finally {
-              setDeletingAccount(false);
-            }
-          },
+          onPress: () => void confirmDeleteAccount(),
         },
       ]
     );
+  };
+
+  const confirmDeleteAccount = async () => {
+    setDeleteDialogVisible(false);
+    setDeletingAccount(true);
+    try {
+      await authService.deleteAccount();
+      logout();
+      router.replace('/(auth)/login');
+    } catch {
+      if (Platform.OS === 'web') {
+        window.alert('Failed to delete account. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to delete account. Please try again.');
+      }
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   const firstName = user?.firstName || 'User';
@@ -66,6 +87,70 @@ export default function ProfileScreen() {
 
   return (
     <ScreenWrapper edges={['top']}>
+      <GlassModal
+        visible={logoutDialogVisible}
+        onClose={() => setLogoutDialogVisible(false)}
+        title="Log out"
+        footer={
+          <View style={styles.dialogFooter}>
+            <View style={styles.dialogFooterButton}>
+              <GlassButton
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setLogoutDialogVisible(false)}
+              />
+            </View>
+            <View style={styles.dialogFooterButton}>
+              <GlassButton
+                title="Log out"
+                variant="danger"
+                solid
+                onPress={() => {
+                  setLogoutDialogVisible(false);
+                  performLogout();
+                }}
+              />
+            </View>
+          </View>
+        }
+      >
+        <Text style={[styles.dialogMessage, { color: colors.textSecondary }]}>
+          Are you sure you want to log out?
+        </Text>
+      </GlassModal>
+
+      <GlassModal
+        visible={deleteDialogVisible}
+        onClose={() => setDeleteDialogVisible(false)}
+        title="Delete account"
+        footer={
+          <View style={styles.dialogFooter}>
+            <View style={styles.dialogFooterButton}>
+              <GlassButton
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setDeleteDialogVisible(false)}
+              />
+            </View>
+            <View style={styles.dialogFooterButton}>
+              <GlassButton
+                title="Delete"
+                variant="danger"
+                solid
+                loading={deletingAccount}
+                disabled={deletingAccount}
+                onPress={() => void confirmDeleteAccount()}
+              />
+            </View>
+          </View>
+        }
+      >
+        <Text style={[styles.dialogMessage, { color: colors.textSecondary }]}>
+          This action is permanent and cannot be undone. All your questions, comments, and data will
+          be removed.
+        </Text>
+      </GlassModal>
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -292,5 +377,17 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  dialogFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  dialogFooterButton: {
+    flex: 1,
+  },
+  dialogMessage: {
+    fontSize: Fonts.sizes.md,
+    lineHeight: 22,
   },
 });
