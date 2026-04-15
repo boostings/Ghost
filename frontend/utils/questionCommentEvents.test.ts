@@ -74,4 +74,19 @@ describe('questionCommentEvents', () => {
 
     expect(next.map((comment) => comment.id)).toEqual(['c-1', 'c-3', 'c-2']);
   });
+
+  it('does not duplicate a comment when the same id is reconciled twice', () => {
+    const existing = [makeComment({ id: 'c-1' })];
+
+    const next = reconcileCommentEvent(
+      existing,
+      JSON.stringify({
+        type: 'COMMENT_CREATED',
+        payload: makeComment({ id: 'c-1', body: 'Updated body from websocket' }),
+      })
+    );
+
+    expect(next).toHaveLength(1);
+    expect(next[0]).toEqual(expect.objectContaining({ id: 'c-1', body: 'Updated body from websocket' }));
+  });
 });

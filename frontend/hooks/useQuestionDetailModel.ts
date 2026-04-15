@@ -162,19 +162,35 @@ export function useQuestionDetailModel({
         const updatedComment = await commentService.update(questionId, editingCommentId, {
           body: sanitizedComment,
         });
-        setComments((previousComments) =>
-          sortCommentsByCreatedAt(
-            previousComments.map((comment) =>
-              comment.id === updatedComment.id ? updatedComment : comment
-            )
-          )
-        );
+        setComments((previousComments) => {
+          const existingIndex = previousComments.findIndex(
+            (comment) => comment.id === updatedComment.id
+          );
+
+          if (existingIndex >= 0) {
+            const nextComments = [...previousComments];
+            nextComments[existingIndex] = updatedComment;
+            return sortCommentsByCreatedAt(nextComments);
+          }
+
+          return sortCommentsByCreatedAt([...previousComments, updatedComment]);
+        });
         setEditingCommentId(null);
       } else {
         const newComment = await commentService.create(questionId, { body: sanitizedComment });
-        setComments((previousComments) =>
-          sortCommentsByCreatedAt([...previousComments, newComment])
-        );
+        setComments((previousComments) => {
+          const existingIndex = previousComments.findIndex(
+            (comment) => comment.id === newComment.id
+          );
+
+          if (existingIndex >= 0) {
+            const nextComments = [...previousComments];
+            nextComments[existingIndex] = newComment;
+            return sortCommentsByCreatedAt(nextComments);
+          }
+
+          return sortCommentsByCreatedAt([...previousComments, newComment]);
+        });
       }
 
       setCommentText('');
