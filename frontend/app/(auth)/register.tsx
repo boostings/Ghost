@@ -43,6 +43,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const canSubmit =
     firstName.trim().length > 0 &&
@@ -70,12 +71,16 @@ export default function RegisterScreen() {
     if (confirmErr) newErrors.confirmPassword = confirmErr;
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      setAuthError(null);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
   const handleRegister = async () => {
     if (!validate()) return;
 
+    setAuthError(null);
     setLoading(true);
     try {
       await authService.register({
@@ -89,7 +94,18 @@ export default function RegisterScreen() {
         params: { email: email.trim().toLowerCase() },
       });
     } catch (error: unknown) {
-      Alert.alert('Registration Failed', extractErrorMessage(error));
+      const errorMessage = extractErrorMessage(error);
+      const normalizedMessage = errorMessage.toLowerCase();
+
+      if (normalizedMessage.includes('email is already registered')) {
+        setErrors((prev) => ({ ...prev, email: errorMessage }));
+      } else {
+        setAuthError(errorMessage);
+      }
+
+      if (Platform.OS !== 'web') {
+        Alert.alert('Registration Failed', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -98,6 +114,10 @@ export default function RegisterScreen() {
   const clearError = (field: keyof FormErrors) => {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+
+    if (field === 'email' && authError) {
+      setAuthError(null);
     }
   };
 
@@ -157,10 +177,10 @@ export default function RegisterScreen() {
                 label="Email"
                 placeholder="you@ilstu.edu"
                 value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  clearError('email');
-                }}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      clearError('email');
+                    }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 error={errors.email}
@@ -193,6 +213,8 @@ export default function RegisterScreen() {
                 returnKeyType="done"
                 onSubmitEditing={handleRegister}
               />
+
+              {authError ? <Text style={styles.authErrorText}>{authError}</Text> : null}
 
               <GlassButton
                 title="Create Account"
@@ -254,6 +276,13 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 24,
+  },
+  authErrorText: {
+    color: Colors.error,
+    fontSize: Fonts.sizes.sm,
+    textAlign: 'center',
+    marginTop: -4,
+    marginBottom: 16,
   },
   nameRow: {
     flexDirection: 'row',
