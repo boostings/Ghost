@@ -177,9 +177,9 @@ export default function RegisterScreen() {
                 label="Email"
                 placeholder="you@ilstu.edu"
                 value={email}
-                    onChangeText={(text) => {
-                      setEmail(text);
-                      clearError('email');
+                onChangeText={(text) => {
+                  setEmail(text);
+                  clearError('email');
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
