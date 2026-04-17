@@ -34,6 +34,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   useEffect(() => {
@@ -55,6 +56,9 @@ export default function LoginScreen() {
     }
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      setAuthError(null);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -64,6 +68,7 @@ export default function LoginScreen() {
       return;
     }
 
+    setAuthError(null);
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
@@ -88,7 +93,10 @@ export default function LoginScreen() {
       }
 
       haptic.error();
-      Alert.alert('Login Failed', errorMessage);
+      setAuthError(errorMessage);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Login Failed', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -157,6 +165,7 @@ export default function LoginScreen() {
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
+                  if (authError) setAuthError(null);
                   if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
                 }}
                 keyboardType="email-address"
@@ -171,6 +180,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
+                  if (authError) setAuthError(null);
                   if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
                 }}
                 secureTextEntry
@@ -178,6 +188,8 @@ export default function LoginScreen() {
                 returnKeyType="done"
                 onSubmitEditing={handleLogin}
               />
+
+              {authError ? <Text style={styles.authErrorText}>{authError}</Text> : null}
 
               <GlassButton
                 title="Sign In"
@@ -323,6 +335,13 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginBottom: 22,
+  },
+  authErrorText: {
+    color: Colors.error,
+    fontSize: Fonts.sizes.sm,
+    textAlign: 'center',
+    marginTop: -4,
+    marginBottom: 16,
   },
   footer: {
     flexDirection: 'row',
