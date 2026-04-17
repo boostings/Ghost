@@ -180,7 +180,7 @@ export default function RegisterScreen() {
                     onChangeText={(text) => {
                       setEmail(text);
                       clearError('email');
-                    }}
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 error={errors.email}
