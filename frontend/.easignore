@@ -1,0 +1,9 @@
+node_modules
+.expo
+dist
+dist-smoke
+dist-smoke-ci
+coverage
+web-build
+*.log
+*.tsbuildinfo

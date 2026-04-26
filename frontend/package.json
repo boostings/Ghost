@@ -13,6 +13,9 @@
     "test:smoke": "jest --runInBand --coverage=false --testPathPattern=tests/smoke",
     "test:unit": "jest --runInBand --coverage --testPathIgnorePatterns=/tests/smoke/ --testPathIgnorePatterns=/tests/integration/",
     "test:integration": "jest --runInBand --coverage=false --testPathPattern=tests/integration",
+    "build:ios": "eas build -p ios --profile production",
+    "submit:ios": "eas submit -p ios --profile production",
+    "testflight": "eas build -p ios --profile production --auto-submit",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""
   },
