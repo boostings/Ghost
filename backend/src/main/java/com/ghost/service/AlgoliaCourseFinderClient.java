@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -30,12 +31,31 @@ public class AlgoliaCourseFinderClient implements CourseFinderClient {
 
     @Override
     public List<CourseFinderSection> fetchSections(String term) {
+        AlgoliaSearchResponse termSummary = query(term, List.of(), 0, 0, List.of("subject"));
+        if (termSummary != null && termSummary.nbHits() > HITS_PER_PAGE) {
+            return fetchSectionsBySubject(term, termSummary);
+        }
+        return fetchSections(term, List.of());
+    }
+
+    private List<CourseFinderSection> fetchSectionsBySubject(String term, AlgoliaSearchResponse termSummary) {
+        Map<String, Integer> subjectCounts = termSummary.facets() == null
+                ? Map.of()
+                : termSummary.facets().getOrDefault("subject", Map.of());
+
+        return subjectCounts.entrySet().stream()
+                .sorted(Comparator.comparing(Map.Entry<String, Integer>::getKey))
+                .flatMap(entry -> fetchSections(term, List.of("subject:" + entry.getKey())).stream())
+                .toList();
+    }
+
+    private List<CourseFinderSection> fetchSections(String term, List<String> extraFilters) {
         List<CourseFinderSection> sections = new ArrayList<>();
         int page = 0;
         int totalPages = 1;
 
         while (page < totalPages) {
-            AlgoliaSearchResponse response = query(term, page);
+            AlgoliaSearchResponse response = query(term, extraFilters, page, HITS_PER_PAGE, List.of());
             if (response == null || response.hits() == null) {
                 break;
             }
@@ -49,13 +69,25 @@ public class AlgoliaCourseFinderClient implements CourseFinderClient {
         return sections;
     }
 
-    private AlgoliaSearchResponse query(String term, int page) {
+    private AlgoliaSearchResponse query(
+            String term,
+            List<String> extraFilters,
+            int page,
+            int hitsPerPage,
+            List<String> facets
+    ) {
         String url = "https://" + appId + "-dsn.algolia.net/1/indexes/" + indexName + "/query";
+        List<List<String>> facetFilters = new ArrayList<>();
+        facetFilters.add(List.of("term:" + term));
+        extraFilters.forEach(filter -> facetFilters.add(List.of(filter)));
+
         Map<String, Object> request = Map.of(
                 "query", "",
-                "hitsPerPage", HITS_PER_PAGE,
+                "hitsPerPage", hitsPerPage,
                 "page", page,
-                "facetFilters", List.of(List.of("term:" + term))
+                "facetFilters", facetFilters,
+                "facets", facets,
+                "maxValuesPerFacet", 1000
         );
 
         return restClientBuilder.build()
@@ -98,7 +130,9 @@ public class AlgoliaCourseFinderClient implements CourseFinderClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record AlgoliaSearchResponse(
             List<AlgoliaHit> hits,
-            int nbPages
+            int nbPages,
+            int nbHits,
+            Map<String, Map<String, Integer>> facets
     ) {
     }
 
