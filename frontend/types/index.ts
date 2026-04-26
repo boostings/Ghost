@@ -42,8 +42,13 @@ export type AuditAction =
   | 'WHITEBOARD_CREATED'
   | 'WHITEBOARD_DELETED'
   | 'REPORT_SUBMITTED'
+  | 'REPORT_REVIEWED'
   | 'CONTENT_HIDDEN'
   | 'CONTENT_RESTORED'
+  | 'NOTIFICATION_CREATED'
+  | 'NOTIFICATION_READ'
+  | 'NOTIFICATIONS_MARKED_READ'
+  | 'COURSE_CATALOG_IMPORTED'
   | 'TOPIC_CREATED'
   | 'TOPIC_DELETED'
   | 'OWNERSHIP_TRANSFERRED';
@@ -83,6 +88,36 @@ export interface WhiteboardResponse {
   isDemo: boolean;
   memberCount: number;
   createdAt: string;
+}
+
+export interface CourseSectionResponse {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  subject: string | null;
+  catalogNumber: string | null;
+  departmentName: string | null;
+  courseDescription: string | null;
+  credit: string | null;
+  semester: string;
+  termId: string | null;
+  section: string;
+  classNumber: string;
+  instructor: string | null;
+  session: string | null;
+  career: string | null;
+  instructionMode: string | null;
+  meetingPattern: string | null;
+  meetingTimes: string | null;
+  numberOfWeeks: number | null;
+  openSection: boolean;
+  lowCostMaterialsSection: boolean;
+  noCostMaterialsSection: boolean;
+}
+
+export interface CourseCatalogImportResult {
+  allowedTerms: string[];
+  sectionsImported: number;
 }
 
 export interface QuestionResponse {

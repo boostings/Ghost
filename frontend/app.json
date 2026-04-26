@@ -26,10 +26,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "edu.ilstu.ghost",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"

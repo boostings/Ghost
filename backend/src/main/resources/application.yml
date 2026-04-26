@@ -42,6 +42,12 @@ rate-limit:
   trust-proxy-headers: false
   trusted-proxies:
 
+course-finder:
+  algolia:
+    app-id: ${COURSE_FINDER_ALGOLIA_APP_ID:BUULYNE5G7}
+    api-key: ${COURSE_FINDER_ALGOLIA_API_KEY:bcebc98a4b5c10e4c62245f43ddabe9b}
+    index-name: ${COURSE_FINDER_ALGOLIA_INDEX_NAME:coursefinder-prod}
+
 logging:
   pattern:
     level: "%5p [req:%X{requestId:-}]"

@@ -13,6 +13,7 @@ public enum AuditTargetType {
     NOTIFICATION,
     BOOKMARK,
     KARMA_VOTE,
+    COURSE_CATALOG,
     UNKNOWN;
 
     public static AuditTargetType from(String rawValue) {

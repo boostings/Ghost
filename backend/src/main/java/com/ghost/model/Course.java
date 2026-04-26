@@ -32,4 +32,22 @@ public class Course {
 
     @Column(name = "section")
     private String section;
+
+    @Column(name = "subject")
+    private String subject;
+
+    @Column(name = "catalog_number")
+    private String catalogNumber;
+
+    @Column(name = "department_name")
+    private String departmentName;
+
+    @Column(name = "course_description", columnDefinition = "text")
+    private String courseDescription;
+
+    @Column(name = "credit")
+    private String credit;
+
+    @Column(name = "source_course_id")
+    private String sourceCourseId;
 }

@@ -47,9 +47,12 @@ export const authService = {
    * POST /auth/forgot-password
    */
   forgotPassword: async (email: string): Promise<PasswordResetStartResponse> => {
-    const response = await api.post<PasswordResetStartResponse | undefined>('/auth/forgot-password', {
-      email,
-    });
+    const response = await api.post<PasswordResetStartResponse | undefined>(
+      '/auth/forgot-password',
+      {
+        email,
+      }
+    );
     return response.data ?? { nextStep: 'RESET_PASSWORD' };
   },
 
