@@ -6,6 +6,7 @@ import com.ghost.dto.request.ResetPasswordRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
+import com.ghost.dto.response.PasswordResetStartResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.model.StudentUser;
 import com.ghost.model.User;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -62,6 +64,9 @@ class AuthServiceTest {
 
     @Mock
     private AuditLogService auditLogService;
+
+    @Mock
+    private EmailService emailService;
 
     @InjectMocks
     private AuthService authService;
@@ -189,11 +194,37 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
 
-        authService.startPasswordReset("student@ilstu.edu");
+        PasswordResetStartResponse response = authService.startPasswordReset("student@ilstu.edu");
 
         verify(userRepository).save(user);
+        assertThat(response.getNextStep()).isEqualTo(PasswordResetStartResponse.NextStep.RESET_PASSWORD);
         assertThat(user.getPasswordResetCode()).matches("^\\d{6}$");
         assertThat(user.getPasswordResetCodeExpiresAt()).isAfter(LocalDateTime.now());
+    }
+
+    @Test
+    void startPasswordResetShouldSendVerificationCodeForUnverifiedUser() {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("student@ilstu.edu")
+                .passwordHash("hashed-password")
+                .firstName("Test")
+                .lastName("User")
+                .emailVerified(false)
+                .verificationCode("111111")
+                .verificationCodeExpiresAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(userRepository.findByEmail("student@ilstu.edu")).thenReturn(Optional.of(user));
+
+        PasswordResetStartResponse response = authService.startPasswordReset("student@ilstu.edu");
+
+        verify(userRepository).save(user);
+        verify(emailService).sendVerificationCode(eq("student@ilstu.edu"), anyString());
+        assertThat(response.getNextStep()).isEqualTo(PasswordResetStartResponse.NextStep.VERIFY_EMAIL);
+        assertThat(user.getVerificationCode()).matches("^\\d{6}$");
+        assertThat(user.getVerificationCodeExpiresAt()).isAfter(LocalDateTime.now());
+        assertThat(user.getPasswordResetCode()).isNull();
     }
 
     @Test

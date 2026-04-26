@@ -33,6 +33,11 @@ jwt:
   access-expiration-ms: 900000
   refresh-expiration-ms: 604800000
 
+resend:
+  api-key: ${RESEND_API_KEY:}
+  api-url: ${RESEND_API_URL:https://api.resend.com/emails}
+  from: ${RESEND_FROM:${RESEND_FROM_EMAIL:Ghost <noreply@resonating.app>}}
+
 rate-limit:
   trust-proxy-headers: false
   trusted-proxies:

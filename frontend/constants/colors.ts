@@ -86,7 +86,7 @@ export const DarkColors: AppColors = {
   closedStatus: ACCENT,
 };
 
-export function getThemeColors(scheme?: ColorSchemeName): AppColors {
+export function getThemeColors(scheme?: ColorSchemeName | null): AppColors {
   return scheme === 'dark' ? DarkColors : LightColors;
 }
 

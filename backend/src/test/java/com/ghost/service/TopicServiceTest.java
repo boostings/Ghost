@@ -170,7 +170,8 @@ class TopicServiceTest {
 
         when(topicRepository.findById(defaultTopic.getId())).thenReturn(Optional.of(defaultTopic));
         when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId))
-                .thenReturn(Optional.of(facultyMembership), Optional.of(studentMembership));
+                .thenReturn(Optional.of(facultyMembership))
+                .thenReturn(Optional.of(studentMembership));
 
         assertThatThrownBy(() -> topicService.deleteTopic(userId, whiteboardId, defaultTopic.getId()))
                 .isInstanceOf(BadRequestException.class)

@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "ghost",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -22,7 +21,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "edu.ilstu.ghost"
     },
@@ -38,7 +36,9 @@
         {
           "cameraPermission": "Ghost needs camera access to scan QR codes for joining classes."
         }
-      ]
+      ],
+      "expo-sharing",
+      "expo-font"
     ],
     "extra": {
       "apiUrl": "https://ghost-m8kb.onrender.com",

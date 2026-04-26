@@ -6,6 +6,7 @@ import com.ghost.dto.request.ResendVerificationRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
+import com.ghost.dto.response.PasswordResetStartResponse;
 import com.ghost.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,15 +67,21 @@ class AuthControllerTest {
     }
 
     @Test
-    void forgotPasswordShouldReturnNoContent() {
+    void forgotPasswordShouldReturnNextStep() {
         ResendVerificationRequest request = ResendVerificationRequest.builder()
                 .email("student@ilstu.edu")
                 .build();
+        PasswordResetStartResponse startResponse = PasswordResetStartResponse.builder()
+                .nextStep(PasswordResetStartResponse.NextStep.RESET_PASSWORD)
+                .build();
 
-        ResponseEntity<Void> response = authController.forgotPassword(request);
+        when(authService.startPasswordReset("student@ilstu.edu")).thenReturn(startResponse);
+
+        ResponseEntity<PasswordResetStartResponse> response = authController.forgotPassword(request);
 
         verify(authService).startPasswordReset("student@ilstu.edu");
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(startResponse);
     }
 
     @Test

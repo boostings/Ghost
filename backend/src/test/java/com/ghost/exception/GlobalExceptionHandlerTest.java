@@ -83,7 +83,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleHttpMessageNotReadableExceptionShouldReturnMalformedBodyMessage() {
         ResponseEntity<ApiError> response = handler.handleHttpMessageNotReadableException(
-                new HttpMessageNotReadableException("Malformed JSON")
+                new HttpMessageNotReadableException("Malformed JSON", (org.springframework.http.HttpInputMessage) null)
         );
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);

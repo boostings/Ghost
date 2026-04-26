@@ -9,6 +9,7 @@ import type {
   RefreshTokenRequest,
   UserResponse,
   UpdateUserRequest,
+  PasswordResetStartResponse,
 } from '../types';
 
 /**
@@ -45,8 +46,11 @@ export const authService = {
    * Generate a password reset code for a user.
    * POST /auth/forgot-password
    */
-  forgotPassword: async (email: string): Promise<void> => {
-    await api.post('/auth/forgot-password', { email });
+  forgotPassword: async (email: string): Promise<PasswordResetStartResponse> => {
+    const response = await api.post<PasswordResetStartResponse | undefined>('/auth/forgot-password', {
+      email,
+    });
+    return response.data ?? { nextStep: 'RESET_PASSWORD' };
   },
 
   /**

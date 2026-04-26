@@ -8,6 +8,7 @@ import com.ghost.dto.request.ResendVerificationRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
+import com.ghost.dto.response.PasswordResetStartResponse;
 import com.ghost.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,11 +54,12 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ResendVerificationRequest request) {
+    public ResponseEntity<PasswordResetStartResponse> forgotPassword(
+            @Valid @RequestBody ResendVerificationRequest request) {
         log.info("Forgot-password request received for email={}", request.getEmail());
-        authService.startPasswordReset(request.getEmail());
+        PasswordResetStartResponse response = authService.startPasswordReset(request.getEmail());
         log.info("Forgot-password request completed for email={}", request.getEmail());
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/verify-password-reset")

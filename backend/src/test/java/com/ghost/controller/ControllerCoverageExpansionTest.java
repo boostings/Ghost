@@ -251,6 +251,8 @@ class ControllerCoverageExpansionTest {
         assertThat(listed.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(listed.getBody()).isNotNull();
         assertThat(listed.getBody().getContent()).containsExactly(whiteboardResponse);
+        assertThat(discoverable.getBody()).isNotNull();
+        assertThat(discoverable.getBody().getContent()).containsExactly(whiteboardResponse);
         assertThat(listedPageable.getValue().getPageSize()).isEqualTo(100);
         assertThat(discoverablePageable.getValue().getPageSize()).isEqualTo(1);
         assertThat(oneWhiteboard.getBody()).isEqualTo(whiteboardResponse);

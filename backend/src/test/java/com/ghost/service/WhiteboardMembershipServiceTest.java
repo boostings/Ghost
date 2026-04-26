@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -284,7 +283,8 @@ class WhiteboardMembershipServiceTest {
                 .build();
 
         when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId))
-                .thenReturn(Optional.of(facultyMembership), Optional.of(facultyMembership));
+                .thenReturn(Optional.of(facultyMembership))
+                .thenReturn(Optional.of(facultyMembership));
         when(whiteboardRepository.findById(whiteboardId)).thenReturn(Optional.of(whiteboard));
         when(whiteboardMembershipRepository.findByWhiteboardId(eq(whiteboardId), any()))
                 .thenReturn(new PageImpl<>(List.of(memberRecord), PageRequest.of(0, 20), 1));

@@ -21,6 +21,8 @@ import { Fonts } from '../../constants/fonts';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
 
+const UNVERIFIED_EMAIL_MESSAGE = 'email is not verified';
+
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -44,7 +46,19 @@ export default function ForgotPasswordScreen() {
     const normalizedEmail = email.trim().toLowerCase();
     setLoading(true);
     try {
-      await authService.forgotPassword(normalizedEmail);
+      const response = await authService.forgotPassword(normalizedEmail);
+      if (response.nextStep === 'VERIFY_EMAIL') {
+        Alert.alert(
+          'Verify Email',
+          'We sent a new verification code to your email. Enter it before resetting your password.'
+        );
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: normalizedEmail, source: 'forgot-password' },
+        });
+        return;
+      }
+
       Alert.alert('Reset Code Ready', 'Use the 6-digit reset code from the backend logs.');
       router.push({
         pathname: '/(auth)/verify-reset-code',
@@ -59,7 +73,21 @@ export default function ForgotPasswordScreen() {
         return;
       }
 
-      Alert.alert('Unable to Start Reset', extractErrorMessage(error));
+      const message = extractErrorMessage(error);
+      if (message.toLowerCase().includes(UNVERIFIED_EMAIL_MESSAGE)) {
+        await authService.resendVerificationCode(normalizedEmail);
+        Alert.alert(
+          'Verify Email',
+          'We sent a new verification code to your email. Enter it before resetting your password.'
+        );
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: normalizedEmail, source: 'forgot-password' },
+        });
+        return;
+      }
+
+      Alert.alert('Unable to Start Reset', message);
     } finally {
       setLoading(false);
     }

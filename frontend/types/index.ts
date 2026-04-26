@@ -67,6 +67,10 @@ export interface AuthResponse {
   user: UserResponse;
 }
 
+export interface PasswordResetStartResponse {
+  nextStep: 'RESET_PASSWORD' | 'VERIFY_EMAIL';
+}
+
 export interface WhiteboardResponse {
   id: string;
   courseCode: string;

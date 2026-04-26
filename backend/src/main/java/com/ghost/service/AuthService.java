@@ -7,6 +7,7 @@ import com.ghost.dto.request.ResetPasswordRequest;
 import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
+import com.ghost.dto.response.PasswordResetStartResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
@@ -42,6 +43,7 @@ public class AuthService {
     private final WhiteboardRepository whiteboardRepository;
     private final WhiteboardMembershipService whiteboardMembershipService;
     private final AuditLogService auditLogService;
+    private final EmailService emailService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -74,7 +76,7 @@ public class AuthService {
         user = userRepository.save(user);
         log.info("User account created userId={} email={}", user.getId(), user.getEmail());
 
-        log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
+        emailService.sendVerificationCode(user.getEmail(), verificationCode);
         logUserAction(user.getId(), AuditAction.USER_ENLISTED, user.getId(), null, "registered");
     }
 
@@ -94,11 +96,11 @@ public class AuthService {
         String verificationCode = rotateVerificationCode(user);
         log.info("Verification code rotated for userId={} email={}", user.getId(), user.getEmail());
 
-        log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
+        emailService.sendVerificationCode(user.getEmail(), verificationCode);
     }
 
     @Transactional
-    public void startPasswordReset(String email) {
+    public PasswordResetStartResponse startPasswordReset(String email) {
         String normalizedEmail = normalizeEmail(email);
         log.debug("Processing forgot-password for normalizedEmail={}", normalizedEmail);
 
@@ -106,14 +108,21 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         if (!user.isEmailVerified()) {
-            throw new BadRequestException("Email is not verified. Please verify your email first.");
+            String verificationCode = rotateVerificationCode(user);
+            emailService.sendVerificationCode(user.getEmail(), verificationCode);
+            return PasswordResetStartResponse.builder()
+                    .nextStep(PasswordResetStartResponse.NextStep.VERIFY_EMAIL)
+                    .build();
         }
 
         String passwordResetCode = generateVerificationCode();
         user.setPasswordResetCode(passwordResetCode);
         user.setPasswordResetCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
-        log.info("PASSWORD RESET CODE for {}: {}", user.getEmail(), passwordResetCode);
+        emailService.sendPasswordResetCode(user.getEmail(), passwordResetCode);
+        return PasswordResetStartResponse.builder()
+                .nextStep(PasswordResetStartResponse.NextStep.RESET_PASSWORD)
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -209,7 +218,7 @@ public class AuthService {
             String verificationCode = rotateVerificationCode(user);
             log.warn("Login rejected userId={} email={} reason=EMAIL_NOT_VERIFIED",
                     user.getId(), user.getEmail());
-            log.info("VERIFICATION CODE for {}: {}", user.getEmail(), verificationCode);
+            emailService.sendVerificationCode(user.getEmail(), verificationCode);
             throw new BadRequestException("Email is not verified. We sent a new verification code.");
         }
 
