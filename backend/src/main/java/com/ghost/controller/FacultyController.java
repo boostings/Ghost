@@ -17,7 +17,6 @@ import com.ghost.dto.response.TopicResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.service.AuditLogService;
-import com.ghost.service.CommentService;
 import com.ghost.service.QuestionService;
 import com.ghost.service.ReportService;
 import com.ghost.service.TopicService;
@@ -42,7 +41,6 @@ public class FacultyController {
 
     private final WhiteboardService whiteboardService;
     private final QuestionService questionService;
-    private final CommentService commentService;
     private final TopicService topicService;
     private final ReportService reportService;
     private final AuditLogService auditLogService;
@@ -174,13 +172,14 @@ public class FacultyController {
         return ResponseEntity.ok(questionService.forwardQuestion(userId, wbId, qId, request));
     }
 
-    @PostMapping("/questions/{qId}/comments/{commentId}/verify")
+    @PostMapping("/whiteboards/{wbId}/questions/{qId}/comments/{commentId}/verify")
     public ResponseEntity<CommentResponse> markAsVerifiedAnswer(
             @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
             @PathVariable UUID qId,
             @PathVariable UUID commentId) {
         UUID userId = UUID.fromString(userIdStr);
-        return ResponseEntity.ok(commentService.markAsVerifiedAnswer(userId, qId, commentId));
+        return ResponseEntity.ok(questionService.markAsVerifiedAnswer(userId, qId, commentId));
     }
 
     @PostMapping("/whiteboards/{wbId}/topics")

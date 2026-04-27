@@ -1,8 +1,11 @@
 package com.ghost.controller;
 
+import com.ghost.dto.request.CreateCommentRequest;
 import com.ghost.dto.request.CreateQuestionRequest;
+import com.ghost.dto.request.EditCommentRequest;
 import com.ghost.dto.request.EditQuestionRequest;
 import com.ghost.dto.request.ForwardQuestionRequest;
+import com.ghost.dto.response.CommentResponse;
 import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.service.QuestionService;
@@ -119,5 +122,63 @@ public class QuestionController {
         UUID userId = UUID.fromString(userIdStr);
         questionService.forwardQuestion(userId, wbId, id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/comments")
+    public ResponseEntity<CommentResponse> createComment(
+            @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateCommentRequest request) {
+        UUID userId = UUID.fromString(userIdStr);
+        CommentResponse comment = questionService.createComment(userId, id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(comment);
+    }
+
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<PageResponse<CommentResponse>> getComments(
+            @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        UUID userId = UUID.fromString(userIdStr);
+        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Page<CommentResponse> comments = questionService.getCommentsByQuestion(userId, id, pageable);
+        return ResponseEntity.ok(PageResponse.from(comments));
+    }
+
+    @PutMapping("/{qId}/comments/{commentId}")
+    public ResponseEntity<CommentResponse> updateComment(
+            @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
+            @PathVariable UUID qId,
+            @PathVariable UUID commentId,
+            @Valid @RequestBody EditCommentRequest request) {
+        UUID userId = UUID.fromString(userIdStr);
+        CommentResponse comment = questionService.editComment(userId, qId, commentId, request);
+        return ResponseEntity.ok(comment);
+    }
+
+    @DeleteMapping("/{qId}/comments/{commentId}")
+    public ResponseEntity<Void> deleteComment(
+            @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
+            @PathVariable UUID qId,
+            @PathVariable UUID commentId) {
+        UUID userId = UUID.fromString(userIdStr);
+        questionService.deleteComment(userId, qId, commentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{qId}/comments/{commentId}/verify")
+    public ResponseEntity<CommentResponse> verifyComment(
+            @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
+            @PathVariable UUID qId,
+            @PathVariable UUID commentId) {
+        UUID userId = UUID.fromString(userIdStr);
+        CommentResponse comment = questionService.markAsVerifiedAnswer(userId, qId, commentId);
+        return ResponseEntity.ok(comment);
     }
 }

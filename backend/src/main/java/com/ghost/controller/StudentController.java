@@ -13,7 +13,6 @@ import com.ghost.dto.response.JoinRequestResponse;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.dto.response.ReportResponse;
 import com.ghost.service.BookmarkService;
-import com.ghost.service.CommentService;
 import com.ghost.service.KarmaService;
 import com.ghost.service.QuestionService;
 import com.ghost.service.ReportService;
@@ -33,7 +32,6 @@ import java.util.UUID;
 public class StudentController {
 
     private final QuestionService questionService;
-    private final CommentService commentService;
     private final KarmaService karmaService;
     private final BookmarkService bookmarkService;
     private final ReportService reportService;
@@ -69,33 +67,36 @@ public class StudentController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/questions/{qId}/comments")
+    @PostMapping("/whiteboards/{wbId}/questions/{qId}/comments")
     public ResponseEntity<CommentResponse> createComment(
             @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
             @PathVariable UUID qId,
             @Valid @RequestBody CreateCommentRequest request) {
         UUID userId = UUID.fromString(userIdStr);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(commentService.createComment(userId, qId, request));
+                .body(questionService.createComment(userId, qId, request));
     }
 
-    @PutMapping("/questions/{qId}/comments/{commentId}")
+    @PutMapping("/whiteboards/{wbId}/questions/{qId}/comments/{commentId}")
     public ResponseEntity<CommentResponse> editComment(
             @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
             @PathVariable UUID qId,
             @PathVariable UUID commentId,
             @Valid @RequestBody EditCommentRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        return ResponseEntity.ok(commentService.editComment(userId, qId, commentId, request));
+        return ResponseEntity.ok(questionService.editComment(userId, qId, commentId, request));
     }
 
-    @DeleteMapping("/questions/{qId}/comments/{commentId}")
+    @DeleteMapping("/whiteboards/{wbId}/questions/{qId}/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
             @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID wbId,
             @PathVariable UUID qId,
             @PathVariable UUID commentId) {
         UUID userId = UUID.fromString(userIdStr);
-        commentService.deleteComment(userId, qId, commentId);
+        questionService.deleteComment(userId, qId, commentId);
         return ResponseEntity.noContent().build();
     }
 

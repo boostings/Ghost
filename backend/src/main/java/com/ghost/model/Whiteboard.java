@@ -66,7 +66,7 @@ public class Whiteboard {
     @Builder.Default
     private List<Question> questions = new ArrayList<>();
 
-    @OneToMany(mappedBy = "whiteboard", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "whiteboard", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Builder.Default
