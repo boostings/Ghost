@@ -78,9 +78,10 @@ public class CourseCatalogService {
         String normalizedSemester = normalizeOptional(semester);
         String normalizedQuery = normalizeOptional(query);
         String normalizedSubject = normalizeUpperOptional(subject);
+        String squashedQuery = normalizedQuery == null ? null : normalizedQuery.replaceAll("\\s+", "");
 
         return courseSectionRepository
-                .searchSections(normalizedSemester, normalizedQuery, normalizedSubject, pageable)
+                .searchSections(normalizedSemester, normalizedQuery, squashedQuery, normalizedSubject, pageable)
                 .map(courseSectionMapper::toResponse);
     }
 

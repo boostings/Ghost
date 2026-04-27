@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -384,6 +385,12 @@ export default function HomeScreen() {
           </Text>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
         </View>
+        <Image
+          source={require('../../public/logo.png')}
+          style={[styles.headerLogo, { tintColor: colors.text }]}
+          resizeMode="contain"
+          accessibilityLabel="Ghost logo"
+        />
       </Animated.View>
 
       {isLoading && whiteboards.length === 0 ? (
@@ -548,6 +555,11 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     fontWeight: '900',
     letterSpacing: -0.6,
+  },
+  headerLogo: {
+    width: 52,
+    height: 52,
+    marginLeft: 12,
   },
   loadingContainer: {
     flex: 1,

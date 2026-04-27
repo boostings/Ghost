@@ -55,36 +55,50 @@ class CourseCatalogServiceTest {
                 .classNumber("9001")
                 .build();
 
-        when(courseSectionRepository.searchSections("Fall 2026", "systems", "IT", pageable))
+        when(courseSectionRepository.searchSections("Fall 2026", "systems", "systems", "IT", pageable))
                 .thenReturn(new PageImpl<>(List.of(section), pageable, 1));
         when(courseSectionMapper.toResponse(section)).thenReturn(mapped);
 
         var result = courseCatalogService.getSections(" Fall 2026 ", " systems ", " it ", pageable);
 
         assertThat(result.getContent()).containsExactly(mapped);
-        verify(courseSectionRepository).searchSections("Fall 2026", "systems", "IT", pageable);
+        verify(courseSectionRepository).searchSections("Fall 2026", "systems", "systems", "IT", pageable);
     }
 
     @Test
     void getSectionsUsesNullFiltersForBlankValues() {
         Pageable pageable = PageRequest.of(0, 20);
-        when(courseSectionRepository.searchSections(null, null, null, pageable))
+        when(courseSectionRepository.searchSections(null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         courseCatalogService.getSections(" ", "", " ", pageable);
 
         ArgumentCaptor<String> semesterCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> querySquashedCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         verify(courseSectionRepository).searchSections(
                 semesterCaptor.capture(),
                 queryCaptor.capture(),
+                querySquashedCaptor.capture(),
                 subjectCaptor.capture(),
                 org.mockito.ArgumentMatchers.eq(pageable)
         );
         assertThat(semesterCaptor.getValue()).isNull();
         assertThat(queryCaptor.getValue()).isNull();
+        assertThat(querySquashedCaptor.getValue()).isNull();
         assertThat(subjectCaptor.getValue()).isNull();
+    }
+
+    @Test
+    void getSectionsStripsWhitespaceFromCourseCodeMatcher() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(courseSectionRepository.searchSections("Fall 2026", "IT 168", "IT168", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        courseCatalogService.getSections("Fall 2026", "IT 168", null, pageable);
+
+        verify(courseSectionRepository).searchSections("Fall 2026", "IT 168", "IT168", null, pageable);
     }
 
     @Test

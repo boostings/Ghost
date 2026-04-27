@@ -31,6 +31,7 @@ import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GlassButton from '../../components/ui/GlassButton';
+import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors } from '../../constants/colors';
 import { Duration, PRESSED_SCALE, Spring } from '../../constants/motion';
 import { haptic } from '../../utils/haptics';
@@ -262,21 +263,7 @@ export default function CourseCatalogScreen() {
         end={{ x: 0, y: 0.5 }}
       />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={22} color={Colors.text} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>ILSTU CATALOG</Text>
-            <Text style={styles.headerTitle}>Find your class</Text>
-          </View>
-        </View>
+        <SettingsHeader title="Find your class" subtitle="ILSTU catalog" />
 
         <View style={styles.filters}>
           <SearchField value={search} onChangeText={setSearch} />
@@ -845,41 +832,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   safe: { flex: 1 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 18,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-  iconButtonPressed: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  headerCopy: { marginLeft: 14, flex: 1 },
-  eyebrow: {
-    fontSize: 11,
-    letterSpacing: 2.4,
-    fontWeight: '800',
-    color: Colors.primary,
-    marginBottom: 2,
-  },
-  headerTitle: {
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: '900',
-    color: Colors.text,
-    letterSpacing: -0.6,
-  },
-
-  filters: { paddingHorizontal: 20, paddingBottom: 8 },
+  filters: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   searchField: {
     flexDirection: 'row',
     alignItems: 'center',

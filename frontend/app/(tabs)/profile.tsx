@@ -283,14 +283,13 @@ export default function ProfileScreen() {
             />
           }
           ListHeaderComponent={
-            <View>
-              <Animated.View entering={FadeInDown.duration(460).delay(40).springify().damping(20)}>
-                <View
-                  style={[
-                    styles.heroCard,
-                    { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
-                  ]}
-                >
+            <Animated.View entering={FadeIn.duration(220)}>
+              <View
+                style={[
+                  styles.heroCard,
+                  { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+                ]}
+              >
                   <View style={[styles.heroEdge, { backgroundColor: colors.primary }]} />
                   <View style={styles.heroBody}>
                     <View style={styles.heroTop}>
@@ -342,30 +341,24 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                 </View>
-              </Animated.View>
 
-              <Animated.View entering={FadeInDown.duration(460).delay(110).springify().damping(20)}>
-                <View
-                  style={[
-                    styles.standingCard,
-                    { backgroundColor: standing.background, borderColor: standing.border },
-                  ]}
-                >
-                  <View style={styles.standingLeft}>
-                    <Text style={[styles.standingLabel, { color: standing.color }]}>
-                      {standing.label}
-                    </Text>
-                    <Text style={[styles.standingDesc, { color: colors.textSecondary }]}>
-                      {standing.description}
-                    </Text>
-                  </View>
-                </View>
-              </Animated.View>
-
-              <Animated.View
-                entering={FadeInDown.duration(460).delay(160).springify().damping(20)}
-                style={styles.statsRow}
+              <View
+                style={[
+                  styles.standingCard,
+                  { backgroundColor: standing.background, borderColor: standing.border },
+                ]}
               >
+                <View style={styles.standingLeft}>
+                  <Text style={[styles.standingLabel, { color: standing.color }]}>
+                    {standing.label}
+                  </Text>
+                  <Text style={[styles.standingDesc, { color: colors.textSecondary }]}>
+                    {standing.description}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.statsRow}>
                 <StatTile
                   icon="help-circle-outline"
                   colors={colors}
@@ -388,12 +381,9 @@ export default function ProfileScreen() {
                   valueStyle={{ color: standing.color, fontSize: 16 }}
                   label="Standing"
                 />
-              </Animated.View>
+              </View>
 
-              <Animated.View
-                entering={FadeInDown.duration(460).delay(180).springify().damping(20)}
-                style={styles.settingsBlock}
-              >
+              <View style={styles.settingsBlock}>
                 <Text style={[styles.blockEyebrow, { color: colors.text }]}>NOTIFICATIONS</Text>
                 <View
                   style={[
@@ -452,12 +442,9 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                 </View>
-              </Animated.View>
+              </View>
 
-              <Animated.View
-                entering={FadeInDown.duration(460).delay(220).springify().damping(20)}
-                style={styles.settingsBlock}
-              >
+              <View style={styles.settingsBlock}>
                 <Text style={[styles.blockEyebrow, { color: colors.text }]}>ACCOUNT</Text>
                 <View style={styles.actionRow}>
                   <Pressable
@@ -502,18 +489,15 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
                 <Text style={[styles.versionText, { color: colors.textMuted }]}>Ghost v1.0.0</Text>
-              </Animated.View>
+              </View>
 
-              <Animated.View
-                entering={FadeIn.duration(280).delay(260)}
-                style={styles.sectionHeader}
-              >
+              <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionEyebrow, { color: colors.text }]}>YOUR QUESTIONS</Text>
                 <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
                   {loading ? 'Loading…' : `${questionCount.toLocaleString()} total`}
                 </Text>
-              </Animated.View>
-            </View>
+              </View>
+            </Animated.View>
           }
           ListEmptyComponent={
             loading ? (

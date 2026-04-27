@@ -29,7 +29,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
                       AND (CAST(:subject AS string) IS NULL OR course.subject = :subject)
                       AND (
                         CAST(:query AS string) IS NULL
-                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', CAST(:querySquashed AS string), '%'))
                         OR LOWER(COALESCE(course.subject, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
                         OR LOWER(COALESCE(course.catalogNumber, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
                         OR LOWER(course.courseName) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
@@ -46,7 +46,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
                       AND (CAST(:subject AS string) IS NULL OR course.subject = :subject)
                       AND (
                         CAST(:query AS string) IS NULL
-                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', CAST(:querySquashed AS string), '%'))
                         OR LOWER(COALESCE(course.subject, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
                         OR LOWER(COALESCE(course.catalogNumber, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
                         OR LOWER(course.courseName) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
@@ -59,6 +59,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
     Page<CourseSection> searchSections(
             @Param("semester") String semester,
             @Param("query") String query,
+            @Param("querySquashed") String querySquashed,
             @Param("subject") String subject,
             Pageable pageable
     );
