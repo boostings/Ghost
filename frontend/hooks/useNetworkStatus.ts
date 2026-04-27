@@ -11,10 +11,14 @@ function toNetworkStatus(state: NetInfoState): NetworkStatus {
   const isConnected = state.isConnected;
   const isInternetReachable = state.isInternetReachable ?? null;
 
+  // Only flag offline when the radio is explicitly disconnected. NetInfo's
+  // isInternetReachable probes Apple/Google endpoints that fail to resolve on
+  // the iOS Simulator (and behind some captive portals) even when the API is
+  // reachable, which produced false-positive banners.
   return {
     isConnected,
     isInternetReachable,
-    isOffline: isConnected === false || isInternetReachable === false,
+    isOffline: isConnected === false,
   };
 }
 

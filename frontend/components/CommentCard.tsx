@@ -65,9 +65,13 @@ const CommentCard: React.FC<CommentCardProps> = ({
 }) => {
   const colors = useThemeColors();
   const { firstName, lastName } = parseAuthorName(comment.authorName);
-  const wasEdited =
-    new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000;
   const verified = comment.isVerifiedAnswer;
+  // Hibernate sets created/updated to the same instant on insert (off by ms),
+  // and verifying a comment bumps updatedAt without an actual body edit. So
+  // require a non-trivial gap AND skip the badge when the comment is verified.
+  const wasEdited =
+    !verified &&
+    new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000;
 
   return (
     <Animated.View

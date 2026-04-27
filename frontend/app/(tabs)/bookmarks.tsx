@@ -223,7 +223,7 @@ export default function SavedScreen() {
           </View>
         </View>
 
-        {filterOptions.length > 1 ? (
+        {groups.length > 1 ? (
           <View style={styles.filterStrip}>
             <FlatList
               data={filterOptions}
