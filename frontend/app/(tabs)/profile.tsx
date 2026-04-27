@@ -383,6 +383,50 @@ export default function ProfileScreen() {
                 />
               </View>
 
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionEyebrow, { color: colors.text }]}>YOUR QUESTIONS</Text>
+                <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
+                  {loading ? 'Loading…' : `${questionCount.toLocaleString()} total`}
+                </Text>
+              </View>
+            </Animated.View>
+          }
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <View
+                  style={[
+                    styles.emptyIcon,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      borderColor: colors.primaryFaint,
+                      borderWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  <Ionicons name="chatbubbles-outline" size={28} color={colors.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  {error ?? 'No questions yet'}
+                </Text>
+                <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
+                  Ask your first question on a class whiteboard to see it here.
+                </Text>
+              </View>
+            )
+          }
+          ListFooterComponent={
+            <>
+              {loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : null}
+
               <View style={styles.settingsBlock}>
                 <Text style={[styles.blockEyebrow, { color: colors.text }]}>NOTIFICATIONS</Text>
                 <View
@@ -490,49 +534,7 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={[styles.versionText, { color: colors.textMuted }]}>Ghost v1.0.0</Text>
               </View>
-
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionEyebrow, { color: colors.text }]}>YOUR QUESTIONS</Text>
-                <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
-                  {loading ? 'Loading…' : `${questionCount.toLocaleString()} total`}
-                </Text>
-              </View>
-            </Animated.View>
-          }
-          ListEmptyComponent={
-            loading ? (
-              <View style={styles.loadingState}>
-                <ActivityIndicator size="large" color={colors.primary} />
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <View
-                  style={[
-                    styles.emptyIcon,
-                    {
-                      backgroundColor: colors.primarySoft,
-                      borderColor: colors.primaryFaint,
-                      borderWidth: StyleSheet.hairlineWidth,
-                    },
-                  ]}
-                >
-                  <Ionicons name="chatbubbles-outline" size={28} color={colors.primary} />
-                </View>
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                  {error ?? 'No questions yet'}
-                </Text>
-                <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
-                  Ask your first question on a class whiteboard to see it here.
-                </Text>
-              </View>
-            )
-          }
-          ListFooterComponent={
-            loadingMore ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : null
+            </>
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}

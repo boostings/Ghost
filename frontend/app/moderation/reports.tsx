@@ -273,7 +273,7 @@ export default function ReportsScreen() {
             ListEmptyComponent={
               <EmptyState
                 ionIcon="flag-outline"
-                title="No Reports"
+                title={loadError ? 'Could not load reports' : 'No reports yet'}
                 subtitle={loadError || 'There are no reported items to review'}
               />
             }

@@ -41,13 +41,16 @@ function groupByClass(items: BookmarkResponse[]): Group[] {
   const map = new Map<string, Group>();
   for (const b of items) {
     const wbId = b.question.whiteboardId;
+    const courseCode = b.question.whiteboardCourseCode?.trim();
+    const courseName = b.question.whiteboardCourseName?.trim();
+    const label = courseCode || courseName || 'Class';
     const existing = map.get(wbId);
     if (existing) {
       existing.items.push(b);
     } else {
       map.set(wbId, {
         whiteboardId: wbId,
-        classCode: `CLASS · ${wbId.slice(0, 6).toUpperCase()}`,
+        classCode: label,
         items: [b],
       });
     }
@@ -275,7 +278,7 @@ export default function SavedScreen() {
                 </View>
                 <Text style={styles.emptyTitle}>Nothing saved yet</Text>
                 <Text style={styles.emptyHint}>
-                  {loadError ?? 'Tap the star on any question to keep it within reach.'}
+                  {loadError ?? 'Tap the bookmark icon on any question to keep it within reach.'}
                 </Text>
               </View>
             )

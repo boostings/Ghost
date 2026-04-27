@@ -258,7 +258,7 @@ export default function WhiteboardDetailScreen() {
 
           <View style={styles.headerCenter}>
             <Text style={styles.courseCode}>{whiteboard?.courseCode || ''}</Text>
-            <Text style={styles.courseName} numberOfLines={1}>
+            <Text style={styles.courseName} numberOfLines={2}>
               {whiteboard?.courseName || ''}
             </Text>
           </View>
@@ -619,10 +619,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 8,
+    alignItems: 'center',
   },
   filterChip: {
     paddingHorizontal: 14,
-    minHeight: 36,
+    paddingVertical: 0,
+    height: 36,
+    flexShrink: 0,
+    alignSelf: 'center',
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,

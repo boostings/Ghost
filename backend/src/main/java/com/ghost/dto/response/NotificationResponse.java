@@ -1,5 +1,8 @@
 package com.ghost.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ghost.model.enums.NotificationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,6 +16,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonAutoDetect(isGetterVisibility = Visibility.NONE)
 public class NotificationResponse {
 
     private UUID id;
@@ -27,6 +31,7 @@ public class NotificationResponse {
 
     private UUID referenceId;
 
+    @JsonProperty("isRead")
     private boolean isRead;
 
     private LocalDateTime createdAt;

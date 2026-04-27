@@ -1,5 +1,8 @@
 package com.ghost.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.VoteType;
 import lombok.AllArgsConstructor;
@@ -14,6 +17,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonAutoDetect(isGetterVisibility = Visibility.NONE)
 public class QuestionResponse {
 
     private UUID id;
@@ -38,8 +42,10 @@ public class QuestionResponse {
 
     private QuestionStatus status;
 
+    @JsonProperty("isPinned")
     private boolean isPinned;
 
+    @JsonProperty("isHidden")
     private boolean isHidden;
 
     private int karmaScore;
@@ -54,6 +60,7 @@ public class QuestionResponse {
 
     private String verifiedAnswerAuthorName;
 
+    @JsonProperty("isBookmarked")
     private boolean isBookmarked;
 
     private LocalDateTime createdAt;

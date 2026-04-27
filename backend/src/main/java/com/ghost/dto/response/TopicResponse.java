@@ -1,5 +1,8 @@
 package com.ghost.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,11 +14,13 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonAutoDetect(isGetterVisibility = Visibility.NONE)
 public class TopicResponse {
 
     private UUID id;
 
     private String name;
 
+    @JsonProperty("isDefault")
     private boolean isDefault;
 }

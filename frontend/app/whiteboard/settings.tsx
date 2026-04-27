@@ -195,47 +195,49 @@ export default function WhiteboardSettingsScreen() {
             </View>
           </GlassCard>
 
-          {/* Invite Code */}
-          <GlassCard style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <View>
-                <Text style={styles.sectionTitle}>Invite Access</Text>
-                <Text style={styles.sectionDescription}>Code and QR for student enrollment</Text>
+          {/* Invite Code — hidden for demo classes */}
+          {whiteboard?.isDemo ? null : (
+            <GlassCard style={styles.card}>
+              <View style={styles.cardTitleRow}>
+                <View>
+                  <Text style={styles.sectionTitle}>Invite Access</Text>
+                  <Text style={styles.sectionDescription}>Code and QR for student enrollment</Text>
+                </View>
+                <Ionicons name="qr-code-outline" size={24} color={Colors.primary} />
               </View>
-              <Ionicons name="qr-code-outline" size={24} color={Colors.primary} />
-            </View>
 
-            <TouchableOpacity
-              style={styles.inviteCodeBox}
-              onPress={handleCopyInviteCode}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Copy invite code"
-            >
-              <Text style={styles.inviteCodeText}>{inviteCode || 'Unavailable'}</Text>
-              <Text style={styles.copyText}>
-                {inviteCode ? 'Tap to copy' : 'Unable to load code'}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.inviteCodeBox}
+                onPress={handleCopyInviteCode}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Copy invite code"
+              >
+                <Text style={styles.inviteCodeText}>{inviteCode || 'Unavailable'}</Text>
+                <Text style={styles.copyText}>
+                  {inviteCode ? 'Tap to copy' : 'Unable to load code'}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.qrPlaceholder}
-              onPress={handleOpenQrModal}
-              activeOpacity={0.8}
-            >
-              {qrValue ? (
-                <View style={styles.inlineQrBackground}>
-                  <QRCode value={qrValue} size={132} backgroundColor="#FFFFFF" color="#111827" />
-                </View>
-              ) : (
-                <View style={styles.inlineQrUnavailable}>
-                  <Text style={styles.inlineQrUnavailableText}>QR unavailable</Text>
-                </View>
-              )}
-              <Text style={styles.qrText}>Open Full QR Code</Text>
-              <Text style={styles.qrSubtext}>Students can scan this to join</Text>
-            </TouchableOpacity>
-          </GlassCard>
+              <TouchableOpacity
+                style={styles.qrPlaceholder}
+                onPress={handleOpenQrModal}
+                activeOpacity={0.8}
+              >
+                {qrValue ? (
+                  <View style={styles.inlineQrBackground}>
+                    <QRCode value={qrValue} size={132} backgroundColor="#FFFFFF" color="#111827" />
+                  </View>
+                ) : (
+                  <View style={styles.inlineQrUnavailable}>
+                    <Text style={styles.inlineQrUnavailableText}>QR unavailable</Text>
+                  </View>
+                )}
+                <Text style={styles.qrText}>Open Full QR Code</Text>
+                <Text style={styles.qrSubtext}>Students can scan this to join</Text>
+              </TouchableOpacity>
+            </GlassCard>
+          )}
 
           <GlassCard style={styles.card}>
             <Text style={styles.sectionTitle}>Manage</Text>
