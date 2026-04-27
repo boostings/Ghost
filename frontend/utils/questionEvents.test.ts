@@ -10,6 +10,8 @@ function makeQuestion(overrides: Partial<QuestionResponse> = {}): QuestionRespon
   return {
     id: overrides.id ?? 'q-1',
     whiteboardId: overrides.whiteboardId ?? 'wb-1',
+    whiteboardCourseCode: overrides.whiteboardCourseCode ?? 'IT326',
+    whiteboardCourseName: overrides.whiteboardCourseName ?? 'Web Development',
     authorId: overrides.authorId ?? 'u-1',
     authorName: overrides.authorName ?? 'Taylor Student',
     topicId: overrides.topicId ?? null,
@@ -23,6 +25,8 @@ function makeQuestion(overrides: Partial<QuestionResponse> = {}): QuestionRespon
     userVote: overrides.userVote ?? null,
     commentCount: overrides.commentCount ?? 0,
     verifiedAnswerId: overrides.verifiedAnswerId ?? null,
+    verifiedAnswerPreview: overrides.verifiedAnswerPreview ?? null,
+    verifiedAnswerAuthorName: overrides.verifiedAnswerAuthorName ?? null,
     isBookmarked: overrides.isBookmarked ?? false,
     createdAt: overrides.createdAt ?? '2026-01-01T00:00:00.000Z',
     updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00.000Z',

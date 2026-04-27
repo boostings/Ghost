@@ -15,11 +15,17 @@ public class QuestionMapper {
             VoteType userVote,
             long commentCount,
             boolean isBookmarked,
-            boolean includeModerationData
+            boolean includeModerationData,
+            String verifiedAnswerPreview,
+            String verifiedAnswerAuthorName
     ) {
+        var whiteboard = question.getWhiteboard();
+        var course = whiteboard != null ? whiteboard.getCourse() : null;
         return QuestionResponse.builder()
                 .id(question.getId())
-                .whiteboardId(question.getWhiteboard().getId())
+                .whiteboardId(whiteboard != null ? whiteboard.getId() : null)
+                .whiteboardCourseCode(course != null ? course.getCourseCode() : null)
+                .whiteboardCourseName(course != null ? course.getCourseName() : null)
                 .authorId(question.getAuthor().getId())
                 .authorName(question.getAuthor().getFirstName() + " " + question.getAuthor().getLastName())
                 .topicId(question.getTopic() != null ? question.getTopic().getId() : null)
@@ -33,6 +39,8 @@ public class QuestionMapper {
                 .userVote(userVote)
                 .commentCount(toIntExact(commentCount))
                 .verifiedAnswerId(question.getVerifiedAnswerId())
+                .verifiedAnswerPreview(verifiedAnswerPreview)
+                .verifiedAnswerAuthorName(verifiedAnswerAuthorName)
                 .isBookmarked(isBookmarked)
                 .createdAt(question.getCreatedAt())
                 .updatedAt(question.getUpdatedAt())

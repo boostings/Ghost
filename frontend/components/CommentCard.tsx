@@ -1,9 +1,11 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
-import { Colors } from '../constants/colors';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
-import { Duration } from '../constants/motion';
+import { enterList } from '../constants/motion';
+import { Spacing } from '../constants/spacing';
 import { haptic } from '../utils/haptics';
 import { CommentResponse } from '../types';
 import GlassCard from './ui/GlassCard';
@@ -20,6 +22,7 @@ interface CommentCardProps {
   onVerify?: () => void;
   isCurrentUser?: boolean;
   canDelete?: boolean;
+  index?: number;
 }
 
 function formatTimestamp(dateString: string): string {
@@ -58,45 +61,70 @@ const CommentCard: React.FC<CommentCardProps> = ({
   onVerify,
   isCurrentUser = false,
   canDelete,
+  index = 0,
 }) => {
+  const colors = useThemeColors();
   const { firstName, lastName } = parseAuthorName(comment.authorName);
   const wasEdited = comment.updatedAt !== comment.createdAt;
+  const verified = comment.isVerifiedAnswer;
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(Duration.slow).springify().damping(18)}
-      layout={LinearTransition.duration(Duration.slow)}
+      entering={enterList(index)}
+      layout={LinearTransition.springify().damping(20)}
     >
-      <GlassCard style={[styles.card, comment.isVerifiedAnswer && styles.verifiedCard]}>
-        {/* Verified Answer Badge */}
-        {comment.isVerifiedAnswer && (
-          <View style={styles.verifiedBadge}>
-            <Text style={styles.verifiedCheckmark}>✓</Text>
-            <Text style={styles.verifiedText}>
+      <GlassCard
+        style={[
+          styles.card,
+          verified && {
+            borderLeftWidth: 3,
+            borderLeftColor: colors.verifiedAnswer,
+            backgroundColor: `${colors.verifiedAnswer}0F`,
+          },
+        ]}
+      >
+        {verified && (
+          <View
+            style={[
+              styles.verifiedBadge,
+              {
+                backgroundColor: `${colors.verifiedAnswer}26`,
+                borderColor: `${colors.verifiedAnswer}44`,
+              },
+            ]}
+          >
+            <Ionicons name="checkmark-circle" size={14} color={colors.verifiedAnswer} />
+            <Text style={[styles.verifiedText, { color: colors.verifiedAnswer }]}>
               {comment.verifiedByName ? `Verified by ${comment.verifiedByName}` : 'Verified Answer'}
             </Text>
           </View>
         )}
 
-        {/* Header: Avatar + Name + Timestamp */}
         <View style={styles.header}>
           <View style={styles.authorRow}>
             <Avatar firstName={firstName} lastName={lastName} size={32} />
             <View style={styles.authorInfo}>
-              <Text style={styles.authorName}>{comment.authorName}</Text>
+              <Text style={[styles.authorName, { color: colors.text }]}>
+                {comment.authorName}
+              </Text>
               <View style={styles.timestampRow}>
-                <Text style={styles.timestamp}>{formatTimestamp(comment.createdAt)}</Text>
-                {wasEdited && <Text style={styles.editedLabel}> (edited)</Text>}
+                <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+                  {formatTimestamp(comment.createdAt)}
+                </Text>
+                {wasEdited && (
+                  <Text style={[styles.editedLabel, { color: colors.textMuted }]}>
+                    {' '}
+                    · edited
+                  </Text>
+                )}
               </View>
             </View>
           </View>
         </View>
 
-        {/* Body */}
-        <Text style={styles.body}>{comment.body}</Text>
+        <Text style={[styles.body, { color: colors.textSecondary }]}>{comment.body}</Text>
 
-        {/* Bottom Row: Karma + Actions */}
-        <View style={styles.bottomRow}>
+        <View style={[styles.bottomRow, { borderTopColor: colors.surfaceBorder }]}>
           <KarmaDisplay
             score={comment.karmaScore}
             userVote={comment.userVote}
@@ -106,64 +134,83 @@ const CommentCard: React.FC<CommentCardProps> = ({
           />
 
           <View style={styles.actions}>
-            {/* Verify Button (faculty only) */}
-            {onVerify && !comment.isVerifiedAnswer && (
-              <TouchableOpacity
+            {onVerify && !verified && (
+              <Pressable
                 onPress={() => {
                   haptic.success();
                   onVerify();
                 }}
-                style={styles.actionButton}
+                style={[
+                  styles.actionButton,
+                  {
+                    backgroundColor: `${colors.verifiedAnswer}1F`,
+                    borderColor: `${colors.verifiedAnswer}40`,
+                  },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Verify answer"
               >
-                <Text style={styles.verifyActionText}>✓ Verify</Text>
-              </TouchableOpacity>
+                <Ionicons name="checkmark" size={14} color={colors.verifiedAnswer} />
+                <Text
+                  style={[
+                    styles.verifyActionText,
+                    { color: colors.verifiedAnswer },
+                  ]}
+                >
+                  Verify
+                </Text>
+              </Pressable>
             )}
 
-            {/* Edit Button (own comment, within edit window) */}
             {isCurrentUser && comment.canEdit && onEdit && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   haptic.selection();
                   onEdit();
                 }}
-                style={styles.actionButton}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Edit comment"
               >
-                <Text style={styles.actionText}>Edit</Text>
-              </TouchableOpacity>
+                <Text style={[styles.actionText, { color: colors.textSecondary }]}>Edit</Text>
+              </Pressable>
             )}
 
-            {/* Delete Button (own comment) */}
             {(canDelete ?? isCurrentUser) && onDelete && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   haptic.warning();
                   onDelete();
                 }}
-                style={styles.actionButton}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: `${colors.error}14`, borderColor: `${colors.error}33` },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Delete comment"
               >
-                <Text style={styles.dangerActionText}>Delete</Text>
-              </TouchableOpacity>
+                <Text style={[styles.dangerActionText, { color: colors.error }]}>Delete</Text>
+              </Pressable>
             )}
 
-            {/* Report Button (not own comment) */}
             {!isCurrentUser && onReport && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   haptic.warning();
                   onReport();
                 }}
-                style={styles.actionButton}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Report comment"
               >
-                <Text style={styles.actionText}>Report</Text>
-              </TouchableOpacity>
+                <Text style={[styles.actionText, { color: colors.textMuted }]}>Report</Text>
+              </Pressable>
             )}
           </View>
         </View>
@@ -174,33 +221,23 @@ const CommentCard: React.FC<CommentCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 10,
-  },
-  verifiedCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#00C851',
-    backgroundColor: 'rgba(0,200,81,0.06)',
+    marginBottom: Spacing.sm + 2,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,200,81,0.15)',
     alignSelf: 'flex-start',
-    borderRadius: 8,
+    borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginBottom: 10,
-  },
-  verifiedCheckmark: {
-    color: '#00C851',
-    fontSize: Fonts.sizes.sm,
-    fontWeight: Fonts.bold.fontWeight,
-    marginRight: 4,
+    marginBottom: 12,
+    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   verifiedText: {
-    color: '#00C851',
-    fontSize: Fonts.sizes.sm,
+    fontSize: Fonts.sizes.xs,
     fontWeight: Fonts.semiBold.fontWeight,
+    letterSpacing: 0.3,
   },
   header: {
     marginBottom: 10,
@@ -213,7 +250,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   authorName: {
-    color: Colors.text,
     fontSize: Fonts.sizes.md,
     fontWeight: Fonts.semiBold.fontWeight,
   },
@@ -223,19 +259,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timestamp: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.xs,
-    fontWeight: Fonts.regular.fontWeight,
   },
   editedLabel: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.xs,
     fontStyle: 'italic',
   },
   body: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.md,
-    fontWeight: Fonts.regular.fontWeight,
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -243,35 +274,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 10,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   actionButton: {
-    paddingHorizontal: 10,
-    minHeight: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minHeight: 32,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   actionText: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
     fontWeight: Fonts.medium.fontWeight,
   },
   dangerActionText: {
-    color: '#FF4444',
     fontSize: Fonts.sizes.sm,
-    fontWeight: Fonts.medium.fontWeight,
+    fontWeight: Fonts.semiBold.fontWeight,
   },
   verifyActionText: {
-    color: '#00C851',
     fontSize: Fonts.sizes.sm,
     fontWeight: Fonts.semiBold.fontWeight,
   },

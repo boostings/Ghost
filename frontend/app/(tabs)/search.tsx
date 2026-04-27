@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
-  Platform,
   View,
   Text,
   FlatList,
@@ -13,6 +12,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassCard from '../../components/ui/GlassCard';
@@ -22,8 +22,9 @@ import EmptyState from '../../components/ui/EmptyState';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import ReportModal from '../../components/ReportModal';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Spacing } from '../../constants/spacing';
 import { useQuestionSearchModel, type FilterStatus } from '../../hooks/useQuestionSearchModel';
 import { formatDate } from '../../utils/formatDate';
 import type { QuestionResponse } from '../../types';
@@ -71,6 +72,7 @@ function renderHighlightedText(
 
 export default function SearchScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const cardEntry = useRef(new Animated.Value(0)).current;
   const {
     query,
@@ -152,8 +154,18 @@ export default function SearchScreen() {
           >
             <View style={styles.questionTopRow}>
               <View style={styles.badgeRow}>
-                <View style={styles.classBadge}>
-                  <Text style={styles.classBadgeText}>{classCode}</Text>
+                <View
+                  style={[
+                    styles.classBadge,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      borderColor: colors.primaryFaint,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.classBadgeText, { color: colors.primary }]}>
+                    {classCode}
+                  </Text>
                 </View>
                 {item.topicName && <TopicBadge name={item.topicName} style={styles.topicBadge} />}
               </View>
@@ -163,34 +175,60 @@ export default function SearchScreen() {
             {renderHighlightedText(
               item.title,
               query,
-              styles.questionTitle,
-              styles.highlightText,
+              [styles.questionTitle, { color: colors.text }],
+              [
+                styles.highlightText,
+                {
+                  color: colors.primary,
+                  backgroundColor: colors.primarySoft,
+                },
+              ],
               2
             )}
 
             {renderHighlightedText(
               item.isHidden ? '[hidden]' : item.body,
               query,
-              styles.questionBody,
-              styles.highlightText,
+              [styles.questionBody, { color: colors.textSecondary }],
+              [
+                styles.highlightText,
+                {
+                  color: colors.primary,
+                  backgroundColor: colors.primarySoft,
+                },
+              ],
               2
             )}
 
             <View style={styles.questionMetaRow}>
-              <Text style={styles.authorText}>{item.authorName}</Text>
-              <Text style={styles.dotSeparator}>{' \u00B7 '}</Text>
-              <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+              <Text style={[styles.authorText, { color: colors.textMuted }]}>{item.authorName}</Text>
+              <Text style={[styles.dotSeparator, { color: colors.textMuted }]}>{' · '}</Text>
+              <Text style={[styles.dateText, { color: colors.textMuted }]}>
+                {formatDate(item.createdAt)}
+              </Text>
             </View>
 
-            <View style={styles.questionFooter}>
-              <View style={styles.statPill}>
-                <Text style={styles.statText}>
-                  {'\u25B2'} {item.karmaScore}
+            <View style={[styles.questionFooter, { borderTopColor: colors.surfaceBorder }]}>
+              <View
+                style={[
+                  styles.statPill,
+                  { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                ]}
+              >
+                <Ionicons name="arrow-up" size={12} color={colors.textSecondary} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  {item.karmaScore}
                 </Text>
               </View>
-              <View style={styles.statPill}>
-                <Text style={styles.statText}>
-                  {'\u{1F4AC}'} {item.commentCount}
+              <View
+                style={[
+                  styles.statPill,
+                  { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                ]}
+              >
+                <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  {item.commentCount}
                 </Text>
               </View>
               <View style={styles.footerRight}>
@@ -199,24 +237,38 @@ export default function SearchScreen() {
                     stopCardPress(event);
                     toggleBookmark(item.id);
                   }}
-                  style={styles.footerActionButton}
+                  style={[
+                    styles.footerActionButton,
+                    {
+                      backgroundColor: colors.surfaceLight,
+                      borderColor: colors.surfaceBorder,
+                    },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={item.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
                 >
-                  <Text style={styles.footerActionIcon}>
-                    {item.isBookmarked ? '\u2605' : '\u2606'}
-                  </Text>
+                  <Ionicons
+                    name={item.isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                    size={14}
+                    color={item.isBookmarked ? colors.primary : colors.textSecondary}
+                  />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={(event) => {
                     stopCardPress(event);
                     openReportModal({ questionId: item.id });
                   }}
-                  style={styles.footerActionButton}
+                  style={[
+                    styles.footerActionButton,
+                    {
+                      backgroundColor: colors.surfaceLight,
+                      borderColor: colors.surfaceBorder,
+                    },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Report question"
                 >
-                  <Text style={styles.footerActionIcon}>{'\u{1F6A9}'}</Text>
+                  <Ionicons name="flag-outline" size={14} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -224,81 +276,99 @@ export default function SearchScreen() {
         </Animated.View>
       );
     },
-    [cardEntry, openReportModal, query, router, toggleBookmark, whiteboardLookup]
+    [cardEntry, colors, openReportModal, query, router, toggleBookmark, whiteboardLookup]
   );
 
   return (
     <ScreenWrapper edges={['top']}>
       <View style={styles.headerSection}>
-        <Text style={styles.eyebrowText}>Search</Text>
-        <Text style={styles.headerTitle}>Discover Answers Faster</Text>
-        <Text style={styles.headerSubtitle}>{resultSummary}</Text>
+        <Text style={[styles.eyebrowText, { color: colors.primary }]}>SEARCH</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Discover answers faster</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>{resultSummary}</Text>
       </View>
 
       <GlassCard style={styles.searchHeroCard} blurIntensity={72}>
         <View style={styles.searchInputRow}>
           <GlassInput
-            placeholder="Search by question title or body..."
+            placeholder="Search by question title or body…"
             value={query}
             onChangeText={handleQueryChange}
             returnKeyType="search"
             onSubmitEditing={submitSearch}
             style={styles.searchInput}
-            icon={<Text style={styles.searchInputIcon}>{'\u{1F50D}'}</Text>}
+            icon={<Ionicons name="search" size={16} color={colors.textMuted} />}
+            showClear
           />
           {query.trim() ? (
             <TouchableOpacity
-              style={styles.clearButton}
+              style={[
+                styles.clearButton,
+                { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+              ]}
               onPress={handleClearQuery}
               accessibilityRole="button"
               accessibilityLabel="Clear search query"
             >
-              <Text style={styles.clearButtonText}>Clear</Text>
+              <Text style={[styles.clearButtonText, { color: colors.text }]}>Clear</Text>
             </TouchableOpacity>
           ) : null}
         </View>
-        <Text style={styles.searchHintText}>
+        <Text style={[styles.searchHintText, { color: colors.textMuted }]}>
           Live search runs after you pause typing for a moment.
         </Text>
       </GlassCard>
 
       <GlassCard style={styles.filterPanelCard} blurIntensity={62}>
         <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Status</Text>
+          <Text style={[styles.filterTitle, { color: colors.textMuted }]}>STATUS</Text>
           <View style={styles.filterWrap}>
-            {STATUS_FILTERS.map((filter) => (
-              <TouchableOpacity
-                key={filter.value}
-                style={[
-                  styles.filterChip,
-                  statusFilter === filter.value && styles.filterChipActive,
-                ]}
-                onPress={() => handleStatusFilter(filter.value)}
-                accessibilityRole="button"
-                accessibilityLabel={`Filter by ${filter.label}`}
-              >
-                <Text
+            {STATUS_FILTERS.map((filter) => {
+              const active = statusFilter === filter.value;
+              return (
+                <TouchableOpacity
+                  key={filter.value}
                   style={[
-                    styles.filterChipText,
-                    statusFilter === filter.value && styles.filterChipTextActive,
+                    styles.filterChip,
+                    {
+                      backgroundColor: active ? colors.primarySoft : colors.surfaceLight,
+                      borderColor: active ? colors.primary : colors.surfaceBorder,
+                    },
                   ]}
+                  onPress={() => handleStatusFilter(filter.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by ${filter.label}`}
                 >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: active ? colors.primary : colors.textSecondary },
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
         <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Class</Text>
+          <Text style={[styles.filterTitle, { color: colors.textMuted }]}>CLASS</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterRow}
           >
             <TouchableOpacity
-              style={[styles.filterChip, whiteboardFilter === 'ALL' && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor:
+                    whiteboardFilter === 'ALL' ? colors.primarySoft : colors.surfaceLight,
+                  borderColor:
+                    whiteboardFilter === 'ALL' ? colors.primary : colors.surfaceBorder,
+                },
+              ]}
               onPress={() => handleWhiteboardFilter('ALL')}
               accessibilityRole="button"
               accessibilityLabel="Filter by all classes"
@@ -306,45 +376,60 @@ export default function SearchScreen() {
               <Text
                 style={[
                   styles.filterChipText,
-                  whiteboardFilter === 'ALL' && styles.filterChipTextActive,
+                  {
+                    color: whiteboardFilter === 'ALL' ? colors.primary : colors.textSecondary,
+                  },
                 ]}
               >
                 All Classes
               </Text>
             </TouchableOpacity>
-            {availableWhiteboards.map((whiteboard) => (
-              <TouchableOpacity
-                key={whiteboard.id}
-                style={[
-                  styles.filterChip,
-                  whiteboardFilter === whiteboard.id && styles.filterChipActive,
-                ]}
-                onPress={() => handleWhiteboardFilter(whiteboard.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Filter by ${whiteboard.courseCode}`}
-              >
-                <Text
+            {availableWhiteboards.map((whiteboard) => {
+              const active = whiteboardFilter === whiteboard.id;
+              return (
+                <TouchableOpacity
+                  key={whiteboard.id}
                   style={[
-                    styles.filterChipText,
-                    whiteboardFilter === whiteboard.id && styles.filterChipTextActive,
+                    styles.filterChip,
+                    {
+                      backgroundColor: active ? colors.primarySoft : colors.surfaceLight,
+                      borderColor: active ? colors.primary : colors.surfaceBorder,
+                    },
                   ]}
+                  onPress={() => handleWhiteboardFilter(whiteboard.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by ${whiteboard.courseCode}`}
                 >
-                  {whiteboard.courseCode}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: active ? colors.primary : colors.textSecondary },
+                    ]}
+                  >
+                    {whiteboard.courseCode}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
         <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Topic</Text>
+          <Text style={[styles.filterTitle, { color: colors.textMuted }]}>TOPIC</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterRow}
           >
             <TouchableOpacity
-              style={[styles.filterChip, topicFilter === 'ALL' && styles.filterChipActive]}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor:
+                    topicFilter === 'ALL' ? colors.primarySoft : colors.surfaceLight,
+                  borderColor: topicFilter === 'ALL' ? colors.primary : colors.surfaceBorder,
+                },
+              ]}
               onPress={() => handleTopicFilter('ALL')}
               accessibilityRole="button"
               accessibilityLabel="Filter by all topics"
@@ -352,30 +437,41 @@ export default function SearchScreen() {
               <Text
                 style={[
                   styles.filterChipText,
-                  topicFilter === 'ALL' && styles.filterChipTextActive,
+                  {
+                    color: topicFilter === 'ALL' ? colors.primary : colors.textSecondary,
+                  },
                 ]}
               >
                 All Topics
               </Text>
             </TouchableOpacity>
-            {availableTopics.map((topic) => (
-              <TouchableOpacity
-                key={topic.id}
-                style={[styles.filterChip, topicFilter === topic.id && styles.filterChipActive]}
-                onPress={() => handleTopicFilter(topic.id)}
-                accessibilityRole="button"
-                accessibilityLabel={`Filter by topic ${topic.name}`}
-              >
-                <Text
+            {availableTopics.map((topic) => {
+              const active = topicFilter === topic.id;
+              return (
+                <TouchableOpacity
+                  key={topic.id}
                   style={[
-                    styles.filterChipText,
-                    topicFilter === topic.id && styles.filterChipTextActive,
+                    styles.filterChip,
+                    {
+                      backgroundColor: active ? colors.primarySoft : colors.surfaceLight,
+                      borderColor: active ? colors.primary : colors.surfaceBorder,
+                    },
                   ]}
+                  onPress={() => handleTopicFilter(topic.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by topic ${topic.name}`}
                 >
-                  {topic.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: active ? colors.primary : colors.textSecondary },
+                    ]}
+                  >
+                    {topic.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       </GlassCard>
@@ -387,8 +483,16 @@ export default function SearchScreen() {
           contentContainerStyle={styles.activeFiltersRow}
         >
           {activeFilters.map((filterLabel) => (
-            <View key={filterLabel} style={styles.activeFilterPill}>
-              <Text style={styles.activeFilterText}>{filterLabel}</Text>
+            <View
+              key={filterLabel}
+              style={[
+                styles.activeFilterPill,
+                { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+              ]}
+            >
+              <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                {filterLabel}
+              </Text>
             </View>
           ))}
         </ScrollView>
@@ -396,8 +500,10 @@ export default function SearchScreen() {
 
       {hasSearched && (
         <View style={styles.resultsSummaryRow}>
-          <Text style={styles.resultsSummaryText}>{resultSummary}</Text>
-          <Text style={styles.resultsSummarySubtext}>Sorted by relevance</Text>
+          <Text style={[styles.resultsSummaryText, { color: colors.text }]}>{resultSummary}</Text>
+          <Text style={[styles.resultsSummarySubtext, { color: colors.textMuted }]}>
+            Sorted by relevance
+          </Text>
         </View>
       )}
 
@@ -416,13 +522,13 @@ export default function SearchScreen() {
           ListEmptyComponent={
             hasSearched ? (
               <EmptyState
-                icon={'\u{1F50D}'}
+                ionIcon="search-outline"
                 title="No matching questions"
                 subtitle={loadError || 'Try broader keywords or clear one filter at a time.'}
               />
             ) : (
               <EmptyState
-                icon={'\u{1F50E}'}
+                ionIcon="telescope-outline"
                 title="Search across your whiteboards"
                 subtitle="Look up any question and use filters to narrow by class, topic, or status."
               />
@@ -433,7 +539,7 @@ export default function SearchScreen() {
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={Colors.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : null
           }
@@ -452,45 +558,32 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 18,
   },
   eyebrowText: {
-    fontSize: Fonts.sizes.xs,
-    color: Colors.primaryLight,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    fontWeight: '700',
-    marginBottom: 6,
+    fontSize: 11,
+    letterSpacing: 2.4,
+    fontWeight: '800',
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: Fonts.sizes.xxxl,
-    fontWeight: '800',
-    color: Colors.text,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '900',
+    letterSpacing: -0.6,
   },
   headerSubtitle: {
     marginTop: 6,
-    color: Colors.textSecondary,
-    fontSize: Fonts.sizes.md,
-    lineHeight: Fonts.lineHeights.md,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   searchHeroCard: {
-    marginHorizontal: 24,
-    marginBottom: 12,
-    borderColor: 'rgba(255,255,255,0.35)',
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 12px 22px rgba(187,39,68,0.24)',
-      },
-      default: {
-        shadowColor: Colors.primary,
-        shadowOpacity: 0.24,
-        shadowRadius: 22,
-        shadowOffset: { width: 0, height: 12 },
-        elevation: 8,
-      },
-    }),
+    marginHorizontal: Spacing.xxl,
+    marginBottom: Spacing.md,
   },
   searchInputRow: {
     flexDirection: 'row',
@@ -501,34 +594,25 @@ const styles = StyleSheet.create({
     flex: 1,
     marginBottom: 0,
   },
-  searchInputIcon: {
-    fontSize: 16,
-    color: Colors.primaryLight,
-  },
   clearButton: {
     minHeight: 46,
     borderRadius: 14,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   clearButtonText: {
-    color: Colors.text,
     fontSize: Fonts.sizes.md,
     fontWeight: '700',
   },
   searchHintText: {
     marginTop: 10,
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
   },
   filterPanelCard: {
-    marginHorizontal: 24,
+    marginHorizontal: Spacing.xxl,
     marginBottom: 10,
-    borderColor: 'rgba(255,255,255,0.24)',
   },
   filterSection: {
     marginBottom: 10,
@@ -536,9 +620,7 @@ const styles = StyleSheet.create({
   filterTitle: {
     fontSize: Fonts.sizes.xs,
     fontWeight: '700',
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
     marginBottom: 8,
   },
   filterWrap: {
@@ -550,60 +632,46 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   filterChip: {
-    paddingHorizontal: 16,
-    minHeight: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: 14,
+    minHeight: 36,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  filterChipActive: {
-    backgroundColor: 'rgba(187,39,68,0.28)',
-    borderColor: Colors.primaryLight,
   },
   filterChipText: {
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: Colors.text,
   },
   activeFiltersRow: {
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xxl,
     gap: 8,
     marginBottom: 8,
   },
   activeFilterPill: {
     borderRadius: 999,
     paddingHorizontal: 12,
-    minHeight: 30,
-    backgroundColor: 'rgba(212,85,109,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(212,85,109,0.45)',
+    minHeight: 28,
+    borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
   },
   activeFilterText: {
-    color: Colors.primaryLight,
-    fontSize: Fonts.sizes.sm,
-    fontWeight: '600',
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   resultsSummaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xxl,
     paddingBottom: 8,
   },
   resultsSummaryText: {
-    color: Colors.text,
     fontSize: Fonts.sizes.md,
     fontWeight: '700',
   },
   resultsSummarySubtext: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
   },
   loadingContainer: {
@@ -611,19 +679,17 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   listContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 120,
+    paddingHorizontal: Spacing.xxl,
+    paddingBottom: 130,
     paddingTop: 4,
   },
   emptyList: {
     flexGrow: 1,
   },
   questionCardEntry: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  questionCard: {
-    borderColor: 'rgba(255,255,255,0.32)',
-  },
+  questionCard: {},
   questionTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -638,39 +704,34 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   classBadge: {
-    borderRadius: 8,
+    borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    paddingVertical: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   classBadgeText: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.xs,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.5,
   },
   topicBadge: {
-    marginRight: 2,
+    marginRight: 0,
   },
   questionTitle: {
     fontSize: Fonts.sizes.xl,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: 8,
     lineHeight: Fonts.lineHeights.xl,
+    letterSpacing: -0.2,
   },
   questionBody: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textSecondary,
     lineHeight: Fonts.lineHeights.md,
     marginBottom: 12,
   },
   highlightText: {
-    color: '#FFE08A',
-    backgroundColor: 'rgba(255,224,138,0.18)',
     fontWeight: '700',
+    borderRadius: 4,
   },
   questionMetaRow: {
     flexDirection: 'row',
@@ -679,59 +740,50 @@ const styles = StyleSheet.create({
   },
   authorText: {
     fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
   },
   dotSeparator: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
   },
   dateText: {
     fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
   },
   questionFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 12,
+    gap: 8,
   },
   statPill: {
-    minHeight: 32,
-    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 28,
+    borderRadius: 999,
     paddingHorizontal: 10,
-    marginRight: 8,
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   statText: {
     fontSize: Fonts.sizes.sm,
-    color: Colors.textSecondary,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   footerRight: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   footerActionButton: {
-    minHeight: 36,
-    minWidth: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    minHeight: 32,
+    minWidth: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-  },
-  footerActionIcon: {
-    fontSize: 15,
-    color: Colors.textSecondary,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   footerLoader: {
     paddingVertical: 14,

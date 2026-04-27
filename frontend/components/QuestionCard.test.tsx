@@ -7,6 +7,8 @@ function makeQuestion(): QuestionResponse {
   return {
     id: 'q-1',
     whiteboardId: 'wb-1',
+    whiteboardCourseCode: 'IT326',
+    whiteboardCourseName: 'Web Development',
     authorId: 'u-1',
     authorName: 'Taylor Student',
     topicId: 't-1',
@@ -20,6 +22,8 @@ function makeQuestion(): QuestionResponse {
     userVote: null,
     commentCount: 4,
     verifiedAnswerId: null,
+    verifiedAnswerPreview: null,
+    verifiedAnswerAuthorName: null,
     isBookmarked: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -1,30 +1,36 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   StyleSheet,
   Platform,
   View,
   Text,
-  FlatList,
+  Pressable,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
   ScrollView,
+  SectionList,
+  TextInput,
   type GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
+import GlassModal from '../../components/ui/GlassModal';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import ReportModal from '../../components/ReportModal';
+import ContactFacultySheet from '../../components/whiteboard/ContactFacultySheet';
+import { AnimatedIcon } from '../../components/AnimatedIcon';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import {
-  FEED_STATUS_FILTERS,
+  SORT_OPTIONS,
   useWhiteboardDetailModel,
+  type SortMode,
 } from '../../hooks/useWhiteboardDetailModel';
 import { formatDate } from '../../utils/formatDate';
 import type { QuestionResponse } from '../../types';
@@ -35,31 +41,39 @@ export default function WhiteboardDetailScreen() {
   const {
     whiteboard,
     questions,
-    filteredQuestions,
-    pinnedQuestions,
+    sections,
     topicFilters,
     loading,
     refreshing,
     loadError,
     loadingMore,
-    statusFilter,
     topicFilter,
+    searchQuery,
+    sortMode,
+    isSearching,
     reportModalVisible,
     reportTarget,
     isFaculty,
     handleRefresh,
     handleLoadMore,
     handleToggleBookmark,
-    handleStatusFilter,
     handleTopicFilter,
     clearFilters,
-    openReportModal: handleOpenReportModal,
+    setSearchQuery,
+    setSortMode,
+    openReportModal,
     closeReportModal,
   } = useWhiteboardDetailModel(id);
+
+  const [sortSheetVisible, setSortSheetVisible] = useState(false);
+  const [contactSheetVisible, setContactSheetVisible] = useState(false);
 
   const stopCardPress = (event: GestureResponderEvent) => {
     event.stopPropagation();
   };
+
+  const sortLabel =
+    SORT_OPTIONS.find((option) => option.value === sortMode)?.label ?? 'Recent activity';
 
   const renderQuestionCard = useCallback(
     ({ item }: { item: QuestionResponse }) => (
@@ -75,7 +89,7 @@ export default function WhiteboardDetailScreen() {
       >
         {item.isPinned && (
           <View style={styles.pinnedBanner}>
-            <Text style={styles.pinnedIcon}>{'\u{1F4CC}'}</Text>
+            <AnimatedIcon name="pin" size={12} color={Colors.warning} motion="none" />
             <Text style={styles.pinnedText}>PINNED</Text>
           </View>
         )}
@@ -93,9 +107,28 @@ export default function WhiteboardDetailScreen() {
           {item.isHidden ? '[hidden]' : item.body}
         </Text>
 
+        {item.verifiedAnswerId && item.verifiedAnswerPreview ? (
+          <View style={styles.answerStripe}>
+            <View style={styles.answerStripeHeader}>
+              <AnimatedIcon
+                name="checkmark-circle"
+                size={14}
+                color={Colors.verifiedAnswer}
+                motion="none"
+              />
+              <Text style={styles.answerStripeLabel}>
+                Answered{item.verifiedAnswerAuthorName ? ` by ${item.verifiedAnswerAuthorName}` : ''}
+              </Text>
+            </View>
+            <Text style={styles.answerStripeBody} numberOfLines={2}>
+              {item.verifiedAnswerPreview}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.questionFooter}>
           <Text style={styles.authorText}>{item.authorName}</Text>
-          <Text style={styles.dotSep}>{' \u00B7 '}</Text>
+          <Text style={styles.dotSep}>{' · '}</Text>
           <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
           <View style={styles.footerRight}>
             <TouchableOpacity
@@ -107,38 +140,87 @@ export default function WhiteboardDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel={item.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
             >
-              <Text style={styles.footerActionIcon}>{item.isBookmarked ? '\u2605' : '\u2606'}</Text>
+              <AnimatedIcon
+                name={item.isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                size={16}
+                color={item.isBookmarked ? Colors.primary : Colors.textMuted}
+                motion="none"
+              />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={(event) => {
                 stopCardPress(event);
-                handleOpenReportModal(item.id);
+                openReportModal(item.id);
               }}
               style={styles.footerActionButton}
               accessibilityRole="button"
               accessibilityLabel="Report question"
             >
-              <Text style={styles.footerActionIcon}>{'\u{1F6A9}'}</Text>
+              <AnimatedIcon name="flag-outline" size={16} color={Colors.textMuted} motion="none" />
             </TouchableOpacity>
-            <Text
-              style={[
-                styles.karmaText,
-                item.karmaScore > 0 && styles.karmaPositive,
-                item.karmaScore < 0 && styles.karmaNegative,
-              ]}
-            >
-              {'\u25B2'} {item.karmaScore}
-            </Text>
-            <Text style={styles.commentText}>
-              {'\u{1F4AC}'} {item.commentCount}
-            </Text>
-            {item.verifiedAnswerId && <Text style={styles.verifiedText}>{'\u2705'}</Text>}
+            <View style={styles.metaItem}>
+              <AnimatedIcon
+                name="arrow-up"
+                size={14}
+                color={
+                  item.karmaScore > 0
+                    ? Colors.success
+                    : item.karmaScore < 0
+                      ? Colors.error
+                      : Colors.textMuted
+                }
+                motion="none"
+              />
+              <Text
+                style={[
+                  styles.metaCount,
+                  item.karmaScore > 0 && styles.karmaPositive,
+                  item.karmaScore < 0 && styles.karmaNegative,
+                ]}
+              >
+                {item.karmaScore}
+              </Text>
+            </View>
+            <View style={styles.metaItem}>
+              <AnimatedIcon
+                name="chatbubble-outline"
+                size={14}
+                color={Colors.textMuted}
+                motion="none"
+              />
+              <Text style={styles.metaCount}>{item.commentCount}</Text>
+            </View>
           </View>
         </View>
       </GlassCard>
     ),
-    [handleOpenReportModal, handleToggleBookmark, id, router]
+    [handleToggleBookmark, id, openReportModal, router]
   );
+
+  const renderSectionHeader = ({
+    section,
+  }: {
+    section: { key: 'pinned' | 'open' | 'answered'; title: string };
+  }) => {
+    if (isSearching) return null;
+    return (
+      <View style={styles.sectionHeader}>
+        {section.key === 'pinned' ? (
+          <AnimatedIcon name="pin" size={14} color={Colors.warning} motion="none" />
+        ) : section.key === 'answered' ? (
+          <AnimatedIcon
+            name="checkmark-circle"
+            size={14}
+            color={Colors.verifiedAnswer}
+            motion="none"
+          />
+        ) : (
+          <AnimatedIcon name="ellipse-outline" size={14} color={Colors.textMuted} motion="none" />
+        )}
+        <Text style={styles.sectionLabel}>{section.title}</Text>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -171,7 +253,7 @@ export default function WhiteboardDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
+            <AnimatedIcon name="chevron-back" size={20} color={Colors.text} motion="none" />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
@@ -183,6 +265,14 @@ export default function WhiteboardDetailScreen() {
 
           <View style={styles.headerActions}>
             <TouchableOpacity
+              onPress={() => setContactSheetVisible(true)}
+              style={styles.headerButton}
+              accessibilityRole="button"
+              accessibilityLabel="Contact faculty"
+            >
+              <AnimatedIcon name="mail-outline" size={18} color={Colors.text} motion="none" />
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() =>
                 router.push({
                   pathname: '/whiteboard/members',
@@ -193,7 +283,7 @@ export default function WhiteboardDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="View whiteboard members"
             >
-              <Text style={styles.headerButtonIcon}>{'\u{1F465}'}</Text>
+              <AnimatedIcon name="people-outline" size={18} color={Colors.text} motion="none" />
             </TouchableOpacity>
             {isFaculty && (
               <TouchableOpacity
@@ -207,41 +297,62 @@ export default function WhiteboardDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Open whiteboard settings"
               >
-                <Text style={styles.headerButtonIcon}>{'\u2699\uFE0F'}</Text>
+                <AnimatedIcon
+                  name="settings-outline"
+                  size={18}
+                  color={Colors.text}
+                  motion="none"
+                />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Status</Text>
-          <View style={styles.filterContainer}>
-            {FEED_STATUS_FILTERS.map((filter) => (
+        {/* Search + sort row */}
+        <View style={styles.controlsRow}>
+          <View style={styles.searchField}>
+            <AnimatedIcon name="search" size={16} color={Colors.textMuted} motion="none" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search questions"
+              placeholderTextColor={Colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 ? (
               <TouchableOpacity
-                key={filter.value}
-                style={[
-                  styles.filterChip,
-                  statusFilter === filter.value && styles.filterChipActive,
-                ]}
-                onPress={() => handleStatusFilter(filter.value)}
+                onPress={() => setSearchQuery('')}
                 accessibilityRole="button"
-                accessibilityLabel={`Filter by ${filter.label}`}
+                accessibilityLabel="Clear search"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    statusFilter === filter.value && styles.filterChipTextActive,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
+                <AnimatedIcon
+                  name="close-circle"
+                  size={16}
+                  color={Colors.textMuted}
+                  motion="none"
+                />
               </TouchableOpacity>
-            ))}
+            ) : null}
           </View>
+          <Pressable
+            style={({ pressed }) => [styles.sortChip, pressed && { opacity: 0.7 }]}
+            onPress={() => setSortSheetVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Change sort order"
+          >
+            <AnimatedIcon name="swap-vertical" size={14} color={Colors.text} motion="none" />
+            <Text style={styles.sortChipText} numberOfLines={1}>
+              {sortLabel}
+            </Text>
+          </Pressable>
         </View>
 
-        <View style={styles.filterSection}>
-          <Text style={styles.filterTitle}>Topic</Text>
+        {/* Topic filter */}
+        {topicFilters.length > 0 ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -281,16 +392,18 @@ export default function WhiteboardDetailScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        ) : null}
 
         {/* Question Feed */}
-        <FlatList
-          data={filteredQuestions}
-          renderItem={renderQuestionCard}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
+          renderItem={renderQuestionCard}
+          renderSectionHeader={renderSectionHeader}
+          stickySectionHeadersEnabled={false}
           contentContainerStyle={[
             styles.listContent,
-            filteredQuestions.length === 0 && styles.emptyList,
+            sections.every((s) => s.data.length === 0) && styles.emptyList,
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -300,26 +413,29 @@ export default function WhiteboardDetailScreen() {
               tintColor={Colors.primary}
             />
           }
-          ListHeaderComponent={
-            pinnedQuestions.length > 0 ? (
-              <Text style={styles.sectionLabel}>{pinnedQuestions.length} Pinned</Text>
-            ) : null
-          }
           ListEmptyComponent={
-            questions.length > 0 ? (
+            isSearching ? (
               <EmptyState
-                icon={'\u{1F50E}'}
-                title="No Matching Questions"
+                ionIcon="search-outline"
+                title="No matches"
+                subtitle={`No questions match “${searchQuery.trim()}”.`}
+                actionLabel="Clear search"
+                onAction={clearFilters}
+              />
+            ) : questions.length > 0 ? (
+              <EmptyState
+                ionIcon="filter-outline"
+                title="No matching questions"
                 subtitle="Adjust filters to see more questions."
-                actionLabel="Clear Filters"
+                actionLabel="Clear filters"
                 onAction={clearFilters}
               />
             ) : (
               <EmptyState
-                icon={'\u2753'}
-                title="No Questions Yet"
+                ionIcon="help-circle-outline"
+                title="No questions yet"
                 subtitle={loadError || 'Be the first to ask a question in this class!'}
-                actionLabel="Ask a Question"
+                actionLabel="Ask a question"
                 onAction={() =>
                   router.push({
                     pathname: '/question/create',
@@ -353,13 +469,54 @@ export default function WhiteboardDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Ask a question"
         >
-          <Text style={styles.fabIcon}>{'+ Ask'}</Text>
+          <AnimatedIcon name="add" size={20} color={Colors.text} motion="none" />
+          <Text style={styles.fabLabel}>Ask</Text>
         </TouchableOpacity>
+
         <ReportModal
           visible={reportModalVisible}
           onClose={closeReportModal}
           target={reportTarget}
           title="Report Question"
+        />
+
+        <GlassModal
+          visible={sortSheetVisible}
+          onClose={() => setSortSheetVisible(false)}
+          title="Sort by"
+        >
+          {SORT_OPTIONS.map((option) => {
+            const selected = option.value === sortMode;
+            return (
+              <Pressable
+                key={option.value}
+                style={({ pressed }) => [
+                  styles.sortOption,
+                  selected && styles.sortOptionSelected,
+                  pressed && { opacity: 0.7 },
+                ]}
+                onPress={() => {
+                  setSortMode(option.value as SortMode);
+                  setSortSheetVisible(false);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.sortOptionLabel, selected && styles.sortOptionLabelSelected]}>
+                  {option.label}
+                </Text>
+                {selected ? (
+                  <AnimatedIcon name="checkmark" size={18} color={Colors.primary} motion="none" />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </GlassModal>
+
+        <ContactFacultySheet
+          visible={contactSheetVisible}
+          onClose={() => setContactSheetVisible(false)}
+          whiteboardId={id}
         />
       </SafeAreaView>
     </LinearGradient>
@@ -372,11 +529,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -394,10 +546,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.text,
   },
   headerCenter: {
     flex: 1,
@@ -425,34 +573,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerButtonIcon: {
-    fontSize: 16,
-  },
-  filterSection: {
-    marginTop: 8,
-  },
-  filterTitle: {
-    fontSize: Fonts.sizes.xs,
-    fontWeight: '700',
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  filterContainer: {
+  controlsRow: {
     flexDirection: 'row',
-    gap: 8,
     paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  searchField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    paddingVertical: 0,
+  },
+  sortChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  sortChipText: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text,
+    maxWidth: 130,
   },
   filterRow: {
     gap: 8,
     paddingHorizontal: 16,
-    paddingBottom: 4,
+    paddingBottom: 8,
   },
   filterChip: {
     paddingHorizontal: 14,
-    minHeight: 44,
+    minHeight: 36,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
@@ -472,17 +642,24 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: Colors.primary,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
   sectionLabel: {
     fontSize: Fonts.sizes.sm,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.textMuted,
-    marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   emptyList: {
@@ -497,11 +674,8 @@ const styles = StyleSheet.create({
   pinnedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     marginBottom: 8,
-  },
-  pinnedIcon: {
-    fontSize: 12,
-    marginRight: 4,
   },
   pinnedText: {
     fontSize: Fonts.sizes.xs,
@@ -529,6 +703,32 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  answerStripe: {
+    backgroundColor: 'rgba(34,197,94,0.10)',
+    borderColor: 'rgba(34,197,94,0.30)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  answerStripeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  answerStripeLabel: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    color: Colors.verifiedAnswer,
+    letterSpacing: 0.3,
+  },
+  answerStripeBody: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.text,
+    lineHeight: 19,
   },
   questionFooter: {
     flexDirection: 'row',
@@ -562,11 +762,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
-  footerActionIcon: {
-    fontSize: 14,
-    color: Colors.textMuted,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  karmaText: {
+  metaCount: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
   },
@@ -575,13 +776,6 @@ const styles = StyleSheet.create({
   },
   karmaNegative: {
     color: Colors.error,
-  },
-  commentText: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
-  },
-  verifiedText: {
-    fontSize: 14,
   },
   footerLoader: {
     paddingVertical: 12,
@@ -597,12 +791,13 @@ const styles = StyleSheet.create({
     right: 20,
     bottom: 24,
     height: 48,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     borderRadius: 24,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: 6,
     ...Platform.select({
       web: {
         boxShadow: '0px 4px 12px rgba(187,39,68,0.4)',
@@ -616,9 +811,28 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  fabIcon: {
+  fabLabel: {
     fontSize: Fonts.sizes.md,
     color: Colors.text,
     fontWeight: '700',
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  sortOptionSelected: {
+    backgroundColor: 'rgba(187,39,68,0.12)',
+  },
+  sortOptionLabel: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  sortOptionLabelSelected: {
+    color: Colors.primary,
   },
 });

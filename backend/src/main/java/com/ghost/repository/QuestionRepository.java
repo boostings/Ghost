@@ -24,6 +24,34 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     List<Question> findByAuthorId(UUID authorId);
 
+    Page<Question> findByAuthorIdOrderByCreatedAtDesc(UUID authorId, Pageable pageable);
+
+    Page<Question> findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+            UUID authorId, List<UUID> whiteboardIds, Pageable pageable);
+
+    Page<Question> findByAuthorIdAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(UUID authorId, Pageable pageable);
+
+    Page<Question> findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(
+            UUID authorId, List<UUID> whiteboardIds, Pageable pageable);
+
+    Page<Question> findByAuthorIdAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(UUID authorId, Pageable pageable);
+
+    Page<Question> findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(
+            UUID authorId, List<UUID> whiteboardIds, Pageable pageable);
+
+    Page<Question> findByWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(
+            List<UUID> whiteboardIds, Pageable pageable);
+
+    Page<Question> findByWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(
+            List<UUID> whiteboardIds, Pageable pageable);
+
+    Page<Question> findByWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+            List<UUID> whiteboardIds, Pageable pageable);
+
+    long countByAuthorId(UUID authorId);
+
+    long countByAuthorIdAndWhiteboardIdInAndIsHiddenFalse(UUID authorId, List<UUID> whiteboardIds);
+
     @Query("SELECT COALESCE(SUM(q.karmaScore), 0) FROM Question q WHERE q.author.id = :authorId")
     int sumKarmaByAuthorId(@Param("authorId") UUID authorId);
 

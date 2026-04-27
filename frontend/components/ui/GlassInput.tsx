@@ -7,6 +7,7 @@ import {
   ViewStyle,
   StyleProp,
   TextInputProps,
+  Pressable,
 } from 'react-native';
 import Animated, {
   interpolateColor,
@@ -14,9 +15,11 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Ease } from '../../constants/motion';
+import { Radius } from '../../constants/spacing';
 
 interface GlassInputProps {
   placeholder?: string;
@@ -34,6 +37,7 @@ interface GlassInputProps {
   onSubmitEditing?: () => void;
   maxLength?: number;
   editable?: boolean;
+  showClear?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -53,12 +57,14 @@ const GlassInput: React.FC<GlassInputProps> = ({
   onSubmitEditing,
   maxLength,
   editable = true,
+  showClear = false,
   style,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [showSecure, setShowSecure] = useState(secureTextEntry ?? false);
   const colors = useThemeColors();
 
-  const inputHeight = multiline ? Math.max(48, numberOfLines * 24 + 24) : 48;
+  const inputHeight = multiline ? Math.max(52, numberOfLines * 24 + 28) : 52;
 
   const focusProgress = useSharedValue(0);
 
@@ -107,7 +113,7 @@ const GlassInput: React.FC<GlassInputProps> = ({
           placeholderTextColor={colors.textMuted}
           value={value}
           onChangeText={onChangeText}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={showSecure}
           multiline={multiline}
           numberOfLines={multiline ? numberOfLines : undefined}
           textAlignVertical={multiline ? 'top' : 'center'}
@@ -121,6 +127,32 @@ const GlassInput: React.FC<GlassInputProps> = ({
           onBlur={() => setIsFocused(false)}
           selectionColor={colors.primary}
         />
+        {secureTextEntry && (
+          <Pressable
+            onPress={() => setShowSecure((prev) => !prev)}
+            hitSlop={8}
+            style={styles.affordance}
+            accessibilityRole="button"
+            accessibilityLabel={showSecure ? 'Show password' : 'Hide password'}
+          >
+            <Ionicons
+              name={showSecure ? 'eye-outline' : 'eye-off-outline'}
+              size={18}
+              color={colors.textMuted}
+            />
+          </Pressable>
+        )}
+        {showClear && value.length > 0 && !secureTextEntry && (
+          <Pressable
+            onPress={() => onChangeText('')}
+            hitSlop={8}
+            style={styles.affordance}
+            accessibilityRole="button"
+            accessibilityLabel="Clear input"
+          >
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
       </Animated.View>
       {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
@@ -132,12 +164,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: Fonts.sizes.md,
+    fontSize: Fonts.sizes.sm,
     fontWeight: Fonts.medium.fontWeight,
-    marginBottom: 8,
+    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   container: {
-    borderRadius: 16,
+    borderRadius: Radius.md,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -153,14 +186,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Fonts.sizes.lg,
     fontWeight: Fonts.regular.fontWeight,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   multilineInput: {
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 14,
   },
   inputWithIcon: {
     paddingLeft: 0,
+  },
+  affordance: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   errorText: {
     fontSize: Fonts.sizes.sm,

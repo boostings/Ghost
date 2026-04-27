@@ -12,11 +12,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from '@expo/vector-icons';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassModal from '../../components/ui/GlassModal';
 import QRCodeModal from '../../components/QRCodeModal';
+import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
@@ -24,12 +27,19 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import type { WhiteboardResponse } from '../../types';
 
+type InviteInfo = {
+  inviteCode: string;
+  inviteUrl: string;
+  qrData: string;
+};
+
 export default function WhiteboardSettingsScreen() {
   const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
   const user = useAuthStore((state) => state.user);
 
   const [whiteboard, setWhiteboard] = useState<WhiteboardResponse | null>(null);
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -38,12 +48,19 @@ export default function WhiteboardSettingsScreen() {
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = whiteboard?.ownerId === user?.id;
+  const inviteCode = inviteInfo?.inviteCode || whiteboard?.inviteCode || '';
+  const qrValue =
+    inviteInfo?.qrData || inviteInfo?.inviteUrl || (inviteCode ? `ghost://join/${inviteCode}` : '');
 
   const fetchWhiteboard = useCallback(async () => {
     if (!whiteboardId) return;
     try {
-      const wb = await whiteboardService.getById(whiteboardId);
+      const [wb, invite] = await Promise.all([
+        whiteboardService.getById(whiteboardId),
+        whiteboardService.getInviteInfo(whiteboardId).catch(() => null),
+      ]);
       setWhiteboard(wb);
+      setInviteInfo(invite);
     } catch {
       Alert.alert('Error', 'Failed to load whiteboard settings.');
     } finally {
@@ -56,15 +73,13 @@ export default function WhiteboardSettingsScreen() {
   }, [fetchWhiteboard]);
 
   const handleCopyInviteCode = () => {
-    if (whiteboard?.inviteCode) {
-      Clipboard.setStringAsync(whiteboard.inviteCode)
+    if (inviteCode) {
+      Clipboard.setStringAsync(inviteCode)
         .then(() => {
           Alert.alert('Copied', 'Invite code copied to clipboard.');
         })
         .catch(() => {
-          Alert.alert('Invite Code', `The invite code is: ${whiteboard.inviteCode}`, [
-            { text: 'OK' },
-          ]);
+          Alert.alert('Invite Code', `The invite code is: ${inviteCode}`, [{ text: 'OK' }]);
         });
     }
   };
@@ -116,7 +131,7 @@ export default function WhiteboardSettingsScreen() {
   };
 
   const handleOpenQrModal = () => {
-    if (!whiteboard?.inviteCode) {
+    if (!inviteCode) {
       Alert.alert('Unavailable', 'Invite code is not available yet. Please try again.');
       return;
     }
@@ -136,51 +151,59 @@ export default function WhiteboardSettingsScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Whiteboard Settings</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <SettingsHeader
+          title="Whiteboard Settings"
+          subtitle={whiteboard?.courseCode ? `${whiteboard.courseCode} settings` : undefined}
+        />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Class Info */}
-          <GlassCard style={styles.card}>
-            <Text style={styles.sectionTitle}>Class Information</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Course Code</Text>
-              <Text style={styles.infoValue}>{whiteboard?.courseCode || '--'}</Text>
+          <GlassCard style={styles.heroCard}>
+            <View style={styles.courseHeader}>
+              <View style={styles.courseCodeBadge}>
+                <Text style={styles.courseCodeText}>{whiteboard?.courseCode || '--'}</Text>
+              </View>
+              <View style={styles.ownerBadge}>
+                <Ionicons
+                  name={isOwner ? 'shield-checkmark-outline' : 'school-outline'}
+                  size={14}
+                  color={isOwner ? Colors.success : Colors.textMuted}
+                />
+                <Text style={[styles.ownerBadgeText, isOwner && styles.ownerBadgeTextActive]}>
+                  {isOwner ? 'Owner' : 'Faculty'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Course Name</Text>
-              <Text style={styles.infoValue}>{whiteboard?.courseName || '--'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Semester</Text>
-              <Text style={styles.infoValue}>{whiteboard?.semester || '--'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Members</Text>
-              <Text style={styles.infoValue}>{whiteboard?.memberCount || 0}</Text>
+            <Text style={styles.courseTitle}>
+              {whiteboard?.courseName || 'Untitled whiteboard'}
+            </Text>
+            <View style={styles.metaGrid}>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Semester</Text>
+                <Text style={styles.metaValue}>{whiteboard?.semester || '--'}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Section</Text>
+                <Text style={styles.metaValue}>{whiteboard?.section || '--'}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Members</Text>
+                <Text style={styles.metaValue}>{whiteboard?.memberCount || 0}</Text>
+              </View>
             </View>
           </GlassCard>
 
           {/* Invite Code */}
           <GlassCard style={styles.card}>
-            <Text style={styles.sectionTitle}>Invite Code</Text>
-            <Text style={styles.sectionDescription}>
-              Share this code or QR with students to join the class
-            </Text>
+            <View style={styles.cardTitleRow}>
+              <View>
+                <Text style={styles.sectionTitle}>Invite Access</Text>
+                <Text style={styles.sectionDescription}>Code and QR for student enrollment</Text>
+              </View>
+              <Ionicons name="qr-code-outline" size={24} color={Colors.primary} />
+            </View>
 
             <TouchableOpacity
               style={styles.inviteCodeBox}
@@ -189,8 +212,10 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Copy invite code"
             >
-              <Text style={styles.inviteCodeText}>{whiteboard?.inviteCode || '------'}</Text>
-              <Text style={styles.copyText}>Tap to copy</Text>
+              <Text style={styles.inviteCodeText}>{inviteCode || 'Unavailable'}</Text>
+              <Text style={styles.copyText}>
+                {inviteCode ? 'Tap to copy' : 'Unable to load code'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -198,13 +223,20 @@ export default function WhiteboardSettingsScreen() {
               onPress={handleOpenQrModal}
               activeOpacity={0.8}
             >
-              <Text style={styles.qrIcon}>{'\u{1F4F1}'}</Text>
-              <Text style={styles.qrText}>QR Code</Text>
+              {qrValue ? (
+                <View style={styles.inlineQrBackground}>
+                  <QRCode value={qrValue} size={132} backgroundColor="#FFFFFF" color="#111827" />
+                </View>
+              ) : (
+                <View style={styles.inlineQrUnavailable}>
+                  <Text style={styles.inlineQrUnavailableText}>QR unavailable</Text>
+                </View>
+              )}
+              <Text style={styles.qrText}>Open Full QR Code</Text>
               <Text style={styles.qrSubtext}>Students can scan this to join</Text>
             </TouchableOpacity>
           </GlassCard>
 
-          {/* Manage Links */}
           <GlassCard style={styles.card}>
             <Text style={styles.sectionTitle}>Manage</Text>
 
@@ -219,12 +251,14 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Manage topics"
             >
-              <Text style={styles.menuIcon}>{'\u{1F3F7}\uFE0F'}</Text>
+              <View style={styles.menuIconBubble}>
+                <Ionicons name="pricetags-outline" size={20} color={Colors.primary} />
+              </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Manage Topics</Text>
                 <Text style={styles.menuDescription}>Add or remove question topics</Text>
               </View>
-              <Text style={styles.menuChevron}>{'\u203A'}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -240,12 +274,14 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Manage members"
             >
-              <Text style={styles.menuIcon}>{'\u{1F465}'}</Text>
+              <View style={styles.menuIconBubble}>
+                <Ionicons name="people-outline" size={20} color={Colors.primary} />
+              </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Manage Members</Text>
                 <Text style={styles.menuDescription}>View members and join requests</Text>
               </View>
-              <Text style={styles.menuChevron}>{'\u203A'}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -261,12 +297,14 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open audit log"
             >
-              <Text style={styles.menuIcon}>{'\u{1F4CB}'}</Text>
+              <View style={styles.menuIconBubble}>
+                <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
+              </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Audit Log</Text>
                 <Text style={styles.menuDescription}>View activity history</Text>
               </View>
-              <Text style={styles.menuChevron}>{'\u203A'}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <View style={styles.menuDivider} />
@@ -282,19 +320,29 @@ export default function WhiteboardSettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open moderation reports"
             >
-              <Text style={styles.menuIcon}>{'\u{1F6A9}'}</Text>
+              <View style={styles.menuIconBubble}>
+                <Ionicons name="flag-outline" size={20} color={Colors.primary} />
+              </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>Moderation</Text>
                 <Text style={styles.menuDescription}>Review reported content</Text>
               </View>
-              <Text style={styles.menuChevron}>{'\u203A'}</Text>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
           </GlassCard>
 
           {/* Danger Zone */}
           {isOwner && (
             <GlassCard style={styles.dangerCard}>
-              <Text style={styles.dangerTitle}>Danger Zone</Text>
+              <View style={styles.cardTitleRow}>
+                <View>
+                  <Text style={styles.dangerTitle}>Owner Controls</Text>
+                  <Text style={styles.sectionDescription}>
+                    Transfer or permanently remove this board
+                  </Text>
+                </View>
+                <Ionicons name="warning-outline" size={24} color={Colors.error} />
+              </View>
 
               <View style={styles.dangerActions}>
                 <GlassButton
@@ -349,7 +397,7 @@ export default function WhiteboardSettingsScreen() {
         <QRCodeModal
           visible={showQrModal}
           onClose={() => setShowQrModal(false)}
-          inviteCode={whiteboard?.inviteCode ?? ''}
+          inviteCode={inviteCode}
           whiteboardName={
             whiteboard ? `${whiteboard.courseCode} - ${whiteboard.courseName}` : 'Whiteboard'
           }
@@ -371,42 +419,92 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.text,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: Fonts.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 36,
-  },
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
   },
+  heroCard: {
+    marginBottom: 16,
+  },
   card: {
     marginBottom: 16,
+  },
+  courseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  courseCodeBadge: {
+    borderRadius: 12,
+    backgroundColor: 'rgba(187,39,68,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(187,39,68,0.28)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  courseCodeText: {
+    color: Colors.primary,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  ownerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  ownerBadgeText: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
+  },
+  ownerBadgeTextActive: {
+    color: Colors.success,
+  },
+  courseTitle: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.xxl,
+    fontWeight: '800',
+    lineHeight: Fonts.lineHeights.xxl,
+    marginBottom: 16,
+  },
+  metaGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metaItem: {
+    flex: 1,
+    minHeight: 64,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
+  },
+  metaLabel: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  metaValue: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   sectionTitle: {
     fontSize: Fonts.sizes.lg,
@@ -462,9 +560,26 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
   },
-  qrIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+  inlineQrBackground: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 12,
+  },
+  inlineQrUnavailable: {
+    width: 152,
+    height: 152,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  inlineQrUnavailableText: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
   },
   qrText: {
     fontSize: Fonts.sizes.lg,
@@ -479,10 +594,18 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    minHeight: 64,
+    paddingVertical: 10,
   },
-  menuIcon: {
-    fontSize: 20,
+  menuIconBubble: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(187,39,68,0.13)',
+    borderWidth: 1,
+    borderColor: 'rgba(187,39,68,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 14,
   },
   menuContent: {
@@ -498,14 +621,10 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginTop: 2,
   },
-  menuChevron: {
-    fontSize: 20,
-    color: Colors.textMuted,
-    marginLeft: 8,
-  },
   menuDivider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
+    marginLeft: 54,
   },
   dangerCard: {
     marginBottom: 16,

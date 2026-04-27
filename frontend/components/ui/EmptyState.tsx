@@ -1,11 +1,16 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { Colors } from '../../constants/colors';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import GlassButton from './GlassButton';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: string; // emoji passthrough (legacy)
+  ionIcon?: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle?: string;
   actionLabel?: string;
@@ -14,22 +19,40 @@ interface EmptyStateProps {
 
 const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
+  ionIcon,
   title,
   subtitle,
   actionLabel,
   onAction,
 }) => {
+  const colors = useThemeColors();
+
   return (
-    <View style={styles.container}>
-      {icon && <Text style={styles.icon}>{icon}</Text>}
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-      {actionLabel && onAction && (
-        <View style={styles.actionContainer}>
-          <GlassButton title={actionLabel} onPress={onAction} variant="secondary" />
+    <Animated.View
+      entering={FadeIn.duration(Duration.slow).delay(Stagger.hero)}
+      style={styles.container}
+    >
+      {ionIcon && (
+        <View
+          style={[
+            styles.iconCircle,
+            { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+          ]}
+        >
+          <Ionicons name={ionIcon} size={36} color={colors.primary} />
         </View>
       )}
-    </View>
+      {!ionIcon && icon && <Text style={styles.emoji}>{icon}</Text>}
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      {subtitle && (
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+      )}
+      {actionLabel && onAction && (
+        <View style={styles.actionContainer}>
+          <GlassButton title={actionLabel} onPress={onAction} variant="primary" solid />
+        </View>
+      )}
+    </Animated.View>
   );
 };
 
@@ -41,26 +64,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     paddingVertical: 60,
   },
-  icon: {
+  iconCircle: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xxl,
+  },
+  emoji: {
     fontSize: 56,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   title: {
-    color: Colors.textSecondary,
-    fontSize: Fonts.sizes.xl,
-    fontWeight: Fonts.semiBold.fontWeight,
+    fontSize: Fonts.sizes.xxl,
+    fontWeight: Fonts.bold.fontWeight,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.md,
     fontWeight: Fonts.regular.fontWeight,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    maxWidth: 320,
   },
   actionContainer: {
-    marginTop: 24,
+    marginTop: Spacing.xxl,
+    minWidth: 200,
   },
 });
 

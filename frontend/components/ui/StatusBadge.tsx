@@ -11,20 +11,20 @@ interface StatusBadgeProps {
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const colors = useThemeColors();
   const isOpen = status === 'OPEN';
+  const accent = isOpen ? colors.openStatus : colors.closedStatus;
 
   return (
     <View
       style={[
         styles.badge,
-        { backgroundColor: isOpen ? `${colors.openStatus}26` : `${colors.closedStatus}26` },
+        {
+          backgroundColor: `${accent}1F`,
+          borderColor: `${accent}33`,
+        },
       ]}
     >
-      <View
-        style={[styles.dot, { backgroundColor: isOpen ? colors.openStatus : colors.closedStatus }]}
-      />
-      <Text style={[styles.text, { color: isOpen ? colors.openStatus : colors.closedStatus }]}>
-        {status}
-      </Text>
+      <View style={[styles.dot, { backgroundColor: accent }]} />
+      <Text style={[styles.text, { color: accent }]}>{status}</Text>
     </View>
   );
 };
@@ -33,10 +33,11 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
     alignSelf: 'flex-start',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   dot: {
     width: 6,
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: Fonts.sizes.xs,
     fontWeight: Fonts.bold.fontWeight,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
 });
 

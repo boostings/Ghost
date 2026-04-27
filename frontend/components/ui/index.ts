@@ -11,3 +11,5 @@ export { default as LoadingSkeleton } from './LoadingSkeleton';
 export { default as ScreenWrapper } from './ScreenWrapper';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as NetworkStatusBanner } from './NetworkStatusBanner';
+export { default as SectionHeader } from './SectionHeader';
+export { default as IconButton } from './IconButton';

@@ -73,6 +73,19 @@ describe('getAuthRedirectTarget', () => {
     ).toBeNull();
   });
 
+  it('lets authenticated users without memberships reach explicitly allowed setup routes', () => {
+    expect(
+      getAuthRedirectTarget({
+        hasValidSession: true,
+        hasJoinedWhiteboard: false,
+        inAuthGroup: false,
+        inOnboarding: false,
+        isAtEntryRoute: false,
+        canAccessWithoutWhiteboard: true,
+      })
+    ).toBeNull();
+  });
+
   it('keeps authenticated users on their current non-auth route when no redirect is needed', () => {
     expect(
       getAuthRedirectTarget({

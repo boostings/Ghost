@@ -67,6 +67,10 @@ describe('courseCatalogService', () => {
 
     const result = await module.courseCatalogService.getSections({
       semester: 'Fall 2026',
+      query: 'systems',
+      subject: 'IT',
+      sortBy: 'teacher',
+      sortDirection: 'DESC',
       page: 1,
       size: 10,
     });
@@ -75,6 +79,10 @@ describe('courseCatalogService', () => {
     expect(apiMock.get).toHaveBeenCalledWith('/course-catalog/sections', {
       params: {
         semester: 'Fall 2026',
+        q: 'systems',
+        subject: 'IT',
+        sortBy: 'teacher',
+        sortDirection: 'DESC',
         page: 1,
         size: 10,
       },

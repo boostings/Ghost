@@ -21,6 +21,7 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
+import { findMatchingWhiteboard } from '../../utils/whiteboardIdentity';
 
 interface FormErrors {
   courseCode?: string;
@@ -31,6 +32,7 @@ interface FormErrors {
 export default function CreateWhiteboardScreen() {
   const router = useRouter();
   const addWhiteboard = useWhiteboardStore((state) => state.addWhiteboard);
+  const whiteboards = useWhiteboardStore((state) => state.whiteboards);
 
   const [courseCode, setCourseCode] = useState('');
   const [courseName, setCourseName] = useState('');
@@ -82,6 +84,22 @@ export default function CreateWhiteboardScreen() {
           : undefined,
         semester: sanitizeSingleLine(semester),
       };
+      const existingWhiteboard = findMatchingWhiteboard(whiteboards, payload);
+      if (existingWhiteboard) {
+        Alert.alert(
+          'Class Already Exists',
+          `${existingWhiteboard.courseCode} already has a whiteboard for ${existingWhiteboard.semester}.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Class',
+              onPress: () => router.replace(`/whiteboard/${existingWhiteboard.id}`),
+            },
+          ]
+        );
+        return;
+      }
+
       const createdWhiteboard = await whiteboardService.createWhiteboard(payload);
       addWhiteboard(createdWhiteboard);
       router.replace(`/whiteboard/${createdWhiteboard.id}`);

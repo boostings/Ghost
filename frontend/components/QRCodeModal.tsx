@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Share } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import GlassModal from './ui/GlassModal';
@@ -91,7 +92,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
             title="Share Link"
             onPress={handleShareLink}
             variant="primary"
-            icon={<Text style={styles.shareIcon}>🔗</Text>}
+            icon={<Ionicons name="link-outline" size={18} color="#FFFFFF" />}
           />
         </View>
       </View>
@@ -152,9 +153,6 @@ const styles = StyleSheet.create({
   },
   shareSection: {
     width: '100%',
-  },
-  shareIcon: {
-    fontSize: 16,
   },
 });
 

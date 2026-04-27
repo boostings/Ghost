@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { WhiteboardResponse } from '../types';
+import { dedupeWhiteboards, findMatchingWhiteboard } from '../utils/whiteboardIdentity';
 
 interface WhiteboardState {
   whiteboards: WhiteboardResponse[];
@@ -29,7 +30,7 @@ export const useWhiteboardStore = create<WhiteboardStore>()((set) => ({
   ...initialState,
 
   setWhiteboards: (whiteboards: WhiteboardResponse[]) => {
-    set({ whiteboards, isLoading: false });
+    set({ whiteboards: dedupeWhiteboards(whiteboards), isLoading: false });
   },
 
   setCurrentWhiteboard: (whiteboard: WhiteboardResponse | null) => {
@@ -37,9 +38,25 @@ export const useWhiteboardStore = create<WhiteboardStore>()((set) => ({
   },
 
   addWhiteboard: (whiteboard: WhiteboardResponse) => {
-    set((state) => ({
-      whiteboards: [whiteboard, ...state.whiteboards],
-    }));
+    set((state) => {
+      if (state.whiteboards.some((existing) => existing.id === whiteboard.id)) {
+        return {
+          whiteboards: dedupeWhiteboards(
+            state.whiteboards.map((existing) =>
+              existing.id === whiteboard.id ? whiteboard : existing
+            )
+          ),
+        };
+      }
+
+      if (findMatchingWhiteboard(state.whiteboards, whiteboard)) {
+        return state;
+      }
+
+      return {
+        whiteboards: [whiteboard, ...state.whiteboards],
+      };
+    });
   },
 
   removeWhiteboard: (id: string) => {
@@ -51,7 +68,9 @@ export const useWhiteboardStore = create<WhiteboardStore>()((set) => ({
 
   updateWhiteboard: (whiteboard: WhiteboardResponse) => {
     set((state) => ({
-      whiteboards: state.whiteboards.map((wb) => (wb.id === whiteboard.id ? whiteboard : wb)),
+      whiteboards: dedupeWhiteboards(
+        state.whiteboards.map((wb) => (wb.id === whiteboard.id ? whiteboard : wb))
+      ),
       currentWhiteboard:
         state.currentWhiteboard?.id === whiteboard.id ? whiteboard : state.currentWhiteboard,
     }));

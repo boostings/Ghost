@@ -1,12 +1,13 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors } from '../../constants/colors';
+import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Spring } from '../../constants/motion';
 import { haptic } from '../../utils/haptics';
@@ -31,13 +32,14 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
   onDownvote,
   size = 'normal',
 }) => {
+  const colors = useThemeColors();
   const isSmall = size === 'small';
-  const arrowSize = isSmall ? Fonts.sizes.md : Fonts.sizes.xl;
+  const arrowSize = isSmall ? 14 : 18;
   const scoreSize = isSmall ? Fonts.sizes.sm : Fonts.sizes.lg;
 
-  const scoreColor = score > 0 ? '#00C851' : score < 0 ? '#FF4444' : Colors.text;
-  const upvoteColor = userVote === 'UPVOTE' ? '#00C851' : Colors.textMuted;
-  const downvoteColor = userVote === 'DOWNVOTE' ? '#FF4444' : Colors.textMuted;
+  const scoreColor = score > 0 ? colors.upvote : score < 0 ? colors.downvote : colors.text;
+  const upvoteColor = userVote === 'UPVOTE' ? colors.upvote : colors.textMuted;
+  const downvoteColor = userVote === 'DOWNVOTE' ? colors.downvote : colors.textMuted;
 
   const upScale = useSharedValue(1);
   const downScale = useSharedValue(1);
@@ -72,10 +74,12 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Upvote"
       >
-        <Text style={[styles.arrow, { fontSize: arrowSize, color: upvoteColor }]}>▲</Text>
+        <Ionicons name="chevron-up" size={arrowSize} color={upvoteColor} />
       </AnimatedPressable>
 
-      <Animated.Text style={[styles.score, { fontSize: scoreSize, color: scoreColor }, scoreStyle]}>
+      <Animated.Text
+        style={[styles.score, { fontSize: scoreSize, color: scoreColor }, scoreStyle]}
+      >
         {score}
       </Animated.Text>
 
@@ -86,7 +90,7 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Downvote"
       >
-        <Text style={[styles.arrow, { fontSize: arrowSize, color: downvoteColor }]}>▼</Text>
+        <Ionicons name="chevron-down" size={arrowSize} color={downvoteColor} />
       </AnimatedPressable>
     </View>
   );
@@ -107,13 +111,11 @@ const styles = StyleSheet.create({
     padding: 2,
     alignItems: 'center',
   },
-  arrow: {
-    textAlign: 'center',
-  },
   score: {
     fontWeight: Fonts.bold.fontWeight,
     textAlign: 'center',
     marginVertical: 2,
+    fontVariant: ['tabular-nums'],
   },
 });
 

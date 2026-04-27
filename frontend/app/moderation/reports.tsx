@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
+import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import {
@@ -55,6 +57,7 @@ export default function ReportsScreen() {
     dismissReport,
     removeReportedContent,
   } = useModerationReportsModel(whiteboardId);
+  const pendingCount = reports.filter((report) => report.status === 'PENDING').length;
 
   const handleDismiss = async (reportId: string) => {
     try {
@@ -122,10 +125,21 @@ export default function ReportsScreen() {
         </View>
 
         {/* Content Info */}
-        <View style={styles.contentInfo}>
-          <Text style={styles.contentType}>{item.questionId ? 'Question' : 'Comment'} Report</Text>
-          <Text style={styles.reporterText}>Reported by {item.reporterName}</Text>
-          <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+        <View style={styles.contentInfoRow}>
+          <View style={styles.reportIcon}>
+            <Ionicons
+              name={item.questionId ? 'help-circle-outline' : 'chatbubble-outline'}
+              size={20}
+              color={Colors.primary}
+            />
+          </View>
+          <View style={styles.contentInfo}>
+            <Text style={styles.contentType}>
+              {item.questionId ? 'Question' : 'Comment'} Report
+            </Text>
+            <Text style={styles.reporterText}>Reported by {item.reporterName}</Text>
+            <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+          </View>
         </View>
 
         {(item.contentTitle || item.contentPreview) && (
@@ -198,8 +212,9 @@ export default function ReportsScreen() {
           accessibilityLabel="View reported content"
         >
           <Text style={styles.viewLinkText}>
-            {item.questionId ? 'View Question' : 'Open Thread'} {'\u203A'}
+            {item.questionId ? 'View Question' : 'Open Thread'}
           </Text>
+          <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
         </TouchableOpacity>
       </GlassCard>
     );
@@ -208,19 +223,11 @@ export default function ReportsScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Moderation</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <SettingsHeader
+          title="Moderation"
+          subtitle="Reported content review"
+          rightElement={<Text style={styles.pendingCount}>{pendingCount}</Text>}
+        />
 
         {/* Filter Chips */}
         <View style={styles.filterContainer}>
@@ -265,7 +272,7 @@ export default function ReportsScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={'\u{1F6A9}'}
+                ionIcon="flag-outline"
                 title="No Reports"
                 subtitle={loadError || 'There are no reported items to review'}
               />
@@ -298,35 +305,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.text,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: Fonts.sizes.xl,
+  pendingCount: {
+    fontSize: Fonts.sizes.md,
+    color: Colors.warning,
     fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 36,
+    backgroundColor: 'rgba(255,193,7,0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -411,8 +397,25 @@ const styles = StyleSheet.create({
   dismissedText: {
     color: '#9E9E9E',
   },
-  contentInfo: {
+  contentInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 10,
+  },
+  reportIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(187,39,68,0.13)',
+    borderWidth: 1,
+    borderColor: 'rgba(187,39,68,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  contentInfo: {
+    flex: 1,
+    minWidth: 0,
   },
   previewContainer: {
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -528,6 +531,10 @@ const styles = StyleSheet.create({
     color: Colors.error,
   },
   viewLink: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',

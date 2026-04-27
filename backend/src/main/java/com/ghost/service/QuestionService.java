@@ -18,6 +18,7 @@ import com.ghost.model.enums.Role;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,6 +46,7 @@ public class QuestionService {
     private final QuestionResponseAssembler questionResponseAssembler;
     private final SearchService searchService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
 
     @Transactional
     public QuestionResponse createQuestion(UUID userId, UUID whiteboardId, CreateQuestionRequest req) {
@@ -175,6 +178,78 @@ public class QuestionService {
             Pageable pageable
     ) {
         return searchService.search(userId, null, whiteboardId, topicId, status, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<QuestionResponse> getQuestionsByAuthor(UUID authorId, Pageable pageable) {
+        List<UUID> whiteboardIds = whiteboardMembershipRepository.findWhiteboardIdsByUserId(authorId);
+        if (whiteboardIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return questionRepository
+                .findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(authorId, whiteboardIds, pageable)
+                .map(question -> questionResponseAssembler.toResponse(question, authorId, false));
+    }
+
+    /**
+     * Personal home strips: returns the current user's questions or — for faculty — questions
+     * across the whiteboards they teach, optionally filtered by answered/unanswered.
+     *
+     * @param userId the current user
+     * @param role   "AUTHOR" → questions I asked; "TEACHING" → questions in classes I'm faculty in
+     * @param status "AWAITING" (no verified answer) | "ANSWERED" (has verified answer) | null/anything → no filter
+     */
+    @Transactional(readOnly = true)
+    public Page<QuestionResponse> getMyQuestions(UUID userId, String role, String status, Pageable pageable) {
+        String normalizedRole = role == null ? "AUTHOR" : role.toUpperCase();
+        String normalizedStatus = status == null ? null : status.toUpperCase();
+
+        Page<Question> page;
+        if ("TEACHING".equals(normalizedRole)) {
+            List<UUID> facultyWhiteboardIds = whiteboardMembershipRepository.findFacultyWhiteboardIdsByUserId(userId);
+            if (facultyWhiteboardIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            if ("AWAITING".equals(normalizedStatus)) {
+                page = questionRepository.findByWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(
+                        facultyWhiteboardIds, pageable);
+            } else if ("ANSWERED".equals(normalizedStatus)) {
+                page = questionRepository.findByWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(
+                        facultyWhiteboardIds, pageable);
+            } else {
+                page = questionRepository.findByWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+                        facultyWhiteboardIds, pageable);
+            }
+            return page.map(question -> questionResponseAssembler.toResponse(question, userId, true));
+        }
+
+        // Default: AUTHOR
+        List<UUID> studentWhiteboardIds = whiteboardMembershipRepository.findWhiteboardIdsByUserId(userId);
+        if (studentWhiteboardIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        if ("AWAITING".equals(normalizedStatus)) {
+            page = questionRepository
+                    .findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(
+                            userId, studentWhiteboardIds, pageable);
+        } else if ("ANSWERED".equals(normalizedStatus)) {
+            page = questionRepository
+                    .findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(
+                            userId, studentWhiteboardIds, pageable);
+        } else {
+            page = questionRepository.findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+                    userId, studentWhiteboardIds, pageable);
+        }
+        return page.map(question -> questionResponseAssembler.toResponse(question, userId, false));
+    }
+
+    @Transactional(readOnly = true)
+    public long countQuestionsByAuthor(UUID authorId) {
+        List<UUID> whiteboardIds = whiteboardMembershipRepository.findWhiteboardIdsByUserId(authorId);
+        if (whiteboardIds.isEmpty()) {
+            return 0;
+        }
+        return questionRepository.countByAuthorIdAndWhiteboardIdInAndIsHiddenFalse(authorId, whiteboardIds);
     }
 
     @Transactional(readOnly = true)

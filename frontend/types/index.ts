@@ -123,6 +123,8 @@ export interface CourseCatalogImportResult {
 export interface QuestionResponse {
   id: string;
   whiteboardId: string;
+  whiteboardCourseCode: string | null;
+  whiteboardCourseName: string | null;
   authorId: string;
   authorName: string;
   topicId: string | null;
@@ -136,6 +138,8 @@ export interface QuestionResponse {
   userVote: VoteType | null;
   commentCount: number;
   verifiedAnswerId: string | null;
+  verifiedAnswerPreview: string | null;
+  verifiedAnswerAuthorName: string | null;
   isBookmarked: boolean;
   createdAt: string;
   updatedAt: string;

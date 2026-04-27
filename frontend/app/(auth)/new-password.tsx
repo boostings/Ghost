@@ -11,18 +11,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/authStore';
 import { extractErrorMessage } from '../../hooks/useApi';
 
 export default function NewPasswordScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const params = useLocalSearchParams<{ email?: string; code?: string }>();
   const email = typeof params.email === 'string' ? params.email : '';
   const code = typeof params.code === 'string' ? params.code : '';
@@ -72,7 +77,11 @@ export default function NewPasswordScreen() {
   };
 
   return (
-    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
+    <LinearGradient colors={colors.bgGradient} style={styles.gradient}>
+      <View
+        style={[styles.ambient, { backgroundColor: `${colors.primary}1A` }]}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -83,16 +92,29 @@ export default function NewPasswordScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.header}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.icon}>{'🔑'}</Text>
+            <Animated.View
+              style={styles.header}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
+            >
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+                ]}
+              >
+                <Ionicons name="key-outline" size={30} color={colors.primary} />
               </View>
-              <Text style={styles.title}>Create New Password</Text>
-              <Text style={styles.subtitle}>Set a new password for</Text>
-              <Text style={styles.emailText}>{email}</Text>
-            </View>
+              <Text style={[styles.title, { color: colors.text }]}>Create New Password</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Set a new password for
+              </Text>
+              <Text style={[styles.emailText, { color: colors.primary }]}>{email}</Text>
+            </Animated.View>
 
-            <GlassCard style={styles.card}>
+            <GlassCard
+              style={styles.card}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+            >
               <GlassInput
                 label="New Password"
                 placeholder="Enter a new password"
@@ -121,21 +143,23 @@ export default function NewPasswordScreen() {
               />
             </GlassCard>
 
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => {
-                if (email) {
-                  router.replace({
-                    pathname: '/(auth)/verify-reset-code',
-                    params: { email },
-                  });
-                } else {
-                  router.replace('/(auth)/forgot-password');
-                }
-              }}
-            >
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
+            <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => {
+                  if (email) {
+                    router.replace({
+                      pathname: '/(auth)/verify-reset-code',
+                      params: { email },
+                    });
+                  } else {
+                    router.replace('/(auth)/forgot-password');
+                  }
+                }}
+              >
+                <Text style={[styles.backText, { color: colors.textMuted }]}>Back</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -146,6 +170,15 @@ export default function NewPasswordScreen() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  ambient: {
+    position: 'absolute',
+    top: -180,
+    right: -120,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
   },
   container: {
     flex: 1,
@@ -156,53 +189,45 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.huge,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(187,39,68,0.2)',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(187,39,68,0.4)',
-  },
-  icon: {
-    fontSize: 32,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   title: {
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: 8,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
   },
   emailText: {
     fontSize: Fonts.sizes.md,
-    color: Colors.primary,
     fontWeight: '600',
     marginTop: 4,
   },
   card: {
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   backButton: {
     alignItems: 'center',
     paddingVertical: 12,
   },
   backText: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.md,
   },
 });

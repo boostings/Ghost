@@ -6,7 +6,6 @@ import com.ghost.service.CourseCatalogImportResult;
 import com.ghost.service.CourseCatalogImportService;
 import com.ghost.service.CourseCatalogService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,10 +23,24 @@ public class CourseCatalogController {
     @GetMapping("/api/course-catalog/sections")
     public ResponseEntity<PageResponse<CourseSectionResponse>> getSections(
             @RequestParam(required = false) String semester,
+            @RequestParam(required = false, name = "q") String query,
+            @RequestParam(required = false) String subject,
+            @RequestParam(defaultValue = "courseCode") String sortBy,
+            @RequestParam(defaultValue = "ASC") String sortDirection,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
-        return ResponseEntity.ok(PageResponse.from(courseCatalogService.getSections(semester, pageable)));
+        Pageable pageable = courseCatalogService.createPageRequest(
+                page,
+                Math.min(Math.max(size, 1), 100),
+                sortBy,
+                sortDirection
+        );
+        return ResponseEntity.ok(PageResponse.from(courseCatalogService.getSections(
+                semester,
+                query,
+                subject,
+                pageable
+        )));
     }
 
     @PostMapping("/api/faculty/course-catalog/import")

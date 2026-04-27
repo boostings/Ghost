@@ -32,6 +32,21 @@ describe('whiteboardStore', () => {
     expect(next.isLoading).toBe(false);
   });
 
+  it('deduplicates repeated whiteboards by id and class identity', () => {
+    const first = makeWhiteboard('wb-1', 'Data Structures');
+    const sameId = { ...first, section: '002' };
+    const sameClass = makeWhiteboard('wb-2', 'Data Structures');
+    const otherClass = {
+      ...makeWhiteboard('wb-3', 'Accounting'),
+      courseCode: 'ACC131',
+    };
+
+    useWhiteboardStore.getState().setWhiteboards([first, sameId, sameClass, otherClass]);
+    useWhiteboardStore.getState().addWhiteboard(sameClass);
+
+    expect(useWhiteboardStore.getState().whiteboards).toEqual([first, otherClass]);
+  });
+
   it('adds, updates, and removes whiteboards', () => {
     const first = makeWhiteboard('wb-1', 'Data Structures');
     const updated = { ...first, courseName: 'Advanced Data Structures' };

@@ -14,36 +14,38 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
+import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { formatFullDate } from '../../utils/formatDate';
 import { auditLogService } from '../../services/auditLogService';
 import type { AuditLogResponse, AuditAction } from '../../types';
 
-const ACTION_ICONS: Record<string, string> = {
-  QUESTION_CREATED: '\u2795',
-  QUESTION_EDITED: '\u270F\uFE0F',
-  QUESTION_DELETED: '\u{1F5D1}\uFE0F',
-  COMMENT_CREATED: '\u{1F4AC}',
-  COMMENT_EDITED: '\u270F\uFE0F',
-  COMMENT_DELETED: '\u{1F5D1}\uFE0F',
-  VERIFIED_ANSWER_PROVIDED: '\u2705',
-  QUESTION_CLOSED: '\u{1F512}',
-  QUESTION_FORWARDED: '\u27A1\uFE0F',
-  USER_ENLISTED: '\u{1F465}',
-  USER_REMOVED: '\u{1F6AB}',
-  WHITEBOARD_CREATED: '\u{1F4CB}',
-  WHITEBOARD_DELETED: '\u{1F5D1}\uFE0F',
-  REPORT_SUBMITTED: '\u{1F6A9}',
-  CONTENT_HIDDEN: '\u{1F441}\uFE0F',
-  CONTENT_RESTORED: '\u{1F504}',
-  TOPIC_CREATED: '\u{1F3F7}\uFE0F',
-  TOPIC_DELETED: '\u{1F5D1}\uFE0F',
-  OWNERSHIP_TRANSFERRED: '\u{1F451}',
+const ACTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  QUESTION_CREATED: 'add-circle-outline',
+  QUESTION_EDITED: 'create-outline',
+  QUESTION_DELETED: 'trash-outline',
+  COMMENT_CREATED: 'chatbubble-outline',
+  COMMENT_EDITED: 'create-outline',
+  COMMENT_DELETED: 'trash-outline',
+  VERIFIED_ANSWER_PROVIDED: 'checkmark-circle-outline',
+  QUESTION_CLOSED: 'lock-closed-outline',
+  QUESTION_FORWARDED: 'arrow-forward-circle-outline',
+  USER_ENLISTED: 'person-add-outline',
+  USER_REMOVED: 'person-remove-outline',
+  WHITEBOARD_CREATED: 'clipboard-outline',
+  WHITEBOARD_DELETED: 'trash-outline',
+  REPORT_SUBMITTED: 'flag-outline',
+  CONTENT_HIDDEN: 'eye-off-outline',
+  CONTENT_RESTORED: 'refresh-outline',
+  TOPIC_CREATED: 'pricetag-outline',
+  TOPIC_DELETED: 'trash-outline',
+  OWNERSHIP_TRANSFERRED: 'shield-checkmark-outline',
 };
 
 function formatAction(action: string): string {
@@ -97,7 +99,6 @@ function getDateRange(value: DateWindow): { from?: string; to?: string } {
 }
 
 export default function AuditLogScreen() {
-  const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
 
   const [logs, setLogs] = useState<AuditLogResponse[]>([]);
@@ -240,7 +241,11 @@ export default function AuditLogScreen() {
     <GlassCard style={styles.logCard}>
       <View style={styles.logRow}>
         <View style={styles.logIconContainer}>
-          <Text style={styles.logIcon}>{ACTION_ICONS[item.action] || '\u{1F4DD}'}</Text>
+          <Ionicons
+            name={ACTION_ICONS[item.action] || 'document-text-outline'}
+            size={18}
+            color={Colors.primary}
+          />
         </View>
 
         <View style={styles.logContent}>
@@ -281,27 +286,28 @@ export default function AuditLogScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Audit Log</Text>
-          <TouchableOpacity
-            onPress={handleExport}
-            style={styles.exportButton}
-            disabled={exporting}
-            accessibilityRole="button"
-            accessibilityLabel="Export audit log as CSV"
-          >
-            <Text style={styles.exportText}>{exporting ? '...' : 'CSV'}</Text>
-          </TouchableOpacity>
-        </View>
+        <SettingsHeader
+          title="Audit Log"
+          subtitle="Activity history"
+          rightElement={
+            <TouchableOpacity
+              onPress={handleExport}
+              style={styles.exportButton}
+              disabled={exporting}
+              accessibilityRole="button"
+              accessibilityLabel="Export audit log as CSV"
+            >
+              {exporting ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <>
+                  <Ionicons name="download-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.exportText}>CSV</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          }
+        />
 
         {/* Filter Chips */}
         <View style={styles.filtersSection}>
@@ -383,7 +389,7 @@ export default function AuditLogScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={'\u{1F4CB}'}
+                ionIcon="document-text-outline"
                 title="No Audit Entries"
                 subtitle={loadError || 'Activity will be recorded here as changes are made'}
               />
@@ -416,38 +422,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
+  exportButton: {
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.text,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: Fonts.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  exportButton: {
+    gap: 6,
     backgroundColor: 'rgba(187,39,68,0.2)',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(187,39,68,0.4)',
   },
@@ -517,14 +500,13 @@ const styles = StyleSheet.create({
   logIconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(187,39,68,0.13)',
+    borderWidth: 1,
+    borderColor: 'rgba(187,39,68,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  logIcon: {
-    fontSize: 16,
   },
   logContent: {
     flex: 1,

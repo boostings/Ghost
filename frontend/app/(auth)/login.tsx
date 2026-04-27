@@ -18,9 +18,10 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Stagger } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
@@ -28,6 +29,7 @@ import { extractErrorMessage } from '../../hooks/useApi';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const params = useLocalSearchParams<{ email?: string }>();
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -103,18 +105,41 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#0B0D12', Colors.background, '#05070A']}
-      locations={[0, 0.55, 1]}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={colors.bgGradient} locations={[0, 0.55, 1]} style={styles.gradient}>
       <View style={styles.heroGlow} pointerEvents="none">
-        <View style={[styles.glow, styles.glowOuter]} />
-        <View style={[styles.glow, styles.glowMiddle]} />
-        <View style={[styles.glow, styles.glowInner]} />
-        <View style={[styles.glow, styles.glowCore]} />
+        <View
+          style={[
+            styles.glow,
+            styles.glowOuter,
+            { backgroundColor: `${colors.primary}10` },
+          ]}
+        />
+        <View
+          style={[
+            styles.glow,
+            styles.glowMiddle,
+            { backgroundColor: `${colors.primary}1A` },
+          ]}
+        />
+        <View
+          style={[
+            styles.glow,
+            styles.glowInner,
+            { backgroundColor: `${colors.primary}26` },
+          ]}
+        />
+        <View
+          style={[
+            styles.glow,
+            styles.glowCore,
+            { backgroundColor: `${colors.primary}38` },
+          ]}
+        />
       </View>
-      <View style={styles.ambientCorner} pointerEvents="none" />
+      <View
+        style={[styles.ambientCorner, { backgroundColor: `${colors.primaryDark}24` }]}
+        pointerEvents="none"
+      />
 
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
@@ -128,7 +153,7 @@ export default function LoginScreen() {
           >
             <Animated.View
               style={styles.header}
-              entering={FadeInDown.duration(420).delay(Stagger.hero)}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
             >
               <MaskedView
                 style={styles.logoMask}
@@ -147,17 +172,21 @@ export default function LoginScreen() {
                   style={styles.logoFill}
                 />
               </MaskedView>
-              <Text style={styles.title}>Ghost</Text>
-              <Text style={styles.subtitle}>Office hours, 24/7.</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Ghost</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Office hours, 24/7.
+              </Text>
             </Animated.View>
 
             <GlassCard
               style={styles.card}
               blurIntensity={75}
-              entering={FadeInDown.duration(460).delay(Stagger.card)}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
             >
-              <Text style={styles.cardTitle}>Welcome Back</Text>
-              <Text style={styles.cardSubtitle}>Sign in to continue</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Welcome Back</Text>
+              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>
+                Sign in to continue
+              </Text>
 
               <GlassInput
                 label="Email"
@@ -189,7 +218,9 @@ export default function LoginScreen() {
                 onSubmitEditing={handleLogin}
               />
 
-              {authError ? <Text style={styles.authErrorText}>{authError}</Text> : null}
+              {authError ? (
+                <Text style={[styles.authErrorText, { color: colors.error }]}>{authError}</Text>
+              ) : null}
 
               <GlassButton
                 title="Sign In"
@@ -202,13 +233,15 @@ export default function LoginScreen() {
 
             <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                  Don&apos;t have an account?{' '}
+                </Text>
                 <TouchableOpacity
                   onPress={() => router.push('/(auth)/register')}
                   accessibilityRole="button"
                   accessibilityLabel="Register for a new account"
                 >
-                  <Text style={styles.footerLink}>Register</Text>
+                  <Text style={[styles.footerLink, { color: colors.primary }]}>Register</Text>
                 </TouchableOpacity>
               </View>
 
@@ -218,7 +251,9 @@ export default function LoginScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Forgot your password"
               >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                  Forgot Password?
+                </Text>
               </TouchableOpacity>
             </Animated.View>
           </ScrollView>
@@ -249,25 +284,21 @@ const styles = StyleSheet.create({
     width: 660,
     height: 660,
     borderRadius: 330,
-    backgroundColor: 'rgba(187, 39, 68, 0.05)',
   },
   glowMiddle: {
     width: 500,
     height: 500,
     borderRadius: 250,
-    backgroundColor: 'rgba(187, 39, 68, 0.09)',
   },
   glowInner: {
     width: 340,
     height: 340,
     borderRadius: 170,
-    backgroundColor: 'rgba(187, 39, 68, 0.14)',
   },
   glowCore: {
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(187, 39, 68, 0.22)',
   },
   ambientCorner: {
     position: 'absolute',
@@ -276,7 +307,6 @@ const styles = StyleSheet.create({
     width: 460,
     height: 460,
     borderRadius: 230,
-    backgroundColor: 'rgba(142, 29, 52, 0.14)',
   },
   container: {
     flex: 1,
@@ -287,12 +317,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.huge,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 36,
+    marginBottom: Spacing.xxxl + 4,
   },
   logoMask: {
     width: 148,
@@ -309,35 +339,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 44,
     fontWeight: '800',
-    color: Colors.text,
     letterSpacing: 2,
     marginTop: 8,
   },
   subtitle: {
     fontSize: Fonts.sizes.lg,
-    color: Colors.textSecondary,
     marginTop: 6,
     letterSpacing: 0.3,
   },
   card: {
-    marginBottom: 24,
-    borderRadius: 22,
+    marginBottom: Spacing.xxl,
   },
   cardTitle: {
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
-    color: Colors.text,
     textAlign: 'center',
     marginBottom: 4,
+    letterSpacing: -0.4,
   },
   cardSubtitle: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textMuted,
     textAlign: 'center',
     marginBottom: 22,
   },
   authErrorText: {
-    color: Colors.error,
     fontSize: Fonts.sizes.sm,
     textAlign: 'center',
     marginTop: -4,
@@ -349,11 +374,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.md,
   },
   footerLink: {
-    color: Colors.primary,
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
   },
@@ -362,7 +385,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   forgotPasswordText: {
-    color: Colors.primary,
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
   },

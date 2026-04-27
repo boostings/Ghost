@@ -7,18 +7,24 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
 import GlassModal from '../../components/ui/GlassModal';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger, enterList } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import { whiteboardService } from '../../services/whiteboardService';
+import { useAuthStore } from '../../stores/authStore';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { parseInviteCode } from '../../utils/inviteCode';
 import type { WhiteboardResponse } from '../../types';
@@ -27,6 +33,8 @@ const DEMO_INVITE_CODE = 'DEMO2026';
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const user = useAuthStore((state) => state.user);
 
   const [inviteCode, setInviteCode] = useState('');
   const [joiningByCode, setJoiningByCode] = useState(false);
@@ -183,26 +191,44 @@ export default function OnboardingScreen() {
 
   const hasJoinedAtLeastOne = joinedClasses.length > 0;
   const demoJoined = joinedClasses.some((whiteboard) => whiteboard.isDemo);
+  const isFaculty = user?.role === 'FACULTY';
 
   return (
-    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
+    <LinearGradient colors={colors.bgGradient} style={styles.gradient}>
+      <View
+        style={[styles.ambient, { backgroundColor: `${colors.primary}1A` }]}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.welcomeEmoji}>{'🎉'}</Text>
-            <Text style={styles.title}>Welcome to Ghost!</Text>
-            <Text style={styles.subtitle}>Join at least one class to continue</Text>
-          </View>
+          <Animated.View
+            style={styles.header}
+            entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
+          >
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+              ]}
+            >
+              <Ionicons name="sparkles" size={30} color={colors.primary} />
+            </View>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome to Ghost</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Join at least one class to get started
+            </Text>
+          </Animated.View>
 
-          {/* Join with Code */}
-          <GlassCard style={styles.card}>
-            <Text style={styles.cardTitle}>Join a Class</Text>
-            <Text style={styles.cardDescription}>
+          <GlassCard
+            style={styles.card}
+            entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+          >
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Join a Class</Text>
+            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
               Enter the invite code shared by your instructor
             </Text>
 
@@ -220,53 +246,106 @@ export default function OnboardingScreen() {
               onPress={handleJoinWithCode}
               loading={joiningByCode}
               disabled={joiningByCode || joiningDemo || !inviteCode.trim()}
+              solid
             />
 
-            <TouchableOpacity style={styles.qrButton} onPress={openScanner}>
-              <Text style={styles.qrIcon}>{'📷'}</Text>
-              <View style={styles.qrTextContainer}>
-                <Text style={styles.qrTitle}>Scan QR Code</Text>
-                <Text style={styles.qrSubtitle}>Use your camera to scan the class QR code</Text>
+            <Pressable
+              style={[styles.optionRow, { borderTopColor: colors.surfaceBorder }]}
+              onPress={openScanner}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: colors.surfaceLight }]}>
+                <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
               </View>
-              <Text style={styles.chevron}>{'›'}</Text>
-            </TouchableOpacity>
+              <View style={styles.optionTextContainer}>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>Scan QR Code</Text>
+                <Text style={[styles.optionSubtitle, { color: colors.textMuted }]}>
+                  Use your camera to scan the class QR code
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+
+            {isFaculty ? (
+              <Pressable
+                style={[styles.optionRow, { borderTopColor: colors.surfaceBorder }]}
+                onPress={() => router.push('/whiteboard/catalog')}
+              >
+                <View style={[styles.optionIcon, { backgroundColor: colors.surfaceLight }]}>
+                  <Ionicons name="book-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={[styles.optionTitle, { color: colors.text }]}>
+                    Create From Class Catalog
+                  </Text>
+                  <Text style={[styles.optionSubtitle, { color: colors.textMuted }]}>
+                    Pick your class and open its whiteboard
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
           </GlassCard>
 
-          {/* Available Classes */}
-          <GlassCard style={styles.card}>
-            <Text style={styles.cardTitle}>Available Classes</Text>
-            <Text style={styles.cardDescription}>
+          <GlassCard
+            style={styles.card}
+            entering={FadeInDown.duration(Duration.hero).delay(Stagger.card + 80).springify().damping(20)}
+          >
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Available Classes</Text>
+            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
               Request access to class whiteboards managed by faculty.
             </Text>
 
             {loadingClasses ? (
               <View style={styles.loadingClassesRow}>
-                <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={styles.loadingClassesText}>Loading classes...</Text>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.loadingClassesText, { color: colors.textMuted }]}>
+                  Loading classes…
+                </Text>
               </View>
             ) : availableClasses.length === 0 ? (
-              <Text style={styles.emptyClassesText}>
+              <Text style={[styles.emptyClassesText, { color: colors.textMuted }]}>
                 No discoverable classes right now. Use an invite code or QR to join.
               </Text>
             ) : (
-              availableClasses.map((whiteboard) => {
+              availableClasses.map((whiteboard, index) => {
                 const requesting = requestingClassIds.includes(whiteboard.id);
                 const requested = requestedClassIds.includes(whiteboard.id);
 
                 return (
-                  <View key={whiteboard.id} style={styles.classRow}>
+                  <Animated.View
+                    key={whiteboard.id}
+                    entering={enterList(index)}
+                    style={[
+                      styles.classRow,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.surfaceBorder,
+                      },
+                    ]}
+                  >
                     <View style={styles.classMeta}>
-                      <Text style={styles.classCode}>{whiteboard.courseCode}</Text>
-                      <Text style={styles.className} numberOfLines={1}>
+                      <Text style={[styles.classCode, { color: colors.primary }]}>
+                        {whiteboard.courseCode}
+                      </Text>
+                      <Text
+                        style={[styles.className, { color: colors.text }]}
+                        numberOfLines={1}
+                      >
                         {whiteboard.courseName}
                       </Text>
                     </View>
                     <View style={styles.classAction}>
-                      <Text style={styles.classSemester}>{whiteboard.semester}</Text>
+                      <Text style={[styles.classSemester, { color: colors.textSecondary }]}>
+                        {whiteboard.semester}
+                      </Text>
                       <TouchableOpacity
                         style={[
                           styles.classActionButton,
-                          requested && styles.classActionButtonRequested,
+                          {
+                            borderColor: colors.primarySoft,
+                            backgroundColor: requested ? colors.surfaceLight : colors.primarySoft,
+                          },
+                          requested && { borderColor: colors.surfaceBorder },
                         ]}
                         onPress={() => handleRequestJoin(whiteboard)}
                         disabled={requesting || requested}
@@ -274,50 +353,81 @@ export default function OnboardingScreen() {
                         <Text
                           style={[
                             styles.classActionButtonText,
-                            requested && styles.classActionButtonTextRequested,
+                            { color: requested ? colors.textSecondary : colors.primary },
                           ]}
                         >
-                          {requested ? 'Requested' : requesting ? 'Sending...' : 'Request Join'}
+                          {requested ? 'Requested' : requesting ? 'Sending…' : 'Request Join'}
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </Animated.View>
                 );
               })
             )}
 
-            <TouchableOpacity
-              style={styles.demoButton}
+            <Pressable
+              style={[styles.optionRow, { borderTopColor: colors.surfaceBorder, opacity: demoJoined ? 0.5 : 1 }]}
               onPress={handleJoinDemo}
               disabled={joiningDemo || demoJoined}
             >
-              <Text style={styles.demoIcon}>{'🏫'}</Text>
-              <View style={styles.demoTextContainer}>
-                <Text style={styles.demoTitle}>Try the Demo Class</Text>
-                <Text style={styles.demoSubtitle}>
+              <View style={[styles.optionIcon, { backgroundColor: colors.surfaceLight }]}>
+                <Ionicons name="school-outline" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.optionTextContainer}>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>Try the Demo Class</Text>
+                <Text style={[styles.optionSubtitle, { color: colors.textMuted }]}>
                   {demoJoined
                     ? 'You already joined the demo class'
                     : 'Explore Ghost with sample Q&A data'}
                 </Text>
               </View>
-              <Text style={styles.chevron}>{'›'}</Text>
-            </TouchableOpacity>
+              {!demoJoined && (
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              )}
+            </Pressable>
 
-            <Text style={styles.joinedClassesTitle}>Joined Classes</Text>
+            <Text
+              style={[
+                styles.joinedClassesTitle,
+                { color: colors.text, borderTopColor: colors.surfaceBorder },
+              ]}
+            >
+              Joined Classes
+            </Text>
             {loadingClasses ? (
-              <Text style={styles.emptyClassesText}>Loading your classes...</Text>
+              <Text style={[styles.emptyClassesText, { color: colors.textMuted }]}>
+                Loading your classes…
+              </Text>
             ) : joinedClasses.length === 0 ? (
-              <Text style={styles.emptyClassesText}>No classes joined yet.</Text>
+              <Text style={[styles.emptyClassesText, { color: colors.textMuted }]}>
+                No classes joined yet.
+              </Text>
             ) : (
               joinedClasses.map((whiteboard) => (
-                <View key={whiteboard.id} style={styles.classRow}>
+                <View
+                  key={whiteboard.id}
+                  style={[
+                    styles.classRow,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.surfaceBorder,
+                    },
+                  ]}
+                >
                   <View style={styles.classMeta}>
-                    <Text style={styles.classCode}>{whiteboard.courseCode}</Text>
-                    <Text style={styles.className} numberOfLines={1}>
+                    <Text style={[styles.classCode, { color: colors.primary }]}>
+                      {whiteboard.courseCode}
+                    </Text>
+                    <Text
+                      style={[styles.className, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
                       {whiteboard.courseName}
                     </Text>
                   </View>
-                  <Text style={styles.classSemester}>{whiteboard.semester}</Text>
+                  <Text style={[styles.classSemester, { color: colors.textSecondary }]}>
+                    {whiteboard.semester}
+                  </Text>
                 </View>
               ))
             )}
@@ -327,6 +437,7 @@ export default function OnboardingScreen() {
             title={hasJoinedAtLeastOne ? 'Continue to Home' : 'Join a Class to Continue'}
             onPress={handleContinue}
             disabled={!hasJoinedAtLeastOne}
+            solid={hasJoinedAtLeastOne}
           />
         </ScrollView>
 
@@ -335,14 +446,19 @@ export default function OnboardingScreen() {
           onClose={() => setShowScannerModal(false)}
           title="Scan Class QR"
         >
-          <View style={styles.scannerContainer}>
+          <View
+            style={[
+              styles.scannerContainer,
+              { borderColor: colors.surfaceBorder, backgroundColor: colors.surface },
+            ]}
+          >
             <CameraView
               style={styles.scanner}
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               onBarcodeScanned={handleBarcodeScanned}
             />
           </View>
-          <Text style={styles.scannerHint}>
+          <Text style={[styles.scannerHint, { color: colors.textMuted }]}>
             Point your camera at the QR code shared by your instructor.
           </Text>
         </GlassModal>
@@ -354,100 +470,84 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  ambient: {
+    position: 'absolute',
+    top: -180,
+    right: -120,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.huge,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
-  welcomeEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
+  iconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   title: {
     fontSize: Fonts.sizes.xxxl,
     fontWeight: '800',
-    color: Colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: Fonts.sizes.lg,
-    color: Colors.textSecondary,
     marginTop: 8,
   },
   card: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   cardTitle: {
     fontSize: Fonts.sizes.xl,
     fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   cardDescription: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textSecondary,
     marginBottom: 16,
+    lineHeight: 20,
   },
-  qrButton: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: 14,
+    marginTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 12,
   },
-  qrIcon: {
-    fontSize: 32,
-    marginRight: 16,
-  },
-  qrTextContainer: {
-    flex: 1,
-  },
-  qrTitle: {
-    fontSize: Fonts.sizes.lg,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  qrSubtitle: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  chevron: {
-    fontSize: 24,
-    color: Colors.textMuted,
-    marginLeft: 8,
-  },
-  demoButton: {
-    flexDirection: 'row',
+  optionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    paddingVertical: 10,
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
   },
-  demoIcon: {
-    fontSize: 32,
-    marginRight: 16,
-  },
-  demoTextContainer: {
+  optionTextContainer: {
     flex: 1,
   },
-  demoTitle: {
+  optionTitle: {
     fontSize: Fonts.sizes.lg,
     fontWeight: '600',
-    color: Colors.text,
   },
-  demoSubtitle: {
+  optionSubtitle: {
     fontSize: Fonts.sizes.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   loadingClassesRow: {
@@ -457,22 +557,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   loadingClassesText: {
-    color: Colors.textMuted,
     marginLeft: 8,
     fontSize: Fonts.sizes.sm,
   },
   emptyClassesText: {
-    color: Colors.textMuted,
     marginTop: 8,
     fontSize: Fonts.sizes.sm,
   },
   classRow: {
     marginTop: 10,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -482,18 +578,16 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   classCode: {
-    color: Colors.primary,
-    fontSize: Fonts.sizes.sm,
+    fontSize: Fonts.sizes.xs,
     fontWeight: '700',
+    letterSpacing: 0.5,
     marginBottom: 3,
   },
   className: {
-    color: Colors.text,
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
   },
   classSemester: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
   },
@@ -503,39 +597,27 @@ const styles = StyleSheet.create({
   classActionButton: {
     marginTop: 6,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(187,39,68,0.45)',
-    backgroundColor: 'rgba(187,39,68,0.18)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  classActionButtonRequested: {
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   classActionButtonText: {
-    color: Colors.primary,
     fontSize: 11,
     fontWeight: '700',
-  },
-  classActionButtonTextRequested: {
-    color: Colors.textSecondary,
+    letterSpacing: 0.3,
   },
   joinedClassesTitle: {
     marginTop: 18,
     paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    color: Colors.text,
+    borderTopWidth: StyleSheet.hairlineWidth,
     fontSize: Fonts.sizes.md,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   scannerContainer: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   scanner: {
     width: '100%',
@@ -544,7 +626,6 @@ const styles = StyleSheet.create({
   scannerHint: {
     marginTop: 12,
     textAlign: 'center',
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
   },
 });

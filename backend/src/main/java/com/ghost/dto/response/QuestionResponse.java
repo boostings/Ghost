@@ -20,6 +20,10 @@ public class QuestionResponse {
 
     private UUID whiteboardId;
 
+    private String whiteboardCourseCode;
+
+    private String whiteboardCourseName;
+
     private UUID authorId;
 
     private String authorName;
@@ -45,6 +49,10 @@ public class QuestionResponse {
     private long commentCount;
 
     private UUID verifiedAnswerId;
+
+    private String verifiedAnswerPreview;
+
+    private String verifiedAnswerAuthorName;
 
     private boolean isBookmarked;
 

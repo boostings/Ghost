@@ -4,6 +4,7 @@ type AuthRedirectContext = {
   inAuthGroup: boolean;
   inOnboarding: boolean;
   isAtEntryRoute: boolean;
+  canAccessWithoutWhiteboard?: boolean;
 };
 
 /**
@@ -15,6 +16,7 @@ export function getAuthRedirectTarget({
   inAuthGroup,
   inOnboarding,
   isAtEntryRoute,
+  canAccessWithoutWhiteboard = false,
 }: AuthRedirectContext): string | null {
   if (!hasValidSession) {
     if (inAuthGroup && !inOnboarding && !isAtEntryRoute) {
@@ -29,6 +31,10 @@ export function getAuthRedirectTarget({
   }
 
   if (hasJoinedWhiteboard === false) {
+    if (canAccessWithoutWhiteboard) {
+      return null;
+    }
+
     if (inOnboarding) {
       return null;
     }

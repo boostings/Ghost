@@ -11,13 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { isAxiosError } from 'axios';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
 
@@ -25,6 +29,7 @@ const UNVERIFIED_EMAIL_MESSAGE = 'email is not verified';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -94,7 +99,11 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
+    <LinearGradient colors={colors.bgGradient} style={styles.gradient}>
+      <View
+        style={[styles.ambient, { backgroundColor: `${colors.primary}1A` }]}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -105,17 +114,28 @@ export default function ForgotPasswordScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.header}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.icon}>{'🔐'}</Text>
+            <Animated.View
+              style={styles.header}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
+            >
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+                ]}
+              >
+                <Ionicons name="lock-closed-outline" size={30} color={colors.primary} />
               </View>
-              <Text style={styles.title}>Forgot Password</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { color: colors.text }]}>Forgot Password</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Enter your account email and we will generate a 6-digit reset code.
               </Text>
-            </View>
+            </Animated.View>
 
-            <GlassCard style={styles.card}>
+            <GlassCard
+              style={styles.card}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+            >
               <GlassInput
                 label="Email"
                 placeholder="you@ilstu.edu"
@@ -142,12 +162,14 @@ export default function ForgotPasswordScreen() {
               />
             </GlassCard>
 
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.replace('/(auth)/login')}
-            >
-              <Text style={styles.backText}>Back to Login</Text>
-            </TouchableOpacity>
+            <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.replace('/(auth)/login')}
+              >
+                <Text style={[styles.backText, { color: colors.textMuted }]}>Back to Login</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -158,6 +180,15 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  ambient: {
+    position: 'absolute',
+    top: -180,
+    right: -120,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
   },
   container: {
     flex: 1,
@@ -168,47 +199,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.huge,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(187,39,68,0.2)',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(187,39,68,0.4)',
-  },
-  icon: {
-    fontSize: 32,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   title: {
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: 8,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 22,
   },
   card: {
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   backButton: {
     alignItems: 'center',
     paddingVertical: 12,
   },
   backText: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.md,
   },
 });

@@ -133,6 +133,7 @@ describe('whiteboardService', () => {
       inviteUrl: 'ghost://join/JOINME',
       qrData: 'ghost://join/JOINME',
     });
+    expect(apiMock.get).toHaveBeenCalledWith('/whiteboards/wb-1/invite-info');
   });
 
   it('caches membership checks until a membership-changing action occurs', async () => {

@@ -13,11 +13,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
 
@@ -25,10 +29,12 @@ const CODE_LENGTH = 6;
 
 export default function VerifyResetCodeScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const params = useLocalSearchParams<{ email?: string }>();
   const email = typeof params.email === 'string' ? params.email : '';
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
@@ -117,43 +123,79 @@ export default function VerifyResetCodeScreen() {
   };
 
   return (
-    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
+    <LinearGradient colors={colors.bgGradient} style={styles.gradient}>
+      <View
+        style={[styles.ambient, { backgroundColor: `${colors.primary}1A` }]}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
           <View style={styles.content}>
-            <View style={styles.header}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.icon}>{'✉️'}</Text>
+            <Animated.View
+              style={styles.header}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
+            >
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+                ]}
+              >
+                <Ionicons name="shield-checkmark-outline" size={30} color={colors.primary} />
               </View>
-              <Text style={styles.title}>Enter Reset Code</Text>
-              <Text style={styles.subtitle}>Use the 6-digit code generated for</Text>
-              <Text style={styles.emailText}>{email}</Text>
-            </View>
+              <Text style={[styles.title, { color: colors.text }]}>Enter Reset Code</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Use the 6-digit code generated for
+              </Text>
+              <Text style={[styles.emailText, { color: colors.primary }]}>{email}</Text>
+            </Animated.View>
 
-            <GlassCard style={styles.card}>
-              <Text style={styles.cardLabel}>Enter reset code</Text>
+            <GlassCard
+              style={styles.card}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+            >
+              <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+                Enter reset code
+              </Text>
 
               <View style={styles.codeContainer}>
-                {Array.from({ length: CODE_LENGTH }).map((_, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(ref) => {
-                      inputRefs.current[index] = ref;
-                    }}
-                    style={[styles.codeInput, code[index] ? styles.codeInputFilled : null]}
-                    value={code[index]}
-                    onChangeText={(text) => handleCodeChange(text, index)}
-                    onKeyPress={(e) => handleKeyPress(e, index)}
-                    keyboardType="number-pad"
-                    maxLength={index === 0 ? CODE_LENGTH : 1}
-                    selectTextOnFocus
-                    selectionColor={Colors.primary}
-                    placeholderTextColor={Colors.textMuted}
-                  />
-                ))}
+                {Array.from({ length: CODE_LENGTH }).map((_, index) => {
+                  const filled = !!code[index];
+                  const focused = focusedIndex === index;
+                  return (
+                    <TextInput
+                      key={index}
+                      ref={(ref) => {
+                        inputRefs.current[index] = ref;
+                      }}
+                      style={[
+                        styles.codeInput,
+                        {
+                          backgroundColor: filled ? colors.surfaceLight : colors.inputBg,
+                          borderColor: focused
+                            ? colors.primary
+                            : filled
+                              ? colors.surfaceBorder
+                              : colors.inputBorder,
+                          color: colors.text,
+                        },
+                      ]}
+                      onFocus={() => setFocusedIndex(index)}
+                      onBlur={() => setFocusedIndex(-1)}
+                      value={code[index]}
+                      onChangeText={(text) => handleCodeChange(text, index)}
+                      onKeyPress={(e) => handleKeyPress(e, index)}
+                      keyboardType="number-pad"
+                      maxLength={index === 0 ? CODE_LENGTH : 1}
+                      selectTextOnFocus
+                      selectionColor={colors.primary}
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  );
+                })}
               </View>
 
               <GlassButton
@@ -165,21 +207,31 @@ export default function VerifyResetCodeScreen() {
               />
             </GlassCard>
 
-            <View style={styles.resendContainer}>
-              <Text style={styles.resendText}>Need a new code? </Text>
-              <TouchableOpacity onPress={handleResendCode} disabled={resending}>
-                <Text style={[styles.resendLink, resending && styles.resendDisabled]}>
-                  {resending ? 'Sending...' : 'Resend Code'}
+            <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
+              <View style={styles.resendContainer}>
+                <Text style={[styles.resendText, { color: colors.textSecondary }]}>
+                  Need a new code?{' '}
                 </Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity onPress={handleResendCode} disabled={resending}>
+                  <Text
+                    style={[
+                      styles.resendLink,
+                      { color: colors.primary },
+                      resending && styles.resendDisabled,
+                    ]}
+                  >
+                    {resending ? 'Sending…' : 'Resend Code'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.replace('/(auth)/forgot-password')}
-            >
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.replace('/(auth)/forgot-password')}
+              >
+                <Text style={[styles.backText, { color: colors.textMuted }]}>Back</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -190,6 +242,15 @@ export default function VerifyResetCodeScreen() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  ambient: {
+    position: 'absolute',
+    top: -180,
+    right: -120,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
   },
   container: {
     flex: 1,
@@ -200,49 +261,41 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xxl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(187,39,68,0.2)',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(187,39,68,0.4)',
-  },
-  icon: {
-    fontSize: 32,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   title: {
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: 8,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
   },
   emailText: {
     fontSize: Fonts.sizes.md,
-    color: Colors.primary,
     fontWeight: '600',
     marginTop: 4,
   },
   card: {
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   cardLabel: {
     fontSize: Fonts.sizes.md,
-    color: Colors.textSecondary,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -255,18 +308,11 @@ const styles = StyleSheet.create({
   codeInput: {
     flex: 1,
     height: 56,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    color: '#111827',
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  codeInputFilled: {
-    borderColor: '#9CA3AF',
-    backgroundColor: '#FFFFFF',
   },
   resendContainer: {
     flexDirection: 'row',
@@ -275,11 +321,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   resendText: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.md,
   },
   resendLink: {
-    color: Colors.primary,
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
   },
@@ -291,7 +335,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backText: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.md,
   },
 });

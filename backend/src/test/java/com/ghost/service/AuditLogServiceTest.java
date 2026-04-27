@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,14 +56,8 @@ class AuditLogServiceTest {
                 .action(AuditAction.REPORT_SUBMITTED)
                 .build();
 
-        when(auditLogRepository.findByFilters(
-                eq(whiteboardId),
-                eq(AuditAction.REPORT_SUBMITTED),
-                eq(actorId),
-                eq(startAt),
-                eq(endAt),
-                eq(pageable)
-        )).thenReturn(new PageImpl<>(List.of(auditLog), pageable, 1));
+        when(auditLogRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(auditLog), pageable, 1));
         when(auditLogMapper.toResponse(auditLog)).thenReturn(response);
 
         auditLogService.getAuditLogs(
@@ -73,14 +69,7 @@ class AuditLogServiceTest {
                 endAt
         );
 
-        verify(auditLogRepository).findByFilters(
-                whiteboardId,
-                AuditAction.REPORT_SUBMITTED,
-                actorId,
-                startAt,
-                endAt,
-                pageable
-        );
+        verify(auditLogRepository).findAll(any(Specification.class), eq(pageable));
         verify(auditLogMapper).toResponse(auditLog);
     }
 
@@ -102,13 +91,6 @@ class AuditLogServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("startAt must be before endAt");
 
-        verify(auditLogRepository, never()).findByFilters(
-                whiteboardId,
-                null,
-                null,
-                startAt,
-                endAt,
-                pageable
-        );
+        verify(auditLogRepository, never()).findAll(any(Specification.class), eq(pageable));
     }
 }

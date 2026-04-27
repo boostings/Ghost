@@ -10,12 +10,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
 import EmptyState from '../../components/ui/EmptyState';
+import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { topicService } from '../../services/topicService';
@@ -24,7 +26,6 @@ import { sanitizeSingleLine } from '../../utils/sanitize';
 import type { TopicResponse } from '../../types';
 
 export default function TopicsScreen() {
-  const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
 
   const [topics, setTopics] = useState<TopicResponse[]>([]);
@@ -106,11 +107,20 @@ export default function TopicsScreen() {
     <View style={styles.topicRow}>
       <View
         style={[
-          styles.topicDot,
-          { backgroundColor: item.isDefault ? Colors.primary : Colors.primaryLight },
+          styles.topicIcon,
+          item.isDefault ? styles.defaultTopicIcon : styles.customTopicIcon,
         ]}
-      />
-      <Text style={styles.topicName}>{item.name}</Text>
+      >
+        <Ionicons
+          name={item.isDefault ? 'lock-closed-outline' : 'pricetag-outline'}
+          size={16}
+          color={item.isDefault ? Colors.primary : Colors.primaryLight}
+        />
+      </View>
+      <View style={styles.topicContent}>
+        <Text style={styles.topicName}>{item.name}</Text>
+        <Text style={styles.topicMeta}>{item.isDefault ? 'Built in topic' : 'Custom topic'}</Text>
+      </View>
       {item.isDefault ? (
         <View style={styles.defaultBadge}>
           <Text style={styles.defaultBadgeText}>DEFAULT</Text>
@@ -122,7 +132,7 @@ export default function TopicsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Delete topic ${item.name}`}
         >
-          <Text style={styles.deleteText}>{'\u2715'}</Text>
+          <Ionicons name="trash-outline" size={16} color={Colors.error} />
         </TouchableOpacity>
       )}
     </View>
@@ -146,19 +156,11 @@ export default function TopicsScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Manage Topics</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <SettingsHeader
+          title="Topics"
+          subtitle="Question organization"
+          rightElement={<Text style={styles.topicCount}>{topics.length}</Text>}
+        />
 
         <FlatList
           data={orderedTopics}
@@ -170,7 +172,15 @@ export default function TopicsScreen() {
             <>
               {/* Add Topic */}
               <GlassCard style={styles.addCard}>
-                <Text style={styles.addTitle}>Add Custom Topic</Text>
+                <View style={styles.addHeader}>
+                  <View>
+                    <Text style={styles.addTitle}>Add Custom Topic</Text>
+                    <Text style={styles.addSubtitle}>
+                      Create class-specific labels for questions
+                    </Text>
+                  </View>
+                  <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
+                </View>
                 <View style={styles.addRow}>
                   <View style={styles.addInputContainer}>
                     <GlassInput
@@ -197,7 +207,7 @@ export default function TopicsScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              icon={'\u{1F3F7}\uFE0F'}
+              ionIcon="pricetag-outline"
               title="No Topics"
               subtitle={loadError || 'Add topics to help organize questions'}
             />
@@ -221,35 +231,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  topicCount: {
+    fontSize: Fonts.sizes.md,
+    color: Colors.textSecondary,
+    fontWeight: '600',
     backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.text,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: Fonts.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 36,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   listContent: {
     padding: 16,
@@ -258,11 +247,22 @@ const styles = StyleSheet.create({
   addCard: {
     marginBottom: 20,
   },
+  addHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
   addTitle: {
     fontSize: Fonts.sizes.lg,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  addSubtitle: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textMuted,
   },
   addRow: {
     flexDirection: 'row',
@@ -290,18 +290,36 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  topicDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  topicIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
-  topicName: {
+  defaultTopicIcon: {
+    backgroundColor: 'rgba(187,39,68,0.14)',
+  },
+  customTopicIcon: {
+    backgroundColor: 'rgba(212,85,109,0.14)',
+  },
+  topicContent: {
     flex: 1,
+    minWidth: 0,
+  },
+  topicName: {
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
     color: Colors.text,
+  },
+  topicMeta: {
+    fontSize: Fonts.sizes.xs,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
   defaultBadge: {
     backgroundColor: 'rgba(187,39,68,0.15)',
@@ -316,17 +334,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   deleteButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,68,68,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  deleteText: {
-    fontSize: 12,
-    color: Colors.error,
-    fontWeight: '700',
   },
   separator: {
     height: 8,

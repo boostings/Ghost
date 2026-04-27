@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, ViewStyle, StyleProp } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 
 interface TopicBadgeProps {
@@ -10,12 +10,21 @@ interface TopicBadgeProps {
 }
 
 const TopicBadge: React.FC<TopicBadgeProps> = ({ name, isDefault = false, style }) => {
+  const colors = useThemeColors();
+
   return (
-    <View style={[styles.badge, isDefault ? styles.defaultBadge : styles.customBadge, style]}>
-      <Text
-        style={[styles.text, isDefault ? styles.defaultText : styles.customText]}
-        numberOfLines={1}
-      >
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: isDefault ? colors.primarySoft : colors.primaryFaint,
+          borderColor: isDefault ? 'transparent' : colors.primarySoft,
+          borderWidth: isDefault ? 0 : StyleSheet.hairlineWidth,
+        },
+        style,
+      ]}
+    >
+      <Text style={[styles.text, { color: colors.primary }]} numberOfLines={1}>
         {name}
       </Text>
     </View>
@@ -24,28 +33,16 @@ const TopicBadge: React.FC<TopicBadgeProps> = ({ name, isDefault = false, style 
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: 8,
+    borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
     alignSelf: 'flex-start',
   },
-  defaultBadge: {
-    backgroundColor: 'rgba(187,39,68,0.3)',
-  },
-  customBadge: {
-    backgroundColor: 'rgba(187,39,68,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(187,39,68,0.4)',
-  },
   text: {
-    fontSize: Fonts.sizes.sm,
-    fontWeight: Fonts.medium.fontWeight,
-  },
-  defaultText: {
-    color: Colors.primary,
-  },
-  customText: {
-    color: Colors.primaryLight,
+    fontSize: Fonts.sizes.xs,
+    fontWeight: Fonts.semiBold.fontWeight,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
 });
 

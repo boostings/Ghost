@@ -11,11 +11,11 @@ import {
   Dimensions,
   useColorScheme,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration } from '../../constants/motion';
+import { Duration, Ease } from '../../constants/motion';
 import { haptic } from '../../utils/haptics';
 
 interface GlassModalProps {
@@ -68,7 +68,8 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
             accessibilityLabel="Close modal"
           />
           <Animated.View
-            entering={ZoomIn.duration(Duration.slow).springify().damping(20)}
+            entering={FadeIn.duration(Duration.normal).easing(Ease.out)}
+            exiting={FadeOut.duration(Duration.fast)}
             style={styles.modalContainer}
           >
             <View style={[styles.cardWrapper, { borderColor: colors.cardBorder }]}>

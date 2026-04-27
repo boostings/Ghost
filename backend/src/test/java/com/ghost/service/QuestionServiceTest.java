@@ -22,14 +22,19 @@ import com.ghost.model.enums.Role;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Map;
@@ -71,6 +76,9 @@ class QuestionServiceTest {
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
+
+    @Mock
+    private WhiteboardMembershipRepository whiteboardMembershipRepository;
 
     @InjectMocks
     private QuestionService questionService;
@@ -393,6 +401,49 @@ class QuestionServiceTest {
         assertThatThrownBy(() -> questionService.getQuestionByIdAndWhiteboard(studentId, questionId, differentWhiteboardId))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Question");
+    }
+
+    @Test
+    void getMyQuestionsShouldScopeAuthorQuestionsToVisibleCurrentMemberships() {
+        QuestionResponse response = QuestionResponse.builder()
+                .id(questionId)
+                .whiteboardId(whiteboardId)
+                .status(QuestionStatus.OPEN)
+                .build();
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(studentId))
+                .thenReturn(List.of(whiteboardId));
+        when(questionRepository.findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+                studentId, List.of(whiteboardId), pageable))
+                .thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, studentId, false)).thenReturn(response);
+
+        Page<QuestionResponse> result = questionService.getMyQuestions(
+                studentId,
+                "AUTHOR",
+                null,
+                pageable
+        );
+
+        assertThat(result.getContent()).containsExactly(response);
+        verify(questionRepository).findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+                studentId,
+                List.of(whiteboardId),
+                pageable
+        );
+    }
+
+    @Test
+    void getQuestionsByAuthorShouldReturnEmptyWhenAuthorHasNoCurrentMemberships() {
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(studentId)).thenReturn(List.of());
+
+        Page<QuestionResponse> result = questionService.getQuestionsByAuthor(studentId, pageable);
+
+        assertThat(result).isEmpty();
+        verify(questionRepository, never()).findByAuthorIdOrderByCreatedAtDesc(any(), any());
     }
 
     @Test

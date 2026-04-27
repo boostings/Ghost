@@ -21,6 +21,7 @@ import ReportModal from '../../components/ReportModal';
 import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import KarmaDisplay from '../../components/ui/KarmaDisplay';
+import { AnimatedIcon } from '../../components/AnimatedIcon';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useQuestionDetailModel } from '../../hooks/useQuestionDetailModel';
@@ -227,7 +228,7 @@ export default function QuestionDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Text style={styles.backArrow}>{'\u2190'}</Text>
+              <AnimatedIcon name="chevron-back" size={20} color={Colors.text} motion="none" />
             </TouchableOpacity>
             <Text style={styles.headerTitle} numberOfLines={1}>
               Question
@@ -239,7 +240,12 @@ export default function QuestionDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
               >
-                <Text style={styles.headerButtonIcon}>{isBookmarked ? '\u2605' : '\u2606'}</Text>
+                <AnimatedIcon
+                  name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                  size={18}
+                  color={isBookmarked ? Colors.primary : Colors.textMuted}
+                  motion="none"
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleReportQuestion}
@@ -247,7 +253,7 @@ export default function QuestionDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Report question"
               >
-                <Text style={styles.headerButtonIcon}>{'\u{1F6A9}'}</Text>
+                <AnimatedIcon name="flag-outline" size={18} color={Colors.textMuted} motion="none" />
               </TouchableOpacity>
             </View>
           </View>
@@ -275,7 +281,7 @@ export default function QuestionDetailScreen() {
                       {question.topicName && <TopicBadge name={question.topicName} />}
                       <StatusBadge status={question.status} />
                       {question.isPinned && (
-                        <Text style={styles.pinnedText}>{'\u{1F4CC}'} Pinned</Text>
+                        <View style={styles.pinnedRow}><AnimatedIcon name="pin" size={12} color={Colors.warning} motion="none" /><Text style={styles.pinnedText}>Pinned</Text></View>
                       )}
                     </View>
 
@@ -356,7 +362,7 @@ export default function QuestionDetailScreen() {
                   {/* Closed Banner */}
                   {isClosed && (
                     <View style={styles.closedBanner}>
-                      <Text style={styles.closedIcon}>{'\u{1F512}'}</Text>
+                      <AnimatedIcon name="lock-closed" size={16} color={Colors.warning} motion="none" />
                       <Text style={styles.closedText}>
                         This question has been answered and is now closed
                       </Text>
@@ -421,7 +427,7 @@ export default function QuestionDetailScreen() {
                   {submitting ? (
                     <ActivityIndicator size="small" color={Colors.text} />
                   ) : (
-                    <Text style={styles.sendIcon}>{editingCommentId ? '\u2713' : '\u2191'}</Text>
+                    <AnimatedIcon name={editingCommentId ? 'checkmark' : 'arrow-up'} size={20} color={Colors.text} motion="none" />
                   )}
                 </TouchableOpacity>
               </View>
@@ -513,6 +519,11 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
     flexWrap: 'wrap',
+  },
+  pinnedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   pinnedText: {
     fontSize: Fonts.sizes.sm,

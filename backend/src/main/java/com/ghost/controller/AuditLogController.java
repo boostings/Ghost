@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,7 +40,11 @@ public class AuditLogController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         UUID userId = UUID.fromString(userIdStr);
         whiteboardService.verifyFacultyRole(userId, wbId);
-        Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
+        Pageable pageable = PageRequest.of(
+                page,
+                Math.min(Math.max(size, 1), 100),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
 
         AuditAction auditAction = null;
         if (action != null && !action.isBlank()) {

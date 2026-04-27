@@ -2,6 +2,7 @@ package com.ghost.service;
 
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.mapper.QuestionMapper;
+import com.ghost.model.Comment;
 import com.ghost.model.Question;
 import com.ghost.model.enums.VoteType;
 import com.ghost.repository.BookmarkRepository;
@@ -22,6 +23,8 @@ public class QuestionResponseAssembler {
     private final BookmarkRepository bookmarkRepository;
     private final QuestionMapper questionMapper;
 
+    private static final int VERIFIED_ANSWER_PREVIEW_LENGTH = 160;
+
     @Transactional(readOnly = true)
     public QuestionResponse toResponse(Question question, UUID currentUserId, boolean includeModerationData) {
         VoteType userVote = karmaVoteRepository.findByUserIdAndQuestionId(currentUserId, question.getId())
@@ -30,12 +33,36 @@ public class QuestionResponseAssembler {
         long commentCount = commentRepository.countByQuestionId(question.getId());
         boolean isBookmarked = bookmarkRepository.existsByUserIdAndQuestionId(currentUserId, question.getId());
 
+        String verifiedAnswerPreview = null;
+        String verifiedAnswerAuthorName = null;
+        UUID verifiedAnswerId = question.getVerifiedAnswerId();
+        if (verifiedAnswerId != null) {
+            Comment verified = commentRepository.findById(verifiedAnswerId).orElse(null);
+            if (verified != null && !verified.isHidden()) {
+                verifiedAnswerPreview = truncatePreview(verified.getBody());
+                if (verified.getAuthor() != null) {
+                    verifiedAnswerAuthorName =
+                            verified.getAuthor().getFirstName() + " " + verified.getAuthor().getLastName();
+                }
+            }
+        }
+
         return questionMapper.toResponse(
                 question,
                 userVote,
                 commentCount,
                 isBookmarked,
-                includeModerationData
+                includeModerationData,
+                verifiedAnswerPreview,
+                verifiedAnswerAuthorName
         );
+    }
+
+    private static String truncatePreview(String body) {
+        if (body == null) return null;
+        String trimmed = body.trim();
+        if (trimmed.isEmpty()) return null;
+        if (trimmed.length() <= VERIFIED_ANSWER_PREVIEW_LENGTH) return trimmed;
+        return trimmed.substring(0, VERIFIED_ANSWER_PREVIEW_LENGTH).trim() + "…";
     }
 }

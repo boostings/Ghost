@@ -18,12 +18,42 @@ export const FEED_STATUS_FILTERS: Array<{ label: string; value: FeedStatusFilter
   { label: 'Closed', value: 'CLOSED' },
 ];
 
+export type SortMode = 'recent' | 'topVoted' | 'mostCommented';
+
+export const SORT_OPTIONS: Array<{ label: string; value: SortMode }> = [
+  { label: 'Recent activity', value: 'recent' },
+  { label: 'Most upvoted', value: 'topVoted' },
+  { label: 'Most commented', value: 'mostCommented' },
+];
+
+export type FeedSection = {
+  key: 'pinned' | 'open' | 'answered';
+  title: string;
+  data: QuestionResponse[];
+};
+
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 type ReportTarget = {
   questionId?: string;
   commentId?: string;
 };
+
+function sortQuestions(items: QuestionResponse[], mode: SortMode): QuestionResponse[] {
+  const copy = [...items];
+  switch (mode) {
+    case 'topVoted':
+      return copy.sort((a, b) => b.karmaScore - a.karmaScore);
+    case 'mostCommented':
+      return copy.sort((a, b) => b.commentCount - a.commentCount);
+    case 'recent':
+    default:
+      return copy.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+  }
+}
 
 export function useWhiteboardDetailModel(whiteboardId?: string) {
   const user = useAuthStore((state) => state.user);
@@ -38,13 +68,32 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<FeedStatusFilter>('ALL');
   const [topicFilter, setTopicFilter] = useState<'ALL' | string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const lastFetchRef = useRef(0);
+  const loadedWhiteboardIdRef = useRef<string | null>(null);
+  const requestInFlightRef = useRef(false);
 
   const isFaculty = user?.role === 'FACULTY';
+  const isSearching = debouncedQuery.trim().length > 0;
+
+  useEffect(() => {
+    loadedWhiteboardIdRef.current = null;
+    lastFetchRef.current = 0;
+    setWhiteboard(null);
+    setQuestions([]);
+    setPage(0);
+    setHasMore(true);
+  }, [whiteboardId]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedQuery(searchQuery), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
 
   const fetchData = useCallback(
     async (options?: { page?: number; replace?: boolean }) => {
@@ -56,9 +105,15 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
 
       const nextPage = options?.page ?? 0;
       const replace = options?.replace ?? true;
+      if (requestInFlightRef.current) {
+        return;
+      }
+
       if (!replace && (!hasMore || loadingMore)) {
         return;
       }
+
+      requestInFlightRef.current = true;
 
       try {
         if (replace) {
@@ -67,9 +122,19 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
           setLoadingMore(true);
         }
 
+        const trimmedQuery = debouncedQuery.trim();
+        const questionsPromise = trimmedQuery
+          ? questionService.search({
+              q: trimmedQuery,
+              whiteboard: whiteboardId,
+              page: nextPage,
+              size: PAGE_SIZE,
+            })
+          : questionService.list(whiteboardId, { page: nextPage, size: PAGE_SIZE });
+
         const [nextWhiteboard, questionPage] = await Promise.all([
-          replace ? whiteboardService.getById(whiteboardId) : Promise.resolve(whiteboard),
-          questionService.list(whiteboardId, { page: nextPage, size: PAGE_SIZE }),
+          replace ? whiteboardService.getById(whiteboardId) : Promise.resolve(null),
+          questionsPromise,
         ]);
 
         if (nextWhiteboard) {
@@ -84,6 +149,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
         setHasMore(nextPage + 1 < questionPage.totalPages);
         setLoadError(null);
         lastFetchRef.current = Date.now();
+        loadedWhiteboardIdRef.current = whiteboardId;
       } catch {
         setLoadError('Failed to load this whiteboard.');
         if (replace) {
@@ -97,20 +163,33 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
         } else {
           setLoadingMore(false);
         }
+        requestInFlightRef.current = false;
       }
     },
-    [hasMore, loadingMore, setCurrentWhiteboard, whiteboard, whiteboardId]
+    [debouncedQuery, hasMore, loadingMore, setCurrentWhiteboard, whiteboardId]
   );
 
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
       const isStale = now - lastFetchRef.current > 30000;
-      if (!whiteboard || questions.length === 0 || isStale) {
+      const hasLoadedCurrentWhiteboard =
+        Boolean(whiteboardId) &&
+        loadedWhiteboardIdRef.current === whiteboardId &&
+        lastFetchRef.current > 0;
+      if (!hasLoadedCurrentWhiteboard || isStale) {
         fetchData({ page: 0, replace: true });
       }
-    }, [fetchData, questions.length, whiteboard])
+    }, [fetchData, whiteboardId])
   );
+
+  // Re-run feed query when debounced search query changes (after the page is already loaded).
+  useEffect(() => {
+    if (!whiteboardId) return;
+    if (loadedWhiteboardIdRef.current !== whiteboardId) return;
+    fetchData({ page: 0, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, whiteboardId]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -122,7 +201,6 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     if (loading || loadingMore || !hasMore) {
       return;
     }
-
     await fetchData({ page: page + 1, replace: false });
   }, [fetchData, hasMore, loading, loadingMore, page]);
 
@@ -142,12 +220,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
 
         setQuestions((previousQuestions) =>
           previousQuestions.map((item) =>
-            item.id === questionId
-              ? {
-                  ...item,
-                  isBookmarked: !item.isBookmarked,
-                }
-              : item
+            item.id === questionId ? { ...item, isBookmarked: !item.isBookmarked } : item
           )
         );
       } catch {
@@ -167,31 +240,14 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     setReportTarget(null);
   }, []);
 
-  const handleStatusFilter = useCallback((nextFilter: FeedStatusFilter) => {
-    setStatusFilter(nextFilter);
-  }, []);
-
   const handleTopicFilter = useCallback((nextFilter: 'ALL' | string) => {
     setTopicFilter(nextFilter);
   }, []);
 
   const clearFilters = useCallback(() => {
-    setStatusFilter('ALL');
     setTopicFilter('ALL');
+    setSearchQuery('');
   }, []);
-
-  const pinnedQuestions = useMemo(
-    () => questions.filter((question) => question.isPinned),
-    [questions]
-  );
-  const regularQuestions = useMemo(
-    () => questions.filter((question) => !question.isPinned),
-    [questions]
-  );
-  const orderedQuestions = useMemo(
-    () => [...pinnedQuestions, ...regularQuestions],
-    [pinnedQuestions, regularQuestions]
-  );
 
   const topicFilters = useMemo(
     () =>
@@ -201,20 +257,54 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
             .filter((question) => question.topicId && question.topicName)
             .map((question) => [question.topicId as string, question.topicName as string])
         ),
-        ([id, name]) => ({ id, name })
+        ([topicId, name]) => ({ id: topicId, name })
       ),
     [questions]
   );
 
-  const filteredQuestions = useMemo(
-    () =>
-      orderedQuestions.filter((question) => {
-        const statusMatch = statusFilter === 'ALL' || question.status === statusFilter;
-        const topicMatch = topicFilter === 'ALL' || question.topicId === topicFilter;
-        return statusMatch && topicMatch;
-      }),
-    [orderedQuestions, statusFilter, topicFilter]
-  );
+  const sections: FeedSection[] = useMemo(() => {
+    const topicMatched = questions.filter(
+      (question) => topicFilter === 'ALL' || question.topicId === topicFilter
+    );
+
+    if (isSearching) {
+      if (topicMatched.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          key: 'open',
+          title: `Search results · ${topicMatched.length}`,
+          data: sortQuestions(topicMatched, sortMode),
+        },
+      ];
+    }
+
+    const pinned = topicMatched.filter((q) => q.isPinned);
+    const answered = topicMatched.filter((q) => !q.isPinned && q.verifiedAnswerId);
+    const open = topicMatched.filter((q) => !q.isPinned && !q.verifiedAnswerId);
+
+    const built: FeedSection[] = [];
+    if (pinned.length > 0) {
+      built.push({ key: 'pinned', title: `Pinned · ${pinned.length}`, data: pinned });
+    }
+    if (open.length > 0) {
+      built.push({
+        key: 'open',
+        title: `Open · ${open.length}`,
+        data: sortQuestions(open, sortMode),
+      });
+    }
+    if (answered.length > 0) {
+      built.push({
+        key: 'answered',
+        title: `Answered · ${answered.length}`,
+        data: sortQuestions(answered, sortMode),
+      });
+    }
+    return built;
+  }, [isSearching, questions, sortMode, topicFilter]);
 
   useEffect(() => {
     if (!whiteboardId) {
@@ -233,24 +323,26 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
   return {
     whiteboard,
     questions,
-    filteredQuestions,
-    pinnedQuestions,
+    sections,
     topicFilters,
     loading,
     refreshing,
     loadError,
     loadingMore,
-    statusFilter,
     topicFilter,
+    searchQuery,
+    sortMode,
+    isSearching,
     reportModalVisible,
     reportTarget,
     isFaculty,
     handleRefresh,
     handleLoadMore,
     handleToggleBookmark,
-    handleStatusFilter,
     handleTopicFilter,
     clearFilters,
+    setSearchQuery,
+    setSortMode,
     openReportModal,
     closeReportModal,
   };

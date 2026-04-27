@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import Avatar from '../../components/ui/Avatar';
 import EmptyState from '../../components/ui/EmptyState';
+import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
@@ -24,7 +26,6 @@ import { formatDate } from '../../utils/formatDate';
 import type { MemberResponse, JoinRequestResponse } from '../../types';
 
 export default function MembersScreen() {
-  const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
   const user = useAuthStore((state) => state.user);
   const isFaculty = user?.role === 'FACULTY';
@@ -136,7 +137,7 @@ export default function MembersScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Remove ${member.firstName} ${member.lastName}`}
         >
-          <Text style={styles.removeText}>{'\u2715'}</Text>
+          <Ionicons name="person-remove-outline" size={18} color={Colors.error} />
         </TouchableOpacity>
       )}
     </View>
@@ -155,19 +156,11 @@ export default function MembersScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Members</Text>
-          <Text style={styles.memberCount}>{members.length}</Text>
-        </View>
+        <SettingsHeader
+          title="Members"
+          subtitle="Roster and join requests"
+          rightElement={<Text style={styles.memberCount}>{members.length}</Text>}
+        />
 
         <FlatList
           data={[]}
@@ -183,6 +176,28 @@ export default function MembersScreen() {
           contentContainerStyle={styles.scrollContent}
           ListHeaderComponent={
             <>
+              <GlassCard style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <View style={styles.summaryItem}>
+                    <Ionicons name="school-outline" size={20} color={Colors.warning} />
+                    <Text style={styles.summaryValue}>{facultyMembers.length}</Text>
+                    <Text style={styles.summaryLabel}>Faculty</Text>
+                  </View>
+                  <View style={styles.summaryDivider} />
+                  <View style={styles.summaryItem}>
+                    <Ionicons name="people-outline" size={20} color={Colors.primary} />
+                    <Text style={styles.summaryValue}>{studentMembers.length}</Text>
+                    <Text style={styles.summaryLabel}>Students</Text>
+                  </View>
+                  <View style={styles.summaryDivider} />
+                  <View style={styles.summaryItem}>
+                    <Ionicons name="time-outline" size={20} color={Colors.info} />
+                    <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
+                    <Text style={styles.summaryLabel}>Pending</Text>
+                  </View>
+                </View>
+              </GlassCard>
+
               {/* Pending Join Requests */}
               {isFaculty && pendingRequests.length > 0 && (
                 <View style={styles.section}>
@@ -206,7 +221,7 @@ export default function MembersScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Approve ${request.userName}`}
                           >
-                            <Text style={styles.approveText}>{'\u2713'}</Text>
+                            <Ionicons name="checkmark" size={22} color={Colors.success} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.rejectButton}
@@ -214,7 +229,7 @@ export default function MembersScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Reject ${request.userName}`}
                           >
-                            <Text style={styles.rejectText}>{'\u2715'}</Text>
+                            <Ionicons name="close" size={22} color={Colors.error} />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -238,7 +253,7 @@ export default function MembersScreen() {
                   <GlassCard style={styles.card}>{studentMembers.map(renderMemberItem)}</GlassCard>
                 ) : (
                   <EmptyState
-                    icon={'\u{1F465}'}
+                    ionIcon="people-outline"
                     title="No Students"
                     subtitle={loadError || 'Share the invite code to get students to join'}
                   />
@@ -264,33 +279,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.text,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: Fonts.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text,
-  },
   memberCount: {
     fontSize: Fonts.sizes.md,
     color: Colors.textSecondary,
@@ -303,6 +291,33 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  summaryCard: {
+    marginBottom: 20,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 5,
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  summaryValue: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.xxl,
+    fontWeight: '800',
+  },
+  summaryLabel: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   section: {
     marginBottom: 20,
@@ -360,16 +375,11 @@ const styles = StyleSheet.create({
   removeButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,68,68,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
-  },
-  removeText: {
-    fontSize: 12,
-    color: Colors.error,
-    fontWeight: '700',
   },
   requestRow: {
     flexDirection: 'row',
@@ -402,27 +412,17 @@ const styles = StyleSheet.create({
   approveButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     backgroundColor: 'rgba(0,200,81,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  approveText: {
-    fontSize: 16,
-    color: Colors.success,
-    fontWeight: '700',
-  },
   rejectButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,68,68,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  rejectText: {
-    fontSize: 14,
-    color: Colors.error,
-    fontWeight: '700',
   },
 });

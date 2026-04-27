@@ -1,9 +1,11 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
-import { Colors } from '../constants/colors';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
-import { Duration } from '../constants/motion';
+import { enterList } from '../constants/motion';
+import { Spacing } from '../constants/spacing';
 import { haptic } from '../utils/haptics';
 import { QuestionResponse } from '../types';
 import GlassCard from './ui/GlassCard';
@@ -19,6 +21,7 @@ interface QuestionCardProps {
   onDownvote: () => void;
   onBookmark?: () => void;
   onReport?: () => void;
+  index?: number;
 }
 
 function formatTimestamp(dateString: string): string {
@@ -30,9 +33,9 @@ function formatTimestamp(dateString: string): string {
   const diffDay = Math.floor(diffMs / 86400000);
 
   if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffMin < 60) return `${diffMin}m`;
+  if (diffHour < 24) return `${diffHour}h`;
+  if (diffDay < 7) return `${diffDay}d`;
 
   return date.toLocaleDateString('en-US', {
     month: 'short',
@@ -54,23 +57,23 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   onDownvote,
   onBookmark,
   onReport,
+  index = 0,
 }) => {
+  const colors = useThemeColors();
   const { firstName, lastName } = parseAuthorName(question.authorName);
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(Duration.slow).springify().damping(18)}
-      layout={LinearTransition.duration(Duration.slow)}
+      entering={enterList(index)}
+      layout={LinearTransition.springify().damping(20)}
     >
       <GlassCard onPress={onPress} style={styles.card}>
-        {/* Hidden overlay */}
         {question.isHidden && (
-          <View style={styles.hiddenOverlay}>
-            <Text style={styles.hiddenText}>[hidden]</Text>
+          <View style={[styles.hiddenOverlay, { backgroundColor: colors.overlay }]}>
+            <Text style={[styles.hiddenText, { color: colors.textMuted }]}>HIDDEN</Text>
           </View>
         )}
 
-        {/* Top Row: Topic + Status + Pin */}
         <View style={styles.topRow}>
           <View style={styles.badges}>
             {question.topicName && (
@@ -78,32 +81,69 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
             )}
             <StatusBadge status={question.status} />
           </View>
-          {question.isPinned && <Text style={styles.pinIcon}>📌</Text>}
+          {question.isPinned && (
+            <View
+              style={[
+                styles.pinChip,
+                { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+              ]}
+            >
+              <Ionicons name="pin" size={12} color={colors.primary} />
+            </View>
+          )}
         </View>
 
-        {/* Title */}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {question.title}
         </Text>
 
-        {/* Body Preview */}
-        <Text style={styles.body} numberOfLines={3}>
+        <Text style={[styles.body, { color: colors.textMuted }]} numberOfLines={3}>
           {question.isHidden ? '[hidden]' : question.body}
         </Text>
 
-        {/* Bottom Row */}
-        <View style={styles.bottomRow}>
-          {/* Author */}
-          <View style={styles.authorSection}>
-            <Avatar firstName={firstName} lastName={lastName} size={28} />
-            <Text style={styles.authorName} numberOfLines={1}>
-              {question.authorName}
+        {question.verifiedAnswerId && question.verifiedAnswerPreview ? (
+          <View
+            style={[
+              styles.answerStripe,
+              {
+                backgroundColor: `${colors.verifiedAnswer}1A`,
+                borderColor: `${colors.verifiedAnswer}4D`,
+              },
+            ]}
+          >
+            <View style={styles.answerStripeHeader}>
+              <Ionicons name="checkmark-circle" size={14} color={colors.verifiedAnswer} />
+              <Text style={[styles.answerStripeLabel, { color: colors.verifiedAnswer }]}>
+                Answered
+                {question.verifiedAnswerAuthorName ? ` by ${question.verifiedAnswerAuthorName}` : ''}
+              </Text>
+            </View>
+            <Text
+              style={[styles.answerStripeBody, { color: colors.text }]}
+              numberOfLines={2}
+            >
+              {question.verifiedAnswerPreview}
             </Text>
           </View>
+        ) : null}
 
-          {/* Actions */}
+        <View style={[styles.bottomRow, { borderTopColor: colors.surfaceBorder }]}>
+          <View style={styles.authorSection}>
+            <Avatar firstName={firstName} lastName={lastName} size={28} />
+            <View style={styles.authorMeta}>
+              <Text
+                style={[styles.authorName, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {question.authorName}
+              </Text>
+              <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+                {formatTimestamp(question.createdAt)}
+              </Text>
+            </View>
+          </View>
+
           <View style={styles.actionsSection}>
-            {/* Karma */}
             <KarmaDisplay
               score={question.karmaScore}
               userVote={question.userVote}
@@ -112,44 +152,48 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               size="small"
             />
 
-            {/* Comment Count */}
             <View style={styles.commentCount}>
-              <Text style={styles.commentIcon}>💬</Text>
-              <Text style={styles.commentText}>{question.commentCount}</Text>
+              <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
+              <Text style={[styles.commentText, { color: colors.textMuted }]}>
+                {question.commentCount}
+              </Text>
             </View>
 
-            {/* Bookmark */}
             {onBookmark && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   haptic.selection();
                   onBookmark();
                 }}
-                style={styles.bookmarkButton}
+                hitSlop={8}
+                style={styles.iconAction}
                 accessibilityRole="button"
-                accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+                accessibilityLabel={
+                  question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'
+                }
               >
-                <Text style={styles.bookmarkIcon}>{question.isBookmarked ? '🔖' : '🏷️'}</Text>
-              </TouchableOpacity>
+                <Ionicons
+                  name={question.isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                  size={16}
+                  color={question.isBookmarked ? colors.primary : colors.textMuted}
+                />
+              </Pressable>
             )}
 
-            {/* Report */}
             {onReport && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   haptic.warning();
                   onReport();
                 }}
-                style={styles.bookmarkButton}
+                hitSlop={8}
+                style={styles.iconAction}
                 accessibilityRole="button"
                 accessibilityLabel="Report question"
               >
-                <Text style={styles.bookmarkIcon}>{'\u{1F6A9}'}</Text>
-              </TouchableOpacity>
+                <Ionicons name="flag-outline" size={16} color={colors.textMuted} />
+              </Pressable>
             )}
-
-            {/* Timestamp */}
-            <Text style={styles.timestamp}>{formatTimestamp(question.createdAt)}</Text>
           </View>
         </View>
       </GlassCard>
@@ -159,27 +203,25 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   hiddenOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     zIndex: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
   },
   hiddenText: {
-    color: Colors.textMuted,
-    fontSize: Fonts.sizes.lg,
+    fontSize: Fonts.sizes.sm,
     fontWeight: Fonts.bold.fontWeight,
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
+    minHeight: 22,
   },
   badges: {
     flexDirection: 'row',
@@ -190,43 +232,73 @@ const styles = StyleSheet.create({
   topicBadge: {
     marginRight: 0,
   },
-  pinIcon: {
-    fontSize: 16,
-    marginLeft: 8,
+  pinChip: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   title: {
-    color: Colors.text,
     fontSize: Fonts.sizes.xl,
-    fontWeight: Fonts.bold.fontWeight,
+    fontWeight: '700',
     marginBottom: 6,
     lineHeight: 24,
+    letterSpacing: -0.2,
   },
   body: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.md,
     fontWeight: Fonts.regular.fontWeight,
     lineHeight: 20,
     marginBottom: 14,
   },
+  answerStripe: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  answerStripeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  answerStripeLabel: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  answerStripeBody: {
+    fontSize: Fonts.sizes.sm,
+    lineHeight: 19,
+  },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 12,
   },
   authorSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
-    maxWidth: '40%',
+    maxWidth: '46%',
+  },
+  authorMeta: {
+    marginLeft: 8,
+    flexShrink: 1,
   },
   authorName: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.sm,
-    fontWeight: Fonts.medium.fontWeight,
-    marginLeft: 8,
+    fontWeight: Fonts.semiBold.fontWeight,
+  },
+  timestamp: {
+    fontSize: Fonts.sizes.xs,
+    marginTop: 1,
   },
   actionsSection: {
     flexDirection: 'row',
@@ -236,26 +308,15 @@ const styles = StyleSheet.create({
   commentCount: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  commentIcon: {
-    fontSize: 14,
-    marginRight: 4,
+    gap: 4,
   },
   commentText: {
-    color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
     fontWeight: Fonts.medium.fontWeight,
+    fontVariant: ['tabular-nums'],
   },
-  bookmarkButton: {
-    padding: 4,
-  },
-  bookmarkIcon: {
-    fontSize: 16,
-  },
-  timestamp: {
-    color: Colors.textMuted,
-    fontSize: Fonts.sizes.xs,
-    fontWeight: Fonts.regular.fontWeight,
+  iconAction: {
+    padding: 2,
   },
 });
 

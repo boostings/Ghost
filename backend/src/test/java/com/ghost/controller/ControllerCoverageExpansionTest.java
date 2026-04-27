@@ -147,7 +147,7 @@ class ControllerCoverageExpansionTest {
         bookmarkController = new BookmarkController(bookmarkService);
         karmaController = new KarmaController(karmaService);
         searchController = new SearchController(searchService);
-        userController = new UserController(userService);
+        userController = new UserController(userService, questionService);
         reportController = new ReportController(reportService, whiteboardService);
         whiteboardMembershipController = new WhiteboardMembershipController(whiteboardMembershipService);
     }

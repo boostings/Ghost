@@ -25,7 +25,6 @@ function TabBarIcon({
 }) {
   const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
     home: focused ? 'home' : 'home-outline',
-    search: focused ? 'search' : 'search-outline',
     notifications: focused ? 'notifications' : 'notifications-outline',
     bookmarks: focused ? 'bookmark' : 'bookmark-outline',
     profile: focused ? 'person' : 'person-outline',
@@ -33,7 +32,6 @@ function TabBarIcon({
 
   const labels: Record<string, string> = {
     home: 'Home',
-    search: 'Search',
     notifications: 'Alerts',
     bookmarks: 'Saved',
     profile: 'Profile',
@@ -136,6 +134,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Cross-fade between tab screens — bridges state with opacity (Emil polish-blur-bridge).
+        animation: 'fade',
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarShowLabel: false,
@@ -166,16 +166,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search"
-        listeners={tabPressListener}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon name="search" focused={focused} colors={colors} />
-          ),
-          tabBarAccessibilityLabel: 'Search tab',
-        }}
-      />
-      <Tabs.Screen
         name="notifications"
         listeners={tabPressListener}
         options={{
@@ -196,6 +186,12 @@ export default function TabLayout() {
             <TabBarIcon name="bookmarks" focused={focused} colors={colors} />
           ),
           tabBarAccessibilityLabel: 'Bookmarks tab',
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen

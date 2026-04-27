@@ -129,6 +129,29 @@ export const questionService = {
   },
 
   /**
+   * Personal home strips. `role=AUTHOR` returns my own questions; `role=TEACHING` returns
+   * questions across whiteboards I'm faculty in. `status=AWAITING|ANSWERED` filters by
+   * verified-answer presence; omitting status returns everything.
+   * GET /users/me/questions
+   */
+  getMyQuestions: async (params?: {
+    role?: 'AUTHOR' | 'TEACHING';
+    status?: 'AWAITING' | 'ANSWERED';
+    page?: number;
+    size?: number;
+  }): Promise<PageResponse<QuestionResponse>> => {
+    const response = await api.get<PageResponse<QuestionResponse>>('/users/me/questions', {
+      params: {
+        role: params?.role ?? 'AUTHOR',
+        ...(params?.status ? { status: params.status } : {}),
+        page: params?.page ?? 0,
+        size: params?.size ?? Config.PAGE_SIZE,
+      },
+    });
+    return response.data;
+  },
+
+  /**
    * Search questions globally across enrolled whiteboards.
    * GET /search/questions
    */

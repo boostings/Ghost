@@ -11,12 +11,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
-import { Colors } from '../../constants/colors';
+import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Duration, Stagger } from '../../constants/motion';
+import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import {
@@ -36,6 +39,7 @@ interface FormErrors {
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -122,7 +126,11 @@ export default function RegisterScreen() {
   };
 
   return (
-    <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
+    <LinearGradient colors={colors.bgGradient} style={styles.gradient}>
+      <View
+        style={[styles.ambient, { backgroundColor: `${colors.primary}1A` }]}
+        pointerEvents="none"
+      />
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -133,14 +141,20 @@ export default function RegisterScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Create Account</Text>
-              <Text style={styles.subtitle}>Join your classmates on Ghost</Text>
-            </View>
+            <Animated.View
+              style={styles.header}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
+            >
+              <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Join your classmates on Ghost
+              </Text>
+            </Animated.View>
 
-            {/* Registration Card */}
-            <GlassCard style={styles.card}>
+            <GlassCard
+              style={styles.card}
+              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+            >
               <View style={styles.nameRow}>
                 <View style={styles.nameField}>
                   <GlassInput
@@ -214,7 +228,9 @@ export default function RegisterScreen() {
                 onSubmitEditing={handleRegister}
               />
 
-              {authError ? <Text style={styles.authErrorText}>{authError}</Text> : null}
+              {authError ? (
+                <Text style={[styles.authErrorText, { color: colors.error }]}>{authError}</Text>
+              ) : null}
 
               <GlassButton
                 title="Create Account"
@@ -225,17 +241,21 @@ export default function RegisterScreen() {
               />
             </GlassCard>
 
-            {/* Login Link */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+            <Animated.View
+              style={styles.footer}
+              entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}
+            >
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                Already have an account?{' '}
+              </Text>
               <TouchableOpacity
                 onPress={() => router.replace('/(auth)/login')}
                 accessibilityRole="button"
                 accessibilityLabel="Go back to sign in"
               >
-                <Text style={styles.footerLink}>Sign In</Text>
+                <Text style={[styles.footerLink, { color: colors.primary }]}>Sign In</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -246,6 +266,15 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  ambient: {
+    position: 'absolute',
+    top: -180,
+    right: -120,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
   },
   container: {
     flex: 1,
@@ -256,29 +285,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.huge,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   title: {
     fontSize: Fonts.sizes.xxxl,
     fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: 0.5,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: Fonts.sizes.lg,
-    color: Colors.textSecondary,
     marginTop: 8,
   },
   card: {
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
   },
   authErrorText: {
-    color: Colors.error,
     fontSize: Fonts.sizes.sm,
     textAlign: 'center',
     marginTop: -4,
@@ -300,11 +326,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: Colors.textSecondary,
     fontSize: Fonts.sizes.md,
   },
   footerLink: {
-    color: Colors.primary,
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
   },

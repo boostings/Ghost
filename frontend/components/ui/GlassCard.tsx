@@ -2,8 +2,10 @@ import React from 'react';
 import { StyleSheet, Pressable, View, ViewStyle, StyleProp, useColorScheme } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '../../constants/colors';
 import { PRESSED_SCALE, Spring } from '../../constants/motion';
+import { Radius } from '../../constants/spacing';
 import { haptic } from '../../utils/haptics';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -19,6 +21,8 @@ interface GlassCardProps {
   entering?: AnimatedViewProps['entering'];
   exiting?: AnimatedViewProps['exiting'];
   layout?: AnimatedViewProps['layout'];
+  highlight?: boolean; // adds a subtle top inner-glow
+  padding?: number;
 }
 
 const GlassCard: React.FC<GlassCardProps> = ({
@@ -30,6 +34,8 @@ const GlassCard: React.FC<GlassCardProps> = ({
   entering,
   exiting,
   layout,
+  highlight = true,
+  padding = 16,
 }) => {
   const colorScheme = useColorScheme();
   const colors = useThemeColors();
@@ -45,7 +51,18 @@ const GlassCard: React.FC<GlassCardProps> = ({
       tint={colorScheme === 'dark' ? 'dark' : 'light'}
       style={styles.blur}
     >
-      <View style={[styles.inner, { backgroundColor: colors.cardBg }]}>{children}</View>
+      <View style={[styles.inner, { backgroundColor: colors.cardBg, padding }]}>
+        {highlight && (
+          <LinearGradient
+            colors={[colors.cardHighlight, 'transparent']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={styles.highlight}
+          />
+        )}
+        {children}
+      </View>
     </BlurView>
   );
 
@@ -89,15 +106,23 @@ const GlassCard: React.FC<GlassCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   blur: {
     overflow: 'hidden',
   },
   inner: {
     padding: 16,
+  },
+  highlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    opacity: 0.35,
   },
 });
 

@@ -33,4 +33,8 @@ public interface WhiteboardMembershipRepository extends JpaRepository<Whiteboard
 
     @Query("SELECT m.whiteboard.id FROM WhiteboardMembership m WHERE m.user.id = :userId")
     List<UUID> findWhiteboardIdsByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT m.whiteboard.id FROM WhiteboardMembership m " +
+            "WHERE m.user.id = :userId AND m.role = com.ghost.model.enums.Role.FACULTY")
+    List<UUID> findFacultyWhiteboardIdsByUserId(@Param("userId") UUID userId);
 }

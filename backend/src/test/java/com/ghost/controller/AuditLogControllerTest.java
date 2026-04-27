@@ -80,6 +80,8 @@ class AuditLogControllerTest {
         verify(whiteboardService).verifyFacultyRole(userId, wbId);
         verify(auditLogService).getAuditLogs(any(), pageableCaptor.capture(), isNull(), isNull(), isNull(), isNull());
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(100);
+        assertThat(pageableCaptor.getValue().getSort().getOrderFor("createdAt")).isNotNull();
+        assertThat(pageableCaptor.getValue().getSort().getOrderFor("createdAt").isDescending()).isTrue();
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getContent()).hasSize(1);

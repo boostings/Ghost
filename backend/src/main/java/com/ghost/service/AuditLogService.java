@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,15 +62,43 @@ public class AuditLogService {
             throw new BadRequestException("startAt must be before endAt");
         }
 
-        Page<AuditLog> page = auditLogRepository.findByFilters(
+        Specification<AuditLog> specification = buildAuditLogSpecification(
                 whiteboardId,
                 action,
                 actorId,
                 startAt,
-                endAt,
-                pageable
+                endAt
         );
+        Page<AuditLog> page = auditLogRepository.findAll(specification, pageable);
         return page.map(auditLogMapper::toResponse);
+    }
+
+    private Specification<AuditLog> buildAuditLogSpecification(
+            UUID whiteboardId,
+            AuditAction action,
+            UUID actorId,
+            LocalDateTime startAt,
+            LocalDateTime endAt
+    ) {
+        return (root, query, criteriaBuilder) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            predicates.add(criteriaBuilder.equal(root.get("whiteboard").get("id"), whiteboardId));
+
+            if (action != null) {
+                predicates.add(criteriaBuilder.equal(root.get("action"), action));
+            }
+            if (actorId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("actor").get("id"), actorId));
+            }
+            if (startAt != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startAt));
+            }
+            if (endAt != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endAt));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     @Transactional(readOnly = true)

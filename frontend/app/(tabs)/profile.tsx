@@ -1,393 +1,986 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Alert, Switch, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import GlassCard from '../../components/ui/GlassCard';
-import GlassButton from '../../components/ui/GlassButton';
-import GlassModal from '../../components/ui/GlassModal';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '../../components/ui/Avatar';
-import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import { Colors, useThemeColors } from '../../constants/colors';
-import { Fonts } from '../../constants/fonts';
+import { type AppColors, useThemeColors } from '../../constants/colors';
+import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
+import { questionService } from '../../services/questionService';
 import { authService } from '../../services/authService';
+import type { QuestionResponse } from '../../types';
+
+const PAGE_SIZE = 10;
+
+type Standing = {
+  label: string;
+  description: string;
+  color: string;
+  background: string;
+  border: string;
+};
+
+function getStanding(karma: number, colors: AppColors): Standing {
+  if (karma >= 100) {
+    return {
+      label: 'CHAMPION',
+      description: 'Trusted contributor',
+      color: '#FACC15',
+      background: 'rgba(250,204,21,0.16)',
+      border: 'rgba(250,204,21,0.40)',
+    };
+  }
+  if (karma >= 25) {
+    return {
+      label: 'RISING',
+      description: 'Building momentum',
+      color: colors.success,
+      background: `${colors.success}26`,
+      border: `${colors.success}59`,
+    };
+  }
+  if (karma >= 0) {
+    return {
+      label: 'MEMBER',
+      description: 'Good standing',
+      color: colors.info,
+      background: `${colors.info}26`,
+      border: `${colors.info}59`,
+    };
+  }
+  return {
+    label: 'NEEDS WORK',
+    description: 'Add value with helpful posts',
+    color: colors.error,
+    background: `${colors.error}26`,
+    border: `${colors.error}59`,
+  };
+}
+
+function memberSince(createdAt: string | undefined): string {
+  if (!createdAt) return '—';
+  try {
+    const d = new Date(createdAt);
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+}
+
+function relativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const min = Math.floor(diffMs / 60000);
+  const hr = Math.floor(diffMs / 3600000);
+  const day = Math.floor(diffMs / 86400000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  if (hr < 24) return `${hr}h ago`;
+  if (day < 7) return `${day}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const user = useAuthStore((state) => state.user);
+  const updateUser = useAuthStore((state) => state.updateUser);
   const logout = useAuthStore((state) => state.logout);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
-  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
 
-  const performLogout = () => {
+  const [questions, setQuestions] = useState<QuestionResponse[]>([]);
+  const [questionCount, setQuestionCount] = useState<number>(0);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const performLogout = useCallback(() => {
+    haptic.medium();
     logout();
     router.replace('/(auth)/login');
-  };
+  }, [logout, router]);
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      setLogoutDialogVisible(true);
-      return;
-    }
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: performLogout,
-      },
-    ]);
-  };
-
-  const handleDeleteAccount = () => {
-    if (Platform.OS === 'web') {
-      setDeleteDialogVisible(true);
-      return;
-    }
-    Alert.alert(
-      'Delete Account',
-      'This action is permanent and cannot be undone. All your questions, comments, and data will be removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => void confirmDeleteAccount(),
-        },
-      ]
-    );
-  };
-
-  const confirmDeleteAccount = async () => {
-    setDeleteDialogVisible(false);
-    setDeletingAccount(true);
+  const confirmDelete = useCallback(async () => {
+    setDeleting(true);
     try {
       await authService.deleteAccount();
       logout();
       router.replace('/(auth)/login');
     } catch {
-      if (Platform.OS === 'web') {
-        window.alert('Failed to delete account. Please try again.');
-      } else {
-        Alert.alert('Error', 'Failed to delete account. Please try again.');
-      }
+      const message = 'Could not delete your account. Please try again.';
+      if (Platform.OS === 'web') window.alert(message);
+      else Alert.alert('Error', message);
     } finally {
-      setDeletingAccount(false);
+      setDeleting(false);
     }
-  };
+  }, [logout, router]);
 
-  const firstName = user?.firstName || 'User';
+  const handleLogout = useCallback(() => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Log out of Ghost?')) performLogout();
+      return;
+    }
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log out', style: 'destructive', onPress: performLogout },
+    ]);
+  }, [performLogout]);
+
+  const handleDelete = useCallback(() => {
+    if (Platform.OS === 'web') {
+      if (
+        window.confirm(
+          'Delete account permanently? All your questions, comments, and data will be removed.'
+        )
+      ) {
+        void confirmDelete();
+      }
+      return;
+    }
+    Alert.alert(
+      'Delete account',
+      'This is permanent. All your questions, comments, and data will be removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => void confirmDelete() },
+      ]
+    );
+  }, [confirmDelete]);
+
+  const firstName = user?.firstName || 'You';
   const lastName = user?.lastName || '';
-  const email = user?.email || '';
+  const fullName = `${firstName} ${lastName}`.trim();
   const role = user?.role || 'STUDENT';
-  const karmaScore = user?.karmaScore || 0;
+  const karmaScore = user?.karmaScore ?? 0;
+  const standing = getStanding(karmaScore, colors);
+
+  const loadQuestions = useCallback(
+    async (mode: 'replace' | 'append', requestedPage: number) => {
+      if (mode === 'replace') setLoading(true);
+      else setLoadingMore(true);
+      try {
+        const response = await questionService.getMyQuestions({
+          page: requestedPage,
+          size: PAGE_SIZE,
+        });
+        setQuestions((current) =>
+          mode === 'replace' ? response.content : [...current, ...response.content]
+        );
+        setPage(requestedPage);
+        setQuestionCount(response.totalElements);
+        setHasMore(requestedPage + 1 < response.totalPages);
+        setError(null);
+      } catch {
+        if (mode === 'replace') setQuestions([]);
+        setHasMore(false);
+        setError('Could not load your questions.');
+      } finally {
+        if (mode === 'replace') setLoading(false);
+        else setLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    void loadQuestions('replace', 0);
+  }, [loadQuestions]);
+
+  // Refresh karma + question list whenever the screen regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        try {
+          const me = await authService.getMe();
+          if (!cancelled) updateUser(me);
+        } catch {
+          // non-fatal, keep cached user
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [updateUser])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const me = await authService.getMe();
+      updateUser(me);
+    } catch {
+      // ignore
+    }
+    await loadQuestions('replace', 0);
+    setRefreshing(false);
+  }, [loadQuestions, updateUser]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    void loadQuestions('append', page + 1);
+  }, [hasMore, loading, loadingMore, loadQuestions, page]);
+
+  const renderQuestion = useCallback(
+    ({ item, index }: { item: QuestionResponse; index: number }) => (
+      <QuestionRow
+        question={item}
+        index={index}
+        colors={colors}
+        onPress={() => router.push(`/question/${item.id}`)}
+      />
+    ),
+    [colors, router]
+  );
 
   return (
-    <ScreenWrapper edges={['top']}>
-      <GlassModal
-        visible={logoutDialogVisible}
-        onClose={() => setLogoutDialogVisible(false)}
-        title="Log out"
-        footer={
-          <View style={styles.dialogFooter}>
-            <View style={styles.dialogFooterButton}>
-              <GlassButton
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setLogoutDialogVisible(false)}
-              />
-            </View>
-            <View style={styles.dialogFooterButton}>
-              <GlassButton
-                title="Log out"
-                variant="danger"
-                solid
-                onPress={() => {
-                  setLogoutDialogVisible(false);
-                  performLogout();
-                }}
-              />
-            </View>
-          </View>
-        }
-      >
-        <Text style={[styles.dialogMessage, { color: colors.textSecondary }]}>
-          Are you sure you want to log out?
-        </Text>
-      </GlassModal>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={[`${colors.primary}24`, colors.background, colors.background] as const}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.45 }}
+      />
 
-      <GlassModal
-        visible={deleteDialogVisible}
-        onClose={() => setDeleteDialogVisible(false)}
-        title="Delete account"
-        footer={
-          <View style={styles.dialogFooter}>
-            <View style={styles.dialogFooterButton}>
-              <GlassButton
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setDeleteDialogVisible(false)}
-              />
-            </View>
-            <View style={styles.dialogFooterButton}>
-              <GlassButton
-                title="Delete"
-                variant="danger"
-                solid
-                loading={deletingAccount}
-                disabled={deletingAccount}
-                onPress={() => void confirmDeleteAccount()}
-              />
-            </View>
-          </View>
-        }
-      >
-        <Text style={[styles.dialogMessage, { color: colors.textSecondary }]}>
-          This action is permanent and cannot be undone. All your questions, comments, and data will
-          be removed.
-        </Text>
-      </GlassModal>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR SPACE</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
+          </View>
         </View>
 
-        {/* User Info Card */}
-        <GlassCard style={styles.profileCard}>
-          <View style={styles.profileRow}>
-            <Avatar firstName={firstName} lastName={lastName} size={64} />
-            <View style={styles.profileInfo}>
-              <Text style={styles.userName}>
-                {firstName} {lastName}
-              </Text>
-              <Text style={styles.userEmail}>{email}</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>{role}</Text>
+        <FlatList
+          data={questions}
+          renderItem={renderQuestion}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          ListHeaderComponent={
+            <View>
+              <Animated.View entering={FadeInDown.duration(460).delay(40).springify().damping(20)}>
+                <View
+                  style={[
+                    styles.heroCard,
+                    { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <View style={[styles.heroEdge, { backgroundColor: colors.primary }]} />
+                  <View style={styles.heroBody}>
+                    <View style={styles.heroTop}>
+                      <Avatar firstName={firstName} lastName={lastName} size={68} />
+                      <View style={styles.heroNameBlock}>
+                        <Text style={[styles.heroName, { color: colors.text }]} numberOfLines={1}>
+                          {fullName}
+                        </Text>
+                        <View style={styles.heroChips}>
+                          <View
+                            style={[
+                              styles.roleChip,
+                              {
+                                backgroundColor: colors.primarySoft,
+                                borderColor: colors.primaryFaint,
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={role === 'FACULTY' ? 'school' : 'person'}
+                              size={11}
+                              color={colors.primary}
+                            />
+                            <Text style={[styles.roleChipText, { color: colors.primary }]}>
+                              {role}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.memberChip,
+                              {
+                                backgroundColor: colors.surfaceLight,
+                                borderColor: colors.surfaceBorder,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.memberChipText, { color: colors.textMuted }]}>
+                              SINCE {memberSince(user?.createdAt).toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                    <Text
+                      style={[styles.heroEmail, { color: colors.textSecondary }]}
+                      numberOfLines={1}
+                    >
+                      {user?.email ?? '—'}
+                    </Text>
+                  </View>
+                </View>
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.duration(460).delay(110).springify().damping(20)}>
+                <View
+                  style={[
+                    styles.standingCard,
+                    { backgroundColor: standing.background, borderColor: standing.border },
+                  ]}
+                >
+                  <View style={styles.standingLeft}>
+                    <Text style={[styles.standingLabel, { color: standing.color }]}>
+                      {standing.label}
+                    </Text>
+                    <Text style={[styles.standingDesc, { color: colors.textSecondary }]}>
+                      {standing.description}
+                    </Text>
+                  </View>
+                </View>
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.duration(460).delay(160).springify().damping(20)}
+                style={styles.statsRow}
+              >
+                <StatTile
+                  icon="help-circle-outline"
+                  colors={colors}
+                  value={loading ? '—' : questionCount.toLocaleString()}
+                  label="Questions asked"
+                />
+                <StatTile
+                  icon="flash-outline"
+                  colors={colors}
+                  value={karmaScore.toLocaleString()}
+                  valueStyle={{
+                    color: karmaScore > 0 ? colors.upvote : karmaScore < 0 ? colors.downvote : colors.text,
+                  }}
+                  label="Karma"
+                />
+                <StatTile
+                  icon="ribbon-outline"
+                  colors={colors}
+                  value={standing.label.split(' ')[0]}
+                  valueStyle={{ color: standing.color, fontSize: 16 }}
+                  label="Standing"
+                />
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.duration(460).delay(180).springify().damping(20)}
+                style={styles.settingsBlock}
+              >
+                <Text style={[styles.blockEyebrow, { color: colors.text }]}>NOTIFICATIONS</Text>
+                <View
+                  style={[
+                    styles.settingsCard,
+                    { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <View style={[styles.settingRail, { backgroundColor: colors.primary }]} />
+                  <View style={styles.settingsCardBody}>
+                    <View style={styles.settingRow}>
+                      <View style={styles.settingInfo}>
+                        <Text style={[styles.settingLabel, { color: colors.text }]}>
+                          Push notifications
+                        </Text>
+                        <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
+                          Alerts for new answers and comments
+                        </Text>
+                      </View>
+                      <Switch
+                        value={pushEnabled}
+                        onValueChange={(v) => {
+                          haptic.selection();
+                          setPushEnabled(v);
+                        }}
+                        trackColor={{
+                          false: 'rgba(255,255,255,0.12)',
+                          true: 'rgba(187,39,68,0.55)',
+                        }}
+                        thumbColor={pushEnabled ? colors.primary : colors.textMuted}
+                      />
+                    </View>
+                    <View
+                      style={[styles.settingDivider, { backgroundColor: colors.surfaceBorder }]}
+                    />
+                    <View style={styles.settingRow}>
+                      <View style={styles.settingInfo}>
+                        <Text style={[styles.settingLabel, { color: colors.text }]}>
+                          Email summaries
+                        </Text>
+                        <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
+                          Periodic digests of class activity
+                        </Text>
+                      </View>
+                      <Switch
+                        value={emailEnabled}
+                        onValueChange={(v) => {
+                          haptic.selection();
+                          setEmailEnabled(v);
+                        }}
+                        trackColor={{
+                          false: 'rgba(255,255,255,0.12)',
+                          true: 'rgba(187,39,68,0.55)',
+                        }}
+                        thumbColor={emailEnabled ? colors.primary : colors.textMuted}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.duration(460).delay(220).springify().damping(20)}
+                style={styles.settingsBlock}
+              >
+                <Text style={[styles.blockEyebrow, { color: colors.text }]}>ACCOUNT</Text>
+                <View style={styles.actionRow}>
+                  <Pressable
+                    onPress={handleLogout}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      {
+                        backgroundColor: colors.cardBg,
+                        borderColor: colors.cardBorder,
+                      },
+                      pressed && { backgroundColor: colors.surfaceLight },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Log out"
+                  >
+                    <Ionicons name="log-out-outline" size={16} color={colors.text} />
+                    <Text style={[styles.actionButtonText, { color: colors.text }]}>Log out</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleDelete}
+                    disabled={deleting}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      styles.actionButtonDanger,
+                      {
+                        backgroundColor: deleting ? `${colors.error}30` : `${colors.error}1F`,
+                        borderColor: `${colors.error}66`,
+                      },
+                      pressed && { backgroundColor: `${colors.error}33` },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete account"
+                  >
+                    {deleting ? (
+                      <ActivityIndicator size="small" color={colors.error} />
+                    ) : (
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                    )}
+                    <Text style={[styles.actionButtonText, { color: colors.error }]}>
+                      Delete account
+                    </Text>
+                  </Pressable>
+                </View>
+                <Text style={[styles.versionText, { color: colors.textMuted }]}>Ghost v1.0.0</Text>
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeIn.duration(280).delay(260)}
+                style={styles.sectionHeader}
+              >
+                <Text style={[styles.sectionEyebrow, { color: colors.text }]}>YOUR QUESTIONS</Text>
+                <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
+                  {loading ? 'Loading…' : `${questionCount.toLocaleString()} total`}
+                </Text>
+              </Animated.View>
+            </View>
+          }
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color={colors.primary} />
               </View>
-            </View>
-          </View>
-        </GlassCard>
+            ) : (
+              <View style={styles.emptyState}>
+                <View
+                  style={[
+                    styles.emptyIcon,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      borderColor: colors.primaryFaint,
+                      borderWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  <Ionicons name="chatbubbles-outline" size={28} color={colors.primary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  {error ?? 'No questions yet'}
+                </Text>
+                <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
+                  Ask your first question on a class whiteboard to see it here.
+                </Text>
+              </View>
+            )
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.4}
+        />
+      </SafeAreaView>
+    </View>
+  );
+}
 
-        {/* Karma Card */}
-        <GlassCard style={styles.karmaCard}>
-          <View style={styles.karmaRow}>
-            <View style={styles.karmaItem}>
-              <Text style={styles.karmaValue}>{karmaScore}</Text>
-              <Text style={styles.karmaLabel}>Karma Score</Text>
-            </View>
-            <View style={styles.karmaDivider} />
-            <View style={styles.karmaItem}>
-              <Text style={styles.karmaValue}>{karmaScore >= 0 ? '\u25B2' : '\u25BC'}</Text>
-              <Text style={styles.karmaLabel}>
-                {karmaScore >= 0 ? 'Good Standing' : 'Needs Improvement'}
+function StatTile({
+  icon,
+  value,
+  label,
+  valueStyle,
+  colors,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+  valueStyle?: object;
+  colors: AppColors;
+}) {
+  return (
+    <View
+      style={[
+        styles.statTile,
+        { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+      ]}
+    >
+      <Ionicons name={icon} size={16} color={colors.textMuted} />
+      <Text style={[styles.statValue, { color: colors.text }, valueStyle]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textMuted }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function QuestionRow({
+  question,
+  index,
+  onPress,
+  colors,
+}: {
+  question: QuestionResponse;
+  index: number;
+  onPress: () => void;
+  colors: AppColors;
+}) {
+  const isClosed = question.status === 'CLOSED';
+  const statusColor = isClosed ? colors.primary : colors.openStatus;
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(360)
+        .delay(Math.min(index, 6) * 40)
+        .springify()
+        .damping(20)}
+    >
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.questionRow,
+          { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+          pressed && {
+            backgroundColor: colors.surfaceLight,
+            borderColor: colors.primarySoft,
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Open question ${question.title}`}
+      >
+        <View style={[styles.questionStatusEdge, { backgroundColor: statusColor }]} />
+        <View style={styles.questionBody}>
+          <View style={styles.questionTopRow}>
+            <View
+              style={[
+                styles.questionStatusChip,
+                {
+                  backgroundColor: `${statusColor}26`,
+                  borderColor: `${statusColor}59`,
+                },
+              ]}
+            >
+              <View
+                style={[styles.questionStatusDot, { backgroundColor: statusColor }]}
+              />
+              <Text style={[styles.questionStatusText, { color: statusColor }]}>
+                {question.status}
               </Text>
             </View>
+            {question.topicName ? (
+              <Text
+                style={[styles.questionTopic, { color: colors.textMuted }]}
+                numberOfLines={1}
+              >
+                {question.topicName}
+              </Text>
+            ) : null}
+            <Text style={[styles.questionTime, { color: colors.textMuted }]}>
+              {relativeTime(question.createdAt)}
+            </Text>
           </View>
-        </GlassCard>
-
-        {/* Settings Section */}
-        <Text style={styles.sectionTitle}>Notification Settings</Text>
-        <GlassCard style={styles.settingsCard}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Push Notifications</Text>
-              <Text style={styles.settingDescription}>
-                Receive alerts for new answers and comments
+          <Text style={[styles.questionTitle, { color: colors.text }]} numberOfLines={2}>
+            {question.title}
+          </Text>
+          <View style={styles.questionFooter}>
+            <View style={styles.questionStat}>
+              <Ionicons name="arrow-up" size={12} color={colors.textMuted} />
+              <Text style={[styles.questionStatText, { color: colors.textMuted }]}>
+                {question.karmaScore}
               </Text>
             </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(187,39,68,0.5)' }}
-              thumbColor={notificationsEnabled ? Colors.primary : Colors.textMuted}
-            />
-          </View>
-
-          <View style={styles.settingDivider} />
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Email Notifications</Text>
-              <Text style={styles.settingDescription}>
-                Get email summaries of important updates
+            <View style={styles.questionStat}>
+              <Ionicons name="chatbubble-outline" size={12} color={colors.textMuted} />
+              <Text style={[styles.questionStatText, { color: colors.textMuted }]}>
+                {question.commentCount}
               </Text>
             </View>
-            <Switch
-              value={emailNotifications}
-              onValueChange={setEmailNotifications}
-              trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(187,39,68,0.5)' }}
-              thumbColor={emailNotifications ? Colors.primary : Colors.textMuted}
-            />
+            {question.verifiedAnswerId ? (
+              <View
+                style={[
+                  styles.verifiedChip,
+                  { backgroundColor: `${colors.verifiedAnswer}26` },
+                ]}
+              >
+                <Ionicons name="checkmark-circle" size={11} color={colors.verifiedAnswer} />
+                <Text style={[styles.verifiedText, { color: colors.verifiedAnswer }]}>
+                  ANSWERED
+                </Text>
+              </View>
+            ) : null}
           </View>
-        </GlassCard>
-
-        {/* Account Actions */}
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.actionsContainer}>
-          <GlassButton title="Logout" onPress={handleLogout} variant="secondary" />
-
-          <View style={styles.actionSpacer} />
-
-          <GlassButton
-            title="Delete Account"
-            onPress={handleDeleteAccount}
-            variant="danger"
-            loading={deletingAccount}
-            disabled={deletingAccount}
-          />
         </View>
-
-        {/* Version */}
-        <Text style={styles.versionText}>Ghost v1.0.0</Text>
-      </ScrollView>
-    </ScreenWrapper>
+        <Ionicons
+          name="chevron-forward"
+          size={16}
+          color={colors.textMuted}
+          style={styles.questionChevron}
+        />
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 120,
-  },
+  root: { flex: 1 },
+  safe: { flex: 1 },
+
   header: {
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: Fonts.sizes.xxxl,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  profileCard: {
-    marginBottom: 16,
-  },
-  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 18,
   },
-  profileInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  userName: {
-    fontSize: Fonts.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text,
+  headerCopy: { flex: 1 },
+  eyebrow: {
+    fontSize: 11,
+    letterSpacing: 2.4,
+    fontWeight: '800',
     marginBottom: 2,
   },
-  userEmail: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textSecondary,
-    marginBottom: 8,
+  headerTitle: {
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '900',
+    letterSpacing: -0.6,
   },
-  roleBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(187,39,68,0.25)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+
+  listContent: { paddingHorizontal: 20, paddingBottom: 130 },
+
+  heroCard: {
+    flexDirection: 'row',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 14,
   },
-  roleText: {
-    fontSize: Fonts.sizes.xs,
-    fontWeight: '700',
-    color: Colors.primary,
-    letterSpacing: 0.5,
+  heroEdge: { width: 4 },
+  heroBody: { flex: 1, padding: 16 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroNameBlock: { flex: 1 },
+  heroName: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.4,
   },
-  karmaCard: {
-    marginBottom: 24,
-  },
-  karmaRow: {
+  heroChips: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  roleChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  karmaItem: {
-    flex: 1,
+  roleChipText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  memberChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  memberChipText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  heroEmail: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+
+  standingCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 14,
   },
-  karmaValue: {
-    fontSize: Fonts.sizes.xxxl,
+  standingLeft: { flex: 1 },
+  standingLabel: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  standingDesc: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  standingRight: { alignItems: 'flex-end' },
+  standingKarma: {
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: -1,
+    fontVariant: ['tabular-nums'],
+  },
+  standingKarmaLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    marginTop: -2,
+  },
+
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 22 },
+  statTile: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+    marginTop: 2,
+  },
+  statLabel: {
+    fontSize: 10,
     fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  karmaLabel: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textSecondary,
-  },
-  karmaDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  sectionTitle: {
-    fontSize: Fonts.sizes.lg,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 12,
-    marginTop: 8,
+
+  settingsBlock: { marginBottom: 22 },
+  blockEyebrow: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    marginBottom: 10,
   },
   settingsCard: {
-    marginBottom: 24,
+    flexDirection: 'row',
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
   },
+  settingRail: { width: 3 },
+  settingsCardBody: { flex: 1, padding: 14 },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 4,
   },
-  settingInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
+  settingInfo: { flex: 1, marginRight: 12 },
   settingLabel: {
-    fontSize: Fonts.sizes.md,
-    fontWeight: '600',
-    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.1,
     marginBottom: 2,
   },
-  settingDescription: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
+  settingDescription: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
+  settingDivider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
+
+  actionRow: { flexDirection: 'row', gap: 10 },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  settingDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginVertical: 12,
-  },
-  actionsContainer: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionSpacer: {
-    height: 4,
+  actionButtonDanger: {},
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
   versionText: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
+    fontSize: 11,
     textAlign: 'center',
-    marginBottom: 24,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: 16,
   },
-  dialogFooter: {
+
+  sectionHeader: {
     flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  dialogFooterButton: {
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+  },
+  sectionCount: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+
+  questionRow: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 10,
+  },
+  questionStatusEdge: { width: 3 },
+  questionBody: { flex: 1, padding: 14 },
+  questionTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  questionStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  questionStatusDot: { width: 5, height: 5, borderRadius: 3 },
+  questionStatusText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  questionTopic: {
+    fontSize: 11,
+    fontWeight: '700',
     flex: 1,
   },
-  dialogMessage: {
-    fontSize: Fonts.sizes.md,
-    lineHeight: 22,
+  questionTime: { fontSize: 11, fontWeight: '700' },
+  questionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginBottom: 8,
   },
+  questionFooter: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  questionStat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  questionStatText: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  verifiedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    marginLeft: 'auto',
+  },
+  verifiedText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  questionChevron: { alignSelf: 'center', marginRight: 12 },
+
+  loadingState: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' },
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  emptyHint: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  footerLoader: { paddingVertical: 16, alignItems: 'center' },
 });
