@@ -3,6 +3,7 @@ import { Alert, TextInput } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useWebSocket } from './useWebSocket';
 import { useAuthStore } from '../stores/authStore';
+import { useWhiteboardStore } from '../stores/whiteboardStore';
 import { questionService } from '../services/questionService';
 import { commentService } from '../services/commentService';
 import { bookmarkService } from '../services/bookmarkService';
@@ -29,7 +30,7 @@ export function useQuestionDetailModel({
   onQuestionDeleted,
 }: UseQuestionDetailModelOptions) {
   const user = useAuthStore((state) => state.user);
-  const isFaculty = user?.role === 'FACULTY';
+  const whiteboards = useWhiteboardStore((state) => state.whiteboards);
   const { subscribe } = useWebSocket();
   const commentInputRef = useRef<TextInput>(null);
   const lastFetchRef = useRef(0);
@@ -45,6 +46,18 @@ export function useQuestionDetailModel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+
+  // Per-whiteboard faculty check. A user may have FACULTY role globally but
+  // only own certain whiteboards; moderator actions (verify, pin, close)
+  // must be gated on owning *this* whiteboard. Defaults to true while the
+  // whiteboard is still loading so we don't briefly hide the controls from
+  // legitimate faculty.
+  const targetWhiteboardId = whiteboardId ?? question?.whiteboardId;
+  const targetWhiteboard = targetWhiteboardId
+    ? whiteboards.find((w) => w.id === targetWhiteboardId)
+    : undefined;
+  const isFaculty =
+    user?.role === 'FACULTY' && (!targetWhiteboard || targetWhiteboard.ownerId === user.id);
 
   const fetchData = useCallback(async () => {
     if (!questionId) {

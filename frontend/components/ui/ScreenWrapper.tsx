@@ -36,20 +36,8 @@ export default function ScreenWrapper({
     <LinearGradient colors={colors.bgGradient} style={styles.gradient}>
       {ambient && (
         <View style={styles.ambient} pointerEvents="none">
-          <View
-            style={[
-              styles.glow,
-              styles.glowOuter,
-              { backgroundColor: colors.primaryFaint },
-            ]}
-          />
-          <View
-            style={[
-              styles.glow,
-              styles.glowInner,
-              { backgroundColor: colors.primarySoft },
-            ]}
-          />
+          <View style={[styles.glow, styles.glowOuter, { backgroundColor: colors.primaryFaint }]} />
+          <View style={[styles.glow, styles.glowInner, { backgroundColor: colors.primarySoft }]} />
         </View>
       )}
       <SafeAreaView style={[styles.container, style]} edges={edges}>

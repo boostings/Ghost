@@ -80,12 +80,7 @@ export const MyQuestionCard: React.FC<MyQuestionCardProps> = ({ question, varian
           {question.title}
         </Text>
 
-        <View
-          style={[
-            styles.stripe,
-            { backgroundColor: stripeBg, borderColor: stripeBorder },
-          ]}
-        >
+        <View style={[styles.stripe, { backgroundColor: stripeBg, borderColor: stripeBorder }]}>
           <AnimatedIcon name={stripeIcon} size={14} color={stripeColor} motion="none" />
           <Text style={[styles.stripeLabel, { color: stripeColor }]} numberOfLines={1}>
             {stripeLabel}

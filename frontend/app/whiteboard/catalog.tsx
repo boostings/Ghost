@@ -463,10 +463,7 @@ function TermSegmented({ value, onChange, reduceMotion }: TermSegmentedProps) {
   }));
 
   return (
-    <View
-      style={styles.segmented}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
+    <View style={styles.segmented} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {width > 0 ? <Animated.View style={[styles.segmentedIndicator, indicatorStyle]} /> : null}
       {COURSE_CATALOG_TERMS.map((term) => {
         const active = value === term;
@@ -479,9 +476,7 @@ function TermSegmented({ value, onChange, reduceMotion }: TermSegmentedProps) {
             accessibilityLabel={`Show ${term} classes`}
             accessibilityState={{ selected: active }}
           >
-            <Text style={[styles.segmentedText, active && styles.segmentedTextActive]}>
-              {term}
-            </Text>
+            <Text style={[styles.segmentedText, active && styles.segmentedTextActive]}>{term}</Text>
           </Pressable>
         );
       })}

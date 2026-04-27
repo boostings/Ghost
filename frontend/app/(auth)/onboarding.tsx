@@ -225,7 +225,10 @@ export default function OnboardingScreen() {
 
           <GlassCard
             style={styles.card}
-            entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+            entering={FadeInDown.duration(Duration.hero)
+              .delay(Stagger.card)
+              .springify()
+              .damping(20)}
           >
             <Text style={[styles.cardTitle, { color: colors.text }]}>Join a Class</Text>
             <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
@@ -288,7 +291,10 @@ export default function OnboardingScreen() {
 
           <GlassCard
             style={styles.card}
-            entering={FadeInDown.duration(Duration.hero).delay(Stagger.card + 80).springify().damping(20)}
+            entering={FadeInDown.duration(Duration.hero)
+              .delay(Stagger.card + 80)
+              .springify()
+              .damping(20)}
           >
             <Text style={[styles.cardTitle, { color: colors.text }]}>Available Classes</Text>
             <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
@@ -327,10 +333,7 @@ export default function OnboardingScreen() {
                       <Text style={[styles.classCode, { color: colors.primary }]}>
                         {whiteboard.courseCode}
                       </Text>
-                      <Text
-                        style={[styles.className, { color: colors.text }]}
-                        numberOfLines={1}
-                      >
+                      <Text style={[styles.className, { color: colors.text }]} numberOfLines={1}>
                         {whiteboard.courseName}
                       </Text>
                     </View>
@@ -366,7 +369,10 @@ export default function OnboardingScreen() {
             )}
 
             <Pressable
-              style={[styles.optionRow, { borderTopColor: colors.surfaceBorder, opacity: demoJoined ? 0.5 : 1 }]}
+              style={[
+                styles.optionRow,
+                { borderTopColor: colors.surfaceBorder, opacity: demoJoined ? 0.5 : 1 },
+              ]}
               onPress={handleJoinDemo}
               disabled={joiningDemo || demoJoined}
             >
@@ -418,10 +424,7 @@ export default function OnboardingScreen() {
                     <Text style={[styles.classCode, { color: colors.primary }]}>
                       {whiteboard.courseCode}
                     </Text>
-                    <Text
-                      style={[styles.className, { color: colors.text }]}
-                      numberOfLines={1}
-                    >
+                    <Text style={[styles.className, { color: colors.text }]} numberOfLines={1}>
                       {whiteboard.courseName}
                     </Text>
                   </View>

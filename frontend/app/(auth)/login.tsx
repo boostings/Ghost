@@ -107,34 +107,12 @@ export default function LoginScreen() {
   return (
     <LinearGradient colors={colors.bgGradient} locations={[0, 0.55, 1]} style={styles.gradient}>
       <View style={styles.heroGlow} pointerEvents="none">
+        <View style={[styles.glow, styles.glowOuter, { backgroundColor: `${colors.primary}10` }]} />
         <View
-          style={[
-            styles.glow,
-            styles.glowOuter,
-            { backgroundColor: `${colors.primary}10` },
-          ]}
+          style={[styles.glow, styles.glowMiddle, { backgroundColor: `${colors.primary}1A` }]}
         />
-        <View
-          style={[
-            styles.glow,
-            styles.glowMiddle,
-            { backgroundColor: `${colors.primary}1A` },
-          ]}
-        />
-        <View
-          style={[
-            styles.glow,
-            styles.glowInner,
-            { backgroundColor: `${colors.primary}26` },
-          ]}
-        />
-        <View
-          style={[
-            styles.glow,
-            styles.glowCore,
-            { backgroundColor: `${colors.primary}38` },
-          ]}
-        />
+        <View style={[styles.glow, styles.glowInner, { backgroundColor: `${colors.primary}26` }]} />
+        <View style={[styles.glow, styles.glowCore, { backgroundColor: `${colors.primary}38` }]} />
       </View>
       <View
         style={[styles.ambientCorner, { backgroundColor: `${colors.primaryDark}24` }]}
@@ -181,7 +159,10 @@ export default function LoginScreen() {
             <GlassCard
               style={styles.card}
               blurIntensity={75}
-              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+              entering={FadeInDown.duration(Duration.hero)
+                .delay(Stagger.card)
+                .springify()
+                .damping(20)}
             >
               <Text style={[styles.cardTitle, { color: colors.text }]}>Welcome Back</Text>
               <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>

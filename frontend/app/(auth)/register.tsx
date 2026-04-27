@@ -153,7 +153,10 @@ export default function RegisterScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+              entering={FadeInDown.duration(Duration.hero)
+                .delay(Stagger.card)
+                .springify()
+                .damping(20)}
             >
               <View style={styles.nameRow}>
                 <View style={styles.nameField}>

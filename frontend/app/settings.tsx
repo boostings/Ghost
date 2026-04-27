@@ -226,10 +226,7 @@ export default function SettingsScreen() {
             </View>
           </Animated.View>
 
-          <Animated.View
-            entering={FadeInDown.duration(360).delay(180)}
-            style={styles.actionsBlock}
-          >
+          <Animated.View entering={FadeInDown.duration(360).delay(180)} style={styles.actionsBlock}>
             <GlassButton title="Log out" onPress={handleLogout} variant="secondary" />
             <View style={{ height: 10 }} />
             <GlassButton

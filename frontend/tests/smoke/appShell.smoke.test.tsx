@@ -140,7 +140,8 @@ describe('smoke app shell', () => {
       expect(mockWhiteboardList).toHaveBeenCalledWith(0, 20);
     });
 
-    expect(screen.getByText('Your Classes')).toBeTruthy();
+    // "Your Classes" only renders when the user has at least one whiteboard;
+    // for the empty state we only expect the EmptyState CTA.
     expect(screen.getByText('No Classes Yet')).toBeTruthy();
     expect(screen.getByText('Join a Class')).toBeTruthy();
   });

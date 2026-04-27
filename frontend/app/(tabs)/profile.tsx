@@ -173,33 +173,30 @@ export default function ProfileScreen() {
   const karmaScore = user?.karmaScore ?? 0;
   const standing = getStanding(karmaScore, colors);
 
-  const loadQuestions = useCallback(
-    async (mode: 'replace' | 'append', requestedPage: number) => {
-      if (mode === 'replace') setLoading(true);
-      else setLoadingMore(true);
-      try {
-        const response = await questionService.getMyQuestions({
-          page: requestedPage,
-          size: PAGE_SIZE,
-        });
-        setQuestions((current) =>
-          mode === 'replace' ? response.content : [...current, ...response.content]
-        );
-        setPage(requestedPage);
-        setQuestionCount(response.totalElements);
-        setHasMore(requestedPage + 1 < response.totalPages);
-        setError(null);
-      } catch {
-        if (mode === 'replace') setQuestions([]);
-        setHasMore(false);
-        setError('Could not load your questions.');
-      } finally {
-        if (mode === 'replace') setLoading(false);
-        else setLoadingMore(false);
-      }
-    },
-    []
-  );
+  const loadQuestions = useCallback(async (mode: 'replace' | 'append', requestedPage: number) => {
+    if (mode === 'replace') setLoading(true);
+    else setLoadingMore(true);
+    try {
+      const response = await questionService.getMyQuestions({
+        page: requestedPage,
+        size: PAGE_SIZE,
+      });
+      setQuestions((current) =>
+        mode === 'replace' ? response.content : [...current, ...response.content]
+      );
+      setPage(requestedPage);
+      setQuestionCount(response.totalElements);
+      setHasMore(requestedPage + 1 < response.totalPages);
+      setError(null);
+    } catch {
+      if (mode === 'replace') setQuestions([]);
+      setHasMore(false);
+      setError('Could not load your questions.');
+    } finally {
+      if (mode === 'replace') setLoading(false);
+      else setLoadingMore(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadQuestions('replace', 0);
@@ -291,57 +288,57 @@ export default function ProfileScreen() {
                   { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
                 ]}
               >
-                  <View style={[styles.heroEdge, { backgroundColor: colors.primary }]} />
-                  <View style={styles.heroBody}>
-                    <View style={styles.heroTop}>
-                      <Avatar firstName={firstName} lastName={lastName} size={68} />
-                      <View style={styles.heroNameBlock}>
-                        <Text style={[styles.heroName, { color: colors.text }]} numberOfLines={1}>
-                          {fullName}
-                        </Text>
-                        <View style={styles.heroChips}>
-                          <View
-                            style={[
-                              styles.roleChip,
-                              {
-                                backgroundColor: colors.primarySoft,
-                                borderColor: colors.primaryFaint,
-                              },
-                            ]}
-                          >
-                            <Ionicons
-                              name={role === 'FACULTY' ? 'school' : 'person'}
-                              size={11}
-                              color={colors.primary}
-                            />
-                            <Text style={[styles.roleChipText, { color: colors.primary }]}>
-                              {role}
-                            </Text>
-                          </View>
-                          <View
-                            style={[
-                              styles.memberChip,
-                              {
-                                backgroundColor: colors.surfaceLight,
-                                borderColor: colors.surfaceBorder,
-                              },
-                            ]}
-                          >
-                            <Text style={[styles.memberChipText, { color: colors.textMuted }]}>
-                              SINCE {memberSince(user?.createdAt).toUpperCase()}
-                            </Text>
-                          </View>
+                <View style={[styles.heroEdge, { backgroundColor: colors.primary }]} />
+                <View style={styles.heroBody}>
+                  <View style={styles.heroTop}>
+                    <Avatar firstName={firstName} lastName={lastName} size={68} />
+                    <View style={styles.heroNameBlock}>
+                      <Text style={[styles.heroName, { color: colors.text }]} numberOfLines={1}>
+                        {fullName}
+                      </Text>
+                      <View style={styles.heroChips}>
+                        <View
+                          style={[
+                            styles.roleChip,
+                            {
+                              backgroundColor: colors.primarySoft,
+                              borderColor: colors.primaryFaint,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name={role === 'FACULTY' ? 'school' : 'person'}
+                            size={11}
+                            color={colors.primary}
+                          />
+                          <Text style={[styles.roleChipText, { color: colors.primary }]}>
+                            {role}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.memberChip,
+                            {
+                              backgroundColor: colors.surfaceLight,
+                              borderColor: colors.surfaceBorder,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.memberChipText, { color: colors.textMuted }]}>
+                            SINCE {memberSince(user?.createdAt).toUpperCase()}
+                          </Text>
                         </View>
                       </View>
                     </View>
-                    <Text
-                      style={[styles.heroEmail, { color: colors.textSecondary }]}
-                      numberOfLines={1}
-                    >
-                      {user?.email ?? '—'}
-                    </Text>
                   </View>
+                  <Text
+                    style={[styles.heroEmail, { color: colors.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {user?.email ?? '—'}
+                  </Text>
                 </View>
+              </View>
 
               <View style={styles.statsRow}>
                 <StatTile
@@ -355,7 +352,12 @@ export default function ProfileScreen() {
                   colors={colors}
                   value={karmaScore.toLocaleString()}
                   valueStyle={{
-                    color: karmaScore > 0 ? colors.upvote : karmaScore < 0 ? colors.downvote : colors.text,
+                    color:
+                      karmaScore > 0
+                        ? colors.upvote
+                        : karmaScore < 0
+                          ? colors.downvote
+                          : colors.text,
                   }}
                   label="Karma"
                 />
@@ -544,10 +546,7 @@ function StatTile({
 }) {
   return (
     <View
-      style={[
-        styles.statTile,
-        { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
-      ]}
+      style={[styles.statTile, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
     >
       <Ionicons name={icon} size={16} color={colors.textMuted} />
       <Text style={[styles.statValue, { color: colors.text }, valueStyle]}>{value}</Text>
@@ -603,18 +602,13 @@ function QuestionRow({
                 },
               ]}
             >
-              <View
-                style={[styles.questionStatusDot, { backgroundColor: statusColor }]}
-              />
+              <View style={[styles.questionStatusDot, { backgroundColor: statusColor }]} />
               <Text style={[styles.questionStatusText, { color: statusColor }]}>
                 {question.status}
               </Text>
             </View>
             {question.topicName ? (
-              <Text
-                style={[styles.questionTopic, { color: colors.textMuted }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.questionTopic, { color: colors.textMuted }]} numberOfLines={1}>
                 {question.topicName}
               </Text>
             ) : null}
@@ -640,10 +634,7 @@ function QuestionRow({
             </View>
             {question.verifiedAnswerId ? (
               <View
-                style={[
-                  styles.verifiedChip,
-                  { backgroundColor: `${colors.verifiedAnswer}26` },
-                ]}
+                style={[styles.verifiedChip, { backgroundColor: `${colors.verifiedAnswer}26` }]}
               >
                 <Ionicons name="checkmark-circle" size={11} color={colors.verifiedAnswer} />
                 <Text style={[styles.verifiedText, { color: colors.verifiedAnswer }]}>

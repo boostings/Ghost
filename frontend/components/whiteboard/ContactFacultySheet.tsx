@@ -66,7 +66,8 @@ export const ContactFacultySheet: React.FC<ContactFacultySheetProps> = ({
         <Text style={styles.empty}>No faculty listed for this class yet.</Text>
       ) : (
         faculty.map((member) => {
-          const initials = `${member.firstName?.[0] ?? ''}${member.lastName?.[0] ?? ''}`.toUpperCase();
+          const initials =
+            `${member.firstName?.[0] ?? ''}${member.lastName?.[0] ?? ''}`.toUpperCase();
           const fullName = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim();
           return (
             <Pressable

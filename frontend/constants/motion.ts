@@ -42,6 +42,9 @@ export const enterCard = (delay = 0) =>
   FadeInDown.duration(Duration.hero).delay(delay).springify().damping(18);
 
 export const enterList = (index: number) =>
-  FadeInDown.duration(Duration.slow).delay(index * Stagger.list).springify().damping(18);
+  FadeInDown.duration(Duration.slow)
+    .delay(index * Stagger.list)
+    .springify()
+    .damping(18);
 
 export const enterFade = (delay = 0) => FadeIn.duration(Duration.slow).delay(delay);

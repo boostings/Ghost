@@ -201,7 +201,9 @@ export default function SearchScreen() {
             )}
 
             <View style={styles.questionMetaRow}>
-              <Text style={[styles.authorText, { color: colors.textMuted }]}>{item.authorName}</Text>
+              <Text style={[styles.authorText, { color: colors.textMuted }]}>
+                {item.authorName}
+              </Text>
               <Text style={[styles.dotSeparator, { color: colors.textMuted }]}>{' · '}</Text>
               <Text style={[styles.dateText, { color: colors.textMuted }]}>
                 {formatDate(item.createdAt)}
@@ -365,8 +367,7 @@ export default function SearchScreen() {
                 {
                   backgroundColor:
                     whiteboardFilter === 'ALL' ? colors.primarySoft : colors.surfaceLight,
-                  borderColor:
-                    whiteboardFilter === 'ALL' ? colors.primary : colors.surfaceBorder,
+                  borderColor: whiteboardFilter === 'ALL' ? colors.primary : colors.surfaceBorder,
                 },
               ]}
               onPress={() => handleWhiteboardFilter('ALL')}
@@ -425,8 +426,7 @@ export default function SearchScreen() {
               style={[
                 styles.filterChip,
                 {
-                  backgroundColor:
-                    topicFilter === 'ALL' ? colors.primarySoft : colors.surfaceLight,
+                  backgroundColor: topicFilter === 'ALL' ? colors.primarySoft : colors.surfaceLight,
                   borderColor: topicFilter === 'ALL' ? colors.primary : colors.surfaceBorder,
                 },
               ]}

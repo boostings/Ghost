@@ -49,9 +49,7 @@ function sortQuestions(items: QuestionResponse[], mode: SortMode): QuestionRespo
       return copy.sort((a, b) => b.commentCount - a.commentCount);
     case 'recent':
     default:
-      return copy.sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      );
+      return copy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }
 }
 

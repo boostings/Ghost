@@ -63,10 +63,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const { firstName, lastName } = parseAuthorName(question.authorName);
 
   return (
-    <Animated.View
-      entering={enterList(index)}
-      layout={LinearTransition.springify().damping(20)}
-    >
+    <Animated.View entering={enterList(index)} layout={LinearTransition.springify().damping(20)}>
       <GlassCard onPress={onPress} style={styles.card}>
         {question.isHidden && (
           <View style={[styles.hiddenOverlay, { backgroundColor: colors.overlay }]}>
@@ -115,13 +112,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               <Ionicons name="checkmark-circle" size={14} color={colors.verifiedAnswer} />
               <Text style={[styles.answerStripeLabel, { color: colors.verifiedAnswer }]}>
                 Answered
-                {question.verifiedAnswerAuthorName ? ` by ${question.verifiedAnswerAuthorName}` : ''}
+                {question.verifiedAnswerAuthorName
+                  ? ` by ${question.verifiedAnswerAuthorName}`
+                  : ''}
               </Text>
             </View>
-            <Text
-              style={[styles.answerStripeBody, { color: colors.text }]}
-              numberOfLines={2}
-            >
+            <Text style={[styles.answerStripeBody, { color: colors.text }]} numberOfLines={2}>
               {question.verifiedAnswerPreview}
             </Text>
           </View>
@@ -131,10 +127,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           <View style={styles.authorSection}>
             <Avatar firstName={firstName} lastName={lastName} size={28} />
             <View style={styles.authorMeta}>
-              <Text
-                style={[styles.authorName, { color: colors.textSecondary }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.authorName, { color: colors.textSecondary }]} numberOfLines={1}>
                 {question.authorName}
               </Text>
               <Text style={[styles.timestamp, { color: colors.textMuted }]}>
@@ -168,9 +161,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                 hitSlop={8}
                 style={styles.iconAction}
                 accessibilityRole="button"
-                accessibilityLabel={
-                  question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'
-                }
+                accessibilityLabel={question.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
               >
                 <Ionicons
                   name={question.isBookmarked ? 'bookmark' : 'bookmark-outline'}

@@ -88,10 +88,7 @@ export default function WhiteboardDetailScreen() {
   const sortLabel =
     SORT_OPTIONS.find((option) => option.value === sortMode)?.label ?? 'Recent activity';
 
-  const visual = useMemo(
-    () => getCourseVisual(whiteboard?.courseCode),
-    [whiteboard?.courseCode]
-  );
+  const visual = useMemo(() => getCourseVisual(whiteboard?.courseCode), [whiteboard?.courseCode]);
   const visualTint = useMemo(() => visualColors(visual), [visual]);
 
   const stats = useMemo(() => {
@@ -265,7 +262,11 @@ export default function WhiteboardDetailScreen() {
   }) => {
     if (isSearching) return null;
     const sectionIcon =
-      section.key === 'pinned' ? 'pin' : section.key === 'answered' ? 'checkmark-circle' : 'ellipse-outline';
+      section.key === 'pinned'
+        ? 'pin'
+        : section.key === 'answered'
+          ? 'checkmark-circle'
+          : 'ellipse-outline';
     const sectionColor =
       section.key === 'pinned'
         ? Colors.warning
@@ -298,9 +299,7 @@ export default function WhiteboardDetailScreen() {
           </View>
           <View style={styles.heroSkeleton}>
             <View style={[styles.skeletonChip, { backgroundColor: colors.surfaceLight }]} />
-            <View
-              style={[styles.skeletonHeading, { backgroundColor: colors.surfaceLight }]}
-            />
+            <View style={[styles.skeletonHeading, { backgroundColor: colors.surfaceLight }]} />
             <View style={[styles.skeletonMeta, { backgroundColor: colors.surfaceLight }]} />
           </View>
           <View style={styles.skeletonWrapper}>
@@ -343,9 +342,19 @@ export default function WhiteboardDetailScreen() {
                 { backgroundColor: visualTint.background, borderColor: visualTint.border },
               ]}
             >
-              <AnimatedIcon name={visual.icon} size={18} color={visualTint.foreground} motion="none" />
+              <AnimatedIcon
+                name={visual.icon}
+                size={18}
+                color={visualTint.foreground}
+                motion="none"
+              />
             </View>
-            <View style={[styles.codeChip, { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint }]}>
+            <View
+              style={[
+                styles.codeChip,
+                { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+              ]}
+            >
               <Text style={[styles.codeChipText, { color: colors.primary }]} numberOfLines={1}>
                 {whiteboard?.courseCode || 'CLASS'}
               </Text>
@@ -477,10 +486,7 @@ export default function WhiteboardDetailScreen() {
             ) : null}
           </View>
           <Pressable
-            style={({ pressed }) => [
-              styles.sortChip,
-              pressed && styles.sortChipPressed,
-            ]}
+            style={({ pressed }) => [styles.sortChip, pressed && styles.sortChipPressed]}
             onPress={() => {
               haptic.selection();
               setSortSheetVisible(true);

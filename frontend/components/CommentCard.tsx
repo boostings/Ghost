@@ -74,10 +74,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
     new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000;
 
   return (
-    <Animated.View
-      entering={enterList(index)}
-      layout={LinearTransition.springify().damping(20)}
-    >
+    <Animated.View entering={enterList(index)} layout={LinearTransition.springify().damping(20)}>
       <GlassCard
         style={[
           styles.card,
@@ -109,18 +106,13 @@ const CommentCard: React.FC<CommentCardProps> = ({
           <View style={styles.authorRow}>
             <Avatar firstName={firstName} lastName={lastName} size={32} />
             <View style={styles.authorInfo}>
-              <Text style={[styles.authorName, { color: colors.text }]}>
-                {comment.authorName}
-              </Text>
+              <Text style={[styles.authorName, { color: colors.text }]}>{comment.authorName}</Text>
               <View style={styles.timestampRow}>
                 <Text style={[styles.timestamp, { color: colors.textMuted }]}>
                   {formatTimestamp(comment.createdAt)}
                 </Text>
                 {wasEdited && (
-                  <Text style={[styles.editedLabel, { color: colors.textMuted }]}>
-                    {' '}
-                    · edited
-                  </Text>
+                  <Text style={[styles.editedLabel, { color: colors.textMuted }]}> · edited</Text>
                 )}
               </View>
             </View>
@@ -156,12 +148,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
                 accessibilityLabel="Verify answer"
               >
                 <Ionicons name="checkmark" size={14} color={colors.verifiedAnswer} />
-                <Text
-                  style={[
-                    styles.verifyActionText,
-                    { color: colors.verifiedAnswer },
-                  ]}
-                >
+                <Text style={[styles.verifyActionText, { color: colors.verifiedAnswer }]}>
                   Verify
                 </Text>
               </Pressable>

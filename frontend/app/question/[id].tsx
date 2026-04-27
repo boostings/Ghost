@@ -253,7 +253,12 @@ export default function QuestionDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Report question"
               >
-                <AnimatedIcon name="flag-outline" size={18} color={Colors.textMuted} motion="none" />
+                <AnimatedIcon
+                  name="flag-outline"
+                  size={18}
+                  color={Colors.textMuted}
+                  motion="none"
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -281,7 +286,10 @@ export default function QuestionDetailScreen() {
                       {question.topicName && <TopicBadge name={question.topicName} />}
                       <StatusBadge status={question.status} />
                       {question.isPinned && (
-                        <View style={styles.pinnedRow}><AnimatedIcon name="pin" size={12} color={Colors.warning} motion="none" /><Text style={styles.pinnedText}>Pinned</Text></View>
+                        <View style={styles.pinnedRow}>
+                          <AnimatedIcon name="pin" size={12} color={Colors.warning} motion="none" />
+                          <Text style={styles.pinnedText}>Pinned</Text>
+                        </View>
                       )}
                     </View>
 
@@ -363,7 +371,12 @@ export default function QuestionDetailScreen() {
                   {/* Closed Banner */}
                   {isClosed && (
                     <View style={styles.closedBanner}>
-                      <AnimatedIcon name="lock-closed" size={16} color={Colors.warning} motion="none" />
+                      <AnimatedIcon
+                        name="lock-closed"
+                        size={16}
+                        color={Colors.warning}
+                        motion="none"
+                      />
                       <Text style={styles.closedText}>
                         This question has been answered and is now closed
                       </Text>
@@ -428,7 +441,12 @@ export default function QuestionDetailScreen() {
                   {submitting ? (
                     <ActivityIndicator size="small" color={Colors.text} />
                   ) : (
-                    <AnimatedIcon name={editingCommentId ? 'checkmark' : 'arrow-up'} size={20} color={Colors.text} motion="none" />
+                    <AnimatedIcon
+                      name={editingCommentId ? 'checkmark' : 'arrow-up'}
+                      size={20}
+                      color={Colors.text}
+                      motion="none"
+                    />
                   )}
                 </TouchableOpacity>
               </View>

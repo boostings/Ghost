@@ -155,7 +155,10 @@ export default function VerifyResetCodeScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+              entering={FadeInDown.duration(Duration.hero)
+                .delay(Stagger.card)
+                .springify()
+                .damping(20)}
             >
               <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
                 Enter reset code

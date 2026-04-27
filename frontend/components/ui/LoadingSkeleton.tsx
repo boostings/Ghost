@@ -52,20 +52,39 @@ const QuestionSkeleton: React.FC<{ shimmer: Animated.Value; colors: AppColors }>
   shimmer,
   colors,
 }) => (
-  <View
-    style={[
-      styles.card,
-      { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
-    ]}
-  >
+  <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
     <View style={styles.row}>
       <ShimmerBlock width={80} height={22} borderRadius={8} shimmer={shimmer} colors={colors} />
       <ShimmerBlock width={60} height={22} borderRadius={8} shimmer={shimmer} colors={colors} />
     </View>
-    <ShimmerBlock width="90%" height={20} style={styles.spacerSm} shimmer={shimmer} colors={colors} />
-    <ShimmerBlock width="100%" height={14} style={styles.spacerSm} shimmer={shimmer} colors={colors} />
-    <ShimmerBlock width="75%" height={14} style={styles.spacerXs} shimmer={shimmer} colors={colors} />
-    <ShimmerBlock width="60%" height={14} style={styles.spacerXs} shimmer={shimmer} colors={colors} />
+    <ShimmerBlock
+      width="90%"
+      height={20}
+      style={styles.spacerSm}
+      shimmer={shimmer}
+      colors={colors}
+    />
+    <ShimmerBlock
+      width="100%"
+      height={14}
+      style={styles.spacerSm}
+      shimmer={shimmer}
+      colors={colors}
+    />
+    <ShimmerBlock
+      width="75%"
+      height={14}
+      style={styles.spacerXs}
+      shimmer={shimmer}
+      colors={colors}
+    />
+    <ShimmerBlock
+      width="60%"
+      height={14}
+      style={styles.spacerXs}
+      shimmer={shimmer}
+      colors={colors}
+    />
     <View style={[styles.row, styles.spacerMd]}>
       <View style={styles.row}>
         <ShimmerBlock width={32} height={32} borderRadius={16} shimmer={shimmer} colors={colors} />
@@ -86,12 +105,7 @@ const CommentSkeleton: React.FC<{ shimmer: Animated.Value; colors: AppColors }> 
   shimmer,
   colors,
 }) => (
-  <View
-    style={[
-      styles.card,
-      { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
-    ]}
-  >
+  <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
     <View style={styles.row}>
       <ShimmerBlock width={36} height={36} borderRadius={18} shimmer={shimmer} colors={colors} />
       <View style={styles.marginLeft}>
@@ -105,8 +119,20 @@ const CommentSkeleton: React.FC<{ shimmer: Animated.Value; colors: AppColors }> 
         />
       </View>
     </View>
-    <ShimmerBlock width="100%" height={14} style={styles.spacerSm} shimmer={shimmer} colors={colors} />
-    <ShimmerBlock width="85%" height={14} style={styles.spacerXs} shimmer={shimmer} colors={colors} />
+    <ShimmerBlock
+      width="100%"
+      height={14}
+      style={styles.spacerSm}
+      shimmer={shimmer}
+      colors={colors}
+    />
+    <ShimmerBlock
+      width="85%"
+      height={14}
+      style={styles.spacerXs}
+      shimmer={shimmer}
+      colors={colors}
+    />
     <View style={[styles.row, styles.spacerSm]}>
       <ShimmerBlock width={50} height={20} shimmer={shimmer} colors={colors} />
     </View>
@@ -118,10 +144,7 @@ const NotificationSkeleton: React.FC<{ shimmer: Animated.Value; colors: AppColor
   colors,
 }) => (
   <View
-    style={[
-      styles.cardCompact,
-      { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
-    ]}
+    style={[styles.cardCompact, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
   >
     <View style={styles.row}>
       <ShimmerBlock width={40} height={40} borderRadius={20} shimmer={shimmer} colors={colors} />

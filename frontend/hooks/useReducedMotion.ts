@@ -52,7 +52,8 @@ function ensureSubscription() {
     .catch(() => {});
 
   subscription =
-    AccessibilityInfo.addEventListener?.('reduceMotionChanged', setSystemReducedMotion) ?? undefined;
+    AccessibilityInfo.addEventListener?.('reduceMotionChanged', setSystemReducedMotion) ??
+    undefined;
 }
 
 function subscribe(listener: () => void) {

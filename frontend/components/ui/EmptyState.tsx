@@ -44,9 +44,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       )}
       {!ionIcon && icon && <Text style={styles.emoji}>{icon}</Text>}
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      {subtitle && (
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>
-      )}
+      {subtitle && <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>}
       {actionLabel && onAction && (
         <View style={styles.actionContainer}>
           <GlassButton title={actionLabel} onPress={onAction} variant="primary" solid />

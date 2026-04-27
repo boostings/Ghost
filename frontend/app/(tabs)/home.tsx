@@ -249,17 +249,7 @@ export default function HomeScreen() {
                     motion="none"
                   />
                 </View>
-                <View
-                  style={[
-                    styles.codeContainer,
-                    { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
-                  ]}
-                >
-                  <Text style={[styles.courseCode, { color: colors.primary }]}>
-                    {item.courseCode}
-                  </Text>
-                </View>
-                {item.isDemo && (
+                {item.isDemo ? (
                   <View
                     style={[
                       styles.demoBadge,
@@ -270,6 +260,17 @@ export default function HomeScreen() {
                     ]}
                   >
                     <Text style={[styles.demoBadgeText, { color: colors.warning }]}>DEMO</Text>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.codeContainer,
+                      { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+                    ]}
+                  >
+                    <Text style={[styles.courseCode, { color: colors.primary }]}>
+                      {item.courseCode}
+                    </Text>
                   </View>
                 )}
                 <View style={styles.chevronWrap}>
@@ -296,7 +297,9 @@ export default function HomeScreen() {
                 color={colors.textMuted}
                 motion="none"
               />
-              <Text style={[styles.metaText, { color: colors.textSecondary }]}>{item.semester}</Text>
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                {item.semester}
+              </Text>
             </View>
             <View style={styles.metaItem}>
               <AnimatedIcon
@@ -375,159 +378,166 @@ export default function HomeScreen() {
         end={{ x: 0, y: 0.45 }}
       />
       <SafeAreaView style={styles.safe} edges={['top']}>
-      <Animated.View
-        style={styles.header}
-        entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero).springify().damping(22)}
-      >
-        <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: colors.primary }]}>
-            {user ? `WELCOME BACK, ${user.firstName.toUpperCase()}` : 'WELCOME BACK'}
-          </Text>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
-        </View>
-        <Image
-          source={require('../../public/logo.png')}
-          style={[styles.headerLogo, { tintColor: colors.text }]}
-          resizeMode="contain"
-          accessibilityLabel="Ghost logo"
-        />
-      </Animated.View>
-
-      {isLoading && whiteboards.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <LoadingSkeleton type="question" count={3} />
-        </View>
-      ) : (
-        <FlatList
-          data={whiteboards}
-          renderItem={renderWhiteboardCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.listContent, whiteboards.length === 0 && styles.emptyList]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary}
-            />
-          }
-          ListHeaderComponent={myQuestionsHeader}
-          ListEmptyComponent={
-            <EmptyState
-              ionIcon="library-outline"
-              title="No Classes Yet"
-              subtitle={loadError || 'Join a class to start asking and answering questions'}
-              actionLabel="Join a Class"
-              onAction={() => setShowJoinModal(true)}
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.3}
-          ListFooterComponent={
-            loadingMore ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : null
-          }
-        />
-      )}
-
-      <Animated.View
-        style={styles.fabWrap}
-        entering={FadeInUp.duration(Duration.slow).delay(Stagger.footer).springify().damping(14)}
-      >
-        <Pressable
-          style={({ pressed }) => [
-            styles.fab,
-            { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.95 : 1 }] },
-            Shadow.primaryGlow(colors.primary),
-          ]}
-          onPress={() => {
-            haptic.medium();
-            setShowJoinModal(true);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Join a class"
+        <Animated.View
+          style={styles.header}
+          entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero).springify().damping(22)}
         >
-          <AnimatedIcon name="add" size={28} color="#FFFFFF" motion="pop" />
-        </Pressable>
-      </Animated.View>
-
-      <GlassModal visible={showJoinModal} onClose={closeJoinModal} title={joinModalTitle}>
-        <GlassInput
-          label="Invite Code"
-          placeholder="Enter class invite code"
-          value={inviteCode}
-          onChangeText={setInviteCode}
-          autoCapitalize="characters"
-          showClear
-        />
-
-        <GlassButton
-          title="Join Class"
-          onPress={handleJoin}
-          loading={joining}
-          disabled={joining || !inviteCode.trim()}
-          solid
-          icon={<AnimatedIcon name="enter-outline" size={18} color="#FFFFFF" motion="pop" />}
-        />
-
-        <View style={styles.modalSpacing} />
-
-        <GlassButton
-          title="Scan QR Code"
-          onPress={openScanner}
-          variant="secondary"
-          disabled={joining}
-          icon={
-            <AnimatedIcon name="qr-code-outline" size={18} color={colors.text} motion="pop" />
-          }
-        />
-
-        {isFaculty && (
-          <>
-            <View style={styles.modalDivider}>
-              <View style={[styles.modalDividerLine, { backgroundColor: colors.surfaceBorder }]} />
-              <Text style={[styles.modalDividerText, { color: colors.textMuted }]}>OR</Text>
-              <View style={[styles.modalDividerLine, { backgroundColor: colors.surfaceBorder }]} />
-            </View>
-            <GlassButton
-              title="Create From Class Catalog"
-              onPress={() => {
-                closeJoinModal();
-                router.push('/whiteboard/catalog');
-              }}
-              variant="secondary"
-              icon={
-                <AnimatedIcon name="book-outline" size={18} color={colors.text} motion="pop" />
-              }
-            />
-          </>
-        )}
-      </GlassModal>
-
-      <GlassModal
-        visible={showScannerModal}
-        onClose={() => setShowScannerModal(false)}
-        title="Scan Class QR"
-      >
-        <View
-          style={[
-            styles.scannerContainer,
-            { borderColor: colors.surfaceBorder, backgroundColor: colors.surface },
-          ]}
-        >
-          <CameraView
-            style={styles.scanner}
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={handleBarcodeScanned}
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, { color: colors.primary }]}>
+              {user ? `WELCOME BACK, ${user.firstName.toUpperCase()}` : 'WELCOME BACK'}
+            </Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
+          </View>
+          <Image
+            source={require('../../public/logo.png')}
+            style={[styles.headerLogo, { tintColor: colors.text }]}
+            resizeMode="contain"
+            accessibilityLabel="Ghost logo"
           />
-        </View>
-        <Text style={[styles.scannerHint, { color: colors.textMuted }]}>
-          Point your camera at the QR code shared by faculty.
-        </Text>
-      </GlassModal>
+        </Animated.View>
+
+        {isLoading && whiteboards.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <LoadingSkeleton type="question" count={3} />
+          </View>
+        ) : (
+          <FlatList
+            data={whiteboards}
+            renderItem={renderWhiteboardCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[
+              styles.listContent,
+              whiteboards.length === 0 && styles.emptyList,
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary}
+              />
+            }
+            ListHeaderComponent={myQuestionsHeader}
+            ListEmptyComponent={
+              <EmptyState
+                ionIcon="library-outline"
+                title="No Classes Yet"
+                subtitle={loadError || 'Join a class to start asking and answering questions'}
+                actionLabel="Join a Class"
+                onAction={() => setShowJoinModal(true)}
+              />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : null
+            }
+          />
+        )}
+
+        <Animated.View
+          style={styles.fabWrap}
+          entering={FadeInUp.duration(Duration.slow).delay(Stagger.footer).springify().damping(14)}
+        >
+          <Pressable
+            style={({ pressed }) => [
+              styles.fab,
+              { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.95 : 1 }] },
+              Shadow.primaryGlow(colors.primary),
+            ]}
+            onPress={() => {
+              haptic.medium();
+              setShowJoinModal(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Join a class"
+          >
+            <AnimatedIcon name="add" size={28} color="#FFFFFF" motion="pop" />
+          </Pressable>
+        </Animated.View>
+
+        <GlassModal visible={showJoinModal} onClose={closeJoinModal} title={joinModalTitle}>
+          <GlassInput
+            label="Invite Code"
+            placeholder="Enter class invite code"
+            value={inviteCode}
+            onChangeText={setInviteCode}
+            autoCapitalize="characters"
+            showClear
+          />
+
+          <GlassButton
+            title="Join Class"
+            onPress={handleJoin}
+            loading={joining}
+            disabled={joining || !inviteCode.trim()}
+            solid
+            icon={<AnimatedIcon name="enter-outline" size={18} color="#FFFFFF" motion="pop" />}
+          />
+
+          <View style={styles.modalSpacing} />
+
+          <GlassButton
+            title="Scan QR Code"
+            onPress={openScanner}
+            variant="secondary"
+            disabled={joining}
+            icon={
+              <AnimatedIcon name="qr-code-outline" size={18} color={colors.text} motion="pop" />
+            }
+          />
+
+          {isFaculty && (
+            <>
+              <View style={styles.modalDivider}>
+                <View
+                  style={[styles.modalDividerLine, { backgroundColor: colors.surfaceBorder }]}
+                />
+                <Text style={[styles.modalDividerText, { color: colors.textMuted }]}>OR</Text>
+                <View
+                  style={[styles.modalDividerLine, { backgroundColor: colors.surfaceBorder }]}
+                />
+              </View>
+              <GlassButton
+                title="Create From Class Catalog"
+                onPress={() => {
+                  closeJoinModal();
+                  router.push('/whiteboard/catalog');
+                }}
+                variant="secondary"
+                icon={
+                  <AnimatedIcon name="book-outline" size={18} color={colors.text} motion="pop" />
+                }
+              />
+            </>
+          )}
+        </GlassModal>
+
+        <GlassModal
+          visible={showScannerModal}
+          onClose={() => setShowScannerModal(false)}
+          title="Scan Class QR"
+        >
+          <View
+            style={[
+              styles.scannerContainer,
+              { borderColor: colors.surfaceBorder, backgroundColor: colors.surface },
+            ]}
+          >
+            <CameraView
+              style={styles.scanner}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={handleBarcodeScanned}
+            />
+          </View>
+          <Text style={[styles.scannerHint, { color: colors.textMuted }]}>
+            Point your camera at the QR code shared by faculty.
+          </Text>
+        </GlassModal>
       </SafeAreaView>
     </View>
   );

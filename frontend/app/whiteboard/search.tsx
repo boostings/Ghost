@@ -360,9 +360,7 @@ export default function WhiteboardSearchScreen() {
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>{error ?? 'No matches in this class.'}</Text>
-                <Text style={styles.emptyHint}>
-                  Try broader keywords or clear a filter.
-                </Text>
+                <Text style={styles.emptyHint}>Try broader keywords or clear a filter.</Text>
               </View>
             )
           }
@@ -483,8 +481,7 @@ function StatusSegmented({
   useEffect(() => {
     const idx = STATUS_FILTERS.findIndex((f) => f.value === value);
     if (reduceMotion) indicatorIndex.value = idx;
-    else
-      indicatorIndex.value = withTiming(idx, { duration: Duration.normal, easing: IOS_EASE });
+    else indicatorIndex.value = withTiming(idx, { duration: Duration.normal, easing: IOS_EASE });
   }, [value, reduceMotion, indicatorIndex]);
 
   const segmentWidth = width > 0 ? (width - 8) / STATUS_FILTERS.length : 0;
@@ -683,7 +680,10 @@ function HighlightedText({
   return (
     <Text style={style} numberOfLines={numberOfLines}>
       {parts.map((part, i) => (
-        <Text key={`${part}-${i}`} style={part.toLowerCase() === lc ? [style, highlightStyle] : style}>
+        <Text
+          key={`${part}-${i}`}
+          style={part.toLowerCase() === lc ? [style, highlightStyle] : style}
+        >
           {part}
         </Text>
       ))}
@@ -750,16 +750,12 @@ function SortSheet({
                   accessibilityState={{ selected: active }}
                 >
                   <View style={styles.sortRowText}>
-                    <Text
-                      style={[styles.sortRowLabel, active && styles.sortRowLabelActive]}
-                    >
+                    <Text style={[styles.sortRowLabel, active && styles.sortRowLabelActive]}>
                       {opt.label}
                     </Text>
                     <Text style={styles.sortRowHint}>{opt.hint}</Text>
                   </View>
-                  {active ? (
-                    <Ionicons name="checkmark" size={20} color={Colors.primary} />
-                  ) : null}
+                  {active ? <Ionicons name="checkmark" size={20} color={Colors.primary} /> : null}
                 </Pressable>
               );
             })}
@@ -927,7 +923,12 @@ const styles = StyleSheet.create({
 
   listContent: { padding: 20, paddingTop: 8, paddingBottom: 80 },
   loadingState: { minHeight: 200, alignItems: 'center', justifyContent: 'center' },
-  idleState: { minHeight: 240, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  idleState: {
+    minHeight: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
   idleTitle: {
     color: Colors.text,
     fontSize: 22,
@@ -942,7 +943,12 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     maxWidth: 320,
   },
-  emptyState: { minHeight: 200, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  emptyState: {
+    minHeight: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
   emptyTitle: {
     color: Colors.text,
     fontSize: 16,

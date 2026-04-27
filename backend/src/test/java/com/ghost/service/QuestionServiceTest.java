@@ -447,6 +447,125 @@ class QuestionServiceTest {
     }
 
     @Test
+    void getMyQuestionsAuthorAwaitingFiltersToUnverifiedOnly() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        QuestionResponse response = QuestionResponse.builder().id(questionId).build();
+
+        when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(studentId))
+                .thenReturn(List.of(whiteboardId));
+        when(questionRepository
+                .findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(
+                        studentId, List.of(whiteboardId), pageable))
+                .thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, studentId, false)).thenReturn(response);
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(studentId, "AUTHOR", "AWAITING", pageable);
+
+        assertThat(result.getContent()).containsExactly(response);
+    }
+
+    @Test
+    void getMyQuestionsAuthorAnsweredFiltersToVerifiedOnly() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        QuestionResponse response = QuestionResponse.builder().id(questionId).build();
+
+        when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(studentId))
+                .thenReturn(List.of(whiteboardId));
+        when(questionRepository
+                .findByAuthorIdAndWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(
+                        studentId, List.of(whiteboardId), pageable))
+                .thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, studentId, false)).thenReturn(response);
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(studentId, "AUTHOR", "ANSWERED", pageable);
+
+        assertThat(result.getContent()).containsExactly(response);
+    }
+
+    @Test
+    void getMyQuestionsAuthorEmptyMembershipsReturnsEmptyPage() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(studentId))
+                .thenReturn(List.of());
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(studentId, null, null, pageable);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getMyQuestionsTeachingDefaultsReturnsAllVisibleInFacultyWhiteboards() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        QuestionResponse response = QuestionResponse.builder().id(questionId).build();
+
+        when(whiteboardMembershipRepository.findFacultyWhiteboardIdsByUserId(facultyId))
+                .thenReturn(List.of(whiteboardId));
+        when(questionRepository
+                .findByWhiteboardIdInAndIsHiddenFalseOrderByCreatedAtDesc(
+                        List.of(whiteboardId), pageable))
+                .thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, facultyId, true)).thenReturn(response);
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(facultyId, "teaching", null, pageable);
+
+        assertThat(result.getContent()).containsExactly(response);
+    }
+
+    @Test
+    void getMyQuestionsTeachingAwaitingFiltersToUnverifiedOnly() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        QuestionResponse response = QuestionResponse.builder().id(questionId).build();
+
+        when(whiteboardMembershipRepository.findFacultyWhiteboardIdsByUserId(facultyId))
+                .thenReturn(List.of(whiteboardId));
+        when(questionRepository
+                .findByWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNullOrderByCreatedAtDesc(
+                        List.of(whiteboardId), pageable))
+                .thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, facultyId, true)).thenReturn(response);
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(facultyId, "TEACHING", "AWAITING", pageable);
+
+        assertThat(result.getContent()).containsExactly(response);
+    }
+
+    @Test
+    void getMyQuestionsTeachingAnsweredFiltersToVerifiedOnly() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        QuestionResponse response = QuestionResponse.builder().id(questionId).build();
+
+        when(whiteboardMembershipRepository.findFacultyWhiteboardIdsByUserId(facultyId))
+                .thenReturn(List.of(whiteboardId));
+        when(questionRepository
+                .findByWhiteboardIdInAndIsHiddenFalseAndVerifiedAnswerIdIsNotNullOrderByUpdatedAtDesc(
+                        List.of(whiteboardId), pageable))
+                .thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, facultyId, true)).thenReturn(response);
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(facultyId, "TEACHING", "ANSWERED", pageable);
+
+        assertThat(result.getContent()).containsExactly(response);
+    }
+
+    @Test
+    void getMyQuestionsTeachingEmptyMembershipsReturnsEmptyPage() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(whiteboardMembershipRepository.findFacultyWhiteboardIdsByUserId(facultyId))
+                .thenReturn(List.of());
+
+        Page<QuestionResponse> result =
+                questionService.getMyQuestions(facultyId, "TEACHING", null, pageable);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void closeQuestionShouldCloseOpenQuestionAuditAndPublish() {
         QuestionResponse response = QuestionResponse.builder()
                 .id(questionId)

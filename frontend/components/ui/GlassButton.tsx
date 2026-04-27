@@ -1,6 +1,11 @@
 import React from 'react';
 import { StyleSheet, Pressable, Text, ActivityIndicator, View, useColorScheme } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type AppColors, useThemeColors } from '../../constants/colors';
@@ -89,23 +94,10 @@ const GlassButton: React.FC<GlassButtonProps> = ({
           end={{ x: 1, y: 1 }}
           style={styles.gradientFill}
         >
-          <View style={[styles.contentWrap, { paddingHorizontal: horizontalPad, paddingVertical: verticalPad, minHeight }]}>
-            {loading ? (
-              <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
-            ) : (
-              <View style={styles.content}>
-                {icon && <View style={styles.iconContainer}>{icon}</View>}
-                <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>{title}</Text>
-              </View>
-            )}
-          </View>
-        </LinearGradient>
-      ) : (
-        <BlurView intensity={60} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={styles.blur}>
           <View
             style={[
               styles.contentWrap,
-              { backgroundColor: variantStyles.overlayColor, paddingHorizontal: horizontalPad, paddingVertical: verticalPad, minHeight },
+              { paddingHorizontal: horizontalPad, paddingVertical: verticalPad, minHeight },
             ]}
           >
             {loading ? (
@@ -113,7 +105,38 @@ const GlassButton: React.FC<GlassButtonProps> = ({
             ) : (
               <View style={styles.content}>
                 {icon && <View style={styles.iconContainer}>{icon}</View>}
-                <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>{title}</Text>
+                <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
+                  {title}
+                </Text>
+              </View>
+            )}
+          </View>
+        </LinearGradient>
+      ) : (
+        <BlurView
+          intensity={60}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          style={styles.blur}
+        >
+          <View
+            style={[
+              styles.contentWrap,
+              {
+                backgroundColor: variantStyles.overlayColor,
+                paddingHorizontal: horizontalPad,
+                paddingVertical: verticalPad,
+                minHeight,
+              },
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
+            ) : (
+              <View style={styles.content}>
+                {icon && <View style={styles.iconContainer}>{icon}</View>}
+                <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
+                  {title}
+                </Text>
               </View>
             )}
           </View>

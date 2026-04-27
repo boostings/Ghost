@@ -8,12 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeInDown,
-  useReducedMotion,
-} from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -197,7 +192,9 @@ export default function AlertsScreen() {
     ({ item, index }: { item: ListRow; index: number }) => {
       if (item.type === 'section') {
         return (
-          <Animated.View entering={reduceMotion ? FadeIn.duration(160) : FadeIn.duration(240).delay(40)}>
+          <Animated.View
+            entering={reduceMotion ? FadeIn.duration(160) : FadeIn.duration(240).delay(40)}
+          >
             <Text style={styles.sectionLabel}>{item.title}</Text>
           </Animated.View>
         );
@@ -238,7 +235,10 @@ export default function AlertsScreen() {
           {unreadCount > 0 ? (
             <Pressable
               onPress={handleMarkAll}
-              style={({ pressed }) => [styles.markAllButton, pressed && styles.markAllButtonPressed]}
+              style={({ pressed }) => [
+                styles.markAllButton,
+                pressed && styles.markAllButtonPressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Mark all as read"
             >
@@ -321,7 +321,10 @@ function AlertRow({
         </View>
         <View style={styles.rowBody}>
           <View style={styles.rowTopRow}>
-            <Text style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]} numberOfLines={2}>
+            <Text
+              style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]}
+              numberOfLines={2}
+            >
               {item.title}
             </Text>
             <Text style={styles.rowTime}>{formatRelative(item.createdAt)}</Text>

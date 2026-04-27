@@ -134,7 +134,10 @@ export default function ForgotPasswordScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.hero).delay(Stagger.card).springify().damping(20)}
+              entering={FadeInDown.duration(Duration.hero)
+                .delay(Stagger.card)
+                .springify()
+                .damping(20)}
             >
               <GlassInput
                 label="Email"
