@@ -25,34 +25,34 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
                     SELECT section FROM CourseSection section
                     JOIN section.course course
                     JOIN section.semester semester
-                    WHERE (:semester IS NULL OR semester.name = :semester)
-                      AND (:subject IS NULL OR course.subject = :subject)
+                    WHERE (CAST(:semester AS string) IS NULL OR semester.name = :semester)
+                      AND (CAST(:subject AS string) IS NULL OR course.subject = :subject)
                       AND (
-                        :query IS NULL
-                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(COALESCE(course.subject, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(COALESCE(course.catalogNumber, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(course.courseName) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(section.classNumber) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(section.section) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(COALESCE(section.instructor, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+                        CAST(:query AS string) IS NULL
+                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(COALESCE(course.subject, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(COALESCE(course.catalogNumber, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(course.courseName) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(section.classNumber) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(section.section) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(COALESCE(section.instructor, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
                       )
                     """,
             countQuery = """
                     SELECT COUNT(section) FROM CourseSection section
                     JOIN section.course course
                     JOIN section.semester semester
-                    WHERE (:semester IS NULL OR semester.name = :semester)
-                      AND (:subject IS NULL OR course.subject = :subject)
+                    WHERE (CAST(:semester AS string) IS NULL OR semester.name = :semester)
+                      AND (CAST(:subject AS string) IS NULL OR course.subject = :subject)
                       AND (
-                        :query IS NULL
-                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(COALESCE(course.subject, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(COALESCE(course.catalogNumber, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(course.courseName) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(section.classNumber) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(section.section) LIKE LOWER(CONCAT('%', :query, '%'))
-                        OR LOWER(COALESCE(section.instructor, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+                        CAST(:query AS string) IS NULL
+                        OR LOWER(course.courseCode) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(COALESCE(course.subject, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(COALESCE(course.catalogNumber, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(course.courseName) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(section.classNumber) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(section.section) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                        OR LOWER(COALESCE(section.instructor, '')) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
                       )
                     """
     )
