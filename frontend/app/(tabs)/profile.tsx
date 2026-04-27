@@ -217,10 +217,11 @@ export default function ProfileScreen() {
           // non-fatal, keep cached user
         }
       })();
+      void loadQuestions('replace', 0);
       return () => {
         cancelled = true;
       };
-    }, [updateUser])
+    }, [loadQuestions, updateUser])
   );
 
   const handleRefresh = useCallback(async () => {
@@ -341,22 +342,6 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                 </View>
-
-              <View
-                style={[
-                  styles.standingCard,
-                  { backgroundColor: standing.background, borderColor: standing.border },
-                ]}
-              >
-                <View style={styles.standingLeft}>
-                  <Text style={[styles.standingLabel, { color: standing.color }]}>
-                    {standing.label}
-                  </Text>
-                  <Text style={[styles.standingDesc, { color: colors.textSecondary }]}>
-                    {standing.description}
-                  </Text>
-                </View>
-              </View>
 
               <View style={styles.statsRow}>
                 <StatTile
@@ -698,10 +683,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 36,
+    lineHeight: 38,
     fontWeight: '900',
-    letterSpacing: -0.6,
+    letterSpacing: -0.8,
   },
 
   listContent: { paddingHorizontal: 20, paddingBottom: 130 },

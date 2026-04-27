@@ -20,7 +20,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     Page<Question> findByWhiteboardIdAndIsHiddenFalseOrderByIsPinnedDescCreatedAtDesc(UUID whiteboardId, Pageable pageable);
 
-    long countByWhiteboardIdAndIsPinnedTrue(UUID whiteboardId);
+    long countByWhiteboardIdAndIsPinnedTrueAndIsHiddenFalse(UUID whiteboardId);
 
     List<Question> findByAuthorId(UUID authorId);
 

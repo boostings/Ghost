@@ -300,6 +300,7 @@ export default function QuestionDetailScreen() {
                         userVote={question.userVote}
                         onUpvote={() => handleQuestionVote('UPVOTE')}
                         onDownvote={() => handleQuestionVote('DOWNVOTE')}
+                        direction="horizontal"
                       />
 
                       <View style={styles.questionActionsRow}>

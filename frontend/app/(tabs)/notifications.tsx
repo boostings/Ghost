@@ -321,7 +321,7 @@ function AlertRow({
         </View>
         <View style={styles.rowBody}>
           <View style={styles.rowTopRow}>
-            <Text style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]} numberOfLines={1}>
+            <Text style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]} numberOfLines={2}>
               {item.title}
             </Text>
             <Text style={styles.rowTime}>{formatRelative(item.createdAt)}</Text>
@@ -360,11 +360,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 36,
+    lineHeight: 38,
     fontWeight: '900',
     color: Colors.text,
-    letterSpacing: -0.6,
+    letterSpacing: -0.8,
   },
   headerMeta: {
     fontSize: 12,

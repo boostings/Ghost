@@ -551,10 +551,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 36,
+    lineHeight: 38,
     fontWeight: '900',
-    letterSpacing: -0.6,
+    letterSpacing: -0.8,
   },
   headerLogo: {
     width: 52,
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.xxl,
-    paddingBottom: 130,
+    paddingBottom: 160,
   },
   stripBlock: {
     marginBottom: Spacing.xl,

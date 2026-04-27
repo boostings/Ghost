@@ -215,11 +215,11 @@ export default function SavedScreen() {
                 <Text style={styles.heroCount}>{bookmarks.length}</Text>
               ) : null}
             </View>
-            <Text style={styles.headerMeta}>
-              {empty
-                ? 'Nothing saved yet'
-                : `${groups.length} class${groups.length === 1 ? '' : 'es'} · pull to refresh`}
-            </Text>
+            {empty ? (
+              <Text style={styles.headerMeta}>Nothing saved yet</Text>
+            ) : groups.length > 1 ? (
+              <Text style={styles.headerMeta}>{groups.length} classes</Text>
+            ) : null}
           </View>
         </View>
 

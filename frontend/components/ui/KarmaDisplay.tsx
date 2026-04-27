@@ -14,6 +14,7 @@ import { haptic } from '../../utils/haptics';
 import { VoteType } from '../../types';
 
 type KarmaSize = 'small' | 'normal';
+type KarmaDirection = 'vertical' | 'horizontal';
 
 interface KarmaDisplayProps {
   score: number;
@@ -21,6 +22,7 @@ interface KarmaDisplayProps {
   onUpvote: () => void;
   onDownvote: () => void;
   size?: KarmaSize;
+  direction?: KarmaDirection;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -31,6 +33,7 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
   onUpvote,
   onDownvote,
   size = 'normal',
+  direction = 'vertical',
 }) => {
   const colors = useThemeColors();
   const isSmall = size === 'small';
@@ -65,8 +68,16 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
     onDownvote();
   };
 
+  const isHorizontal = direction === 'horizontal';
+
   return (
-    <View style={[styles.container, isSmall && styles.containerSmall]}>
+    <View
+      style={[
+        styles.container,
+        isSmall && styles.containerSmall,
+        isHorizontal && styles.containerHorizontal,
+      ]}
+    >
       <AnimatedPressable
         onPress={handleUp}
         hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}
@@ -78,7 +89,12 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
       </AnimatedPressable>
 
       <Animated.Text
-        style={[styles.score, { fontSize: scoreSize, color: scoreColor }, scoreStyle]}
+        style={[
+          styles.score,
+          { fontSize: scoreSize, color: scoreColor },
+          isHorizontal && styles.scoreHorizontal,
+          scoreStyle,
+        ]}
       >
         {score}
       </Animated.Text>
@@ -106,6 +122,15 @@ const styles = StyleSheet.create({
   containerSmall: {
     minWidth: 28,
     paddingVertical: 2,
+  },
+  containerHorizontal: {
+    flexDirection: 'row',
+    paddingVertical: 0,
+    minWidth: 0,
+  },
+  scoreHorizontal: {
+    marginVertical: 0,
+    marginHorizontal: 6,
   },
   arrowButton: {
     padding: 2,

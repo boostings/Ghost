@@ -335,8 +335,8 @@ public class QuestionService {
             throw new BadRequestException("Question is already pinned");
         }
 
-        // Check pinned count < 3
-        long pinnedCount = questionRepository.countByWhiteboardIdAndIsPinnedTrue(
+        // Check pinned count < 3 (visible questions only — exclude soft-hidden)
+        long pinnedCount = questionRepository.countByWhiteboardIdAndIsPinnedTrueAndIsHiddenFalse(
                 question.getWhiteboard().getId());
         if (pinnedCount >= 3) {
             throw new BadRequestException("Maximum of 3 pinned questions allowed per whiteboard");

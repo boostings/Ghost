@@ -325,7 +325,7 @@ class QuestionServiceTest {
     @Test
     void pinQuestionShouldRejectWhenPinnedLimitReached() {
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
-        when(questionRepository.countByWhiteboardIdAndIsPinnedTrue(whiteboardId)).thenReturn(3L);
+        when(questionRepository.countByWhiteboardIdAndIsPinnedTrueAndIsHiddenFalse(whiteboardId)).thenReturn(3L);
 
         assertThatThrownBy(() -> questionService.pinQuestion(facultyId, whiteboardId, questionId))
                 .isInstanceOf(BadRequestException.class)
@@ -486,7 +486,7 @@ class QuestionServiceTest {
                 .build();
 
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
-        when(questionRepository.countByWhiteboardIdAndIsPinnedTrue(whiteboardId)).thenReturn(2L);
+        when(questionRepository.countByWhiteboardIdAndIsPinnedTrueAndIsHiddenFalse(whiteboardId)).thenReturn(2L);
         when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(questionResponseAssembler.toResponse(question, facultyId, true)).thenReturn(response);
 

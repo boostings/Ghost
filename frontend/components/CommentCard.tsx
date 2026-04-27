@@ -65,7 +65,8 @@ const CommentCard: React.FC<CommentCardProps> = ({
 }) => {
   const colors = useThemeColors();
   const { firstName, lastName } = parseAuthorName(comment.authorName);
-  const wasEdited = comment.updatedAt !== comment.createdAt;
+  const wasEdited =
+    new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 1000;
   const verified = comment.isVerifiedAnswer;
 
   return (
