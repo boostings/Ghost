@@ -21,7 +21,7 @@ import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
-import com.ghost.repository.CommentRepository;
+// CommentRepository removed; comments are managed through WhiteboardService
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
@@ -46,7 +46,6 @@ import java.util.UUID;
 public class QuestionService {
 
     private final QuestionRepository questionRepository;
-    private final CommentRepository commentRepository;
     private final TopicRepository topicRepository;
     private final UserRepository userRepository;
     private final WhiteboardService whiteboardService;
@@ -174,7 +173,7 @@ public class QuestionService {
                 null
         );
 
-        Map<String, Object> payload = new HashMap<>();
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
         payload.put("id", questionId);
         publishQuestionEvent(question.getWhiteboard().getId(), "QUESTION_DELETED", payload);
         questionRepository.delete(question);
@@ -528,10 +527,9 @@ public class QuestionService {
                 "Comment", commentId, comment.getBody(), null
         );
 
-        Map<String, Object> payload = new HashMap<>();
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
         payload.put("id", commentId);
         publishCommentEvent(questionId, "COMMENT_DELETED", payload);
-        commentRepository.delete(comment);
     }
 
     @Transactional
@@ -626,7 +624,7 @@ public class QuestionService {
     }
 
     private void publishCommentEvent(UUID questionId, String type, Object payload) {
-        Map<String, Object> message = new HashMap<>();
+        java.util.Map<String, Object> message = new java.util.HashMap<>();
         message.put("type", type);
         message.put("payload", payload);
         messagingTemplate.convertAndSend("/topic/question/" + questionId + "/comments", message);
@@ -646,7 +644,7 @@ public class QuestionService {
     }
 
     private void publishQuestionEvent(UUID whiteboardId, String type, Object payload) {
-        Map<String, Object> message = new HashMap<>();
+        java.util.Map<String, Object> message = new java.util.HashMap<>();
         message.put("type", type);
         message.put("payload", payload);
         messagingTemplate.convertAndSend("/topic/whiteboard/" + whiteboardId + "/questions", message);
