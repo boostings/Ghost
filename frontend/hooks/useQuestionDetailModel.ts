@@ -360,7 +360,11 @@ export function useQuestionDetailModel({
         throw new Error('Missing whiteboard context.');
       }
 
-      const verifiedComment = await commentService.verify(resolvedWhiteboardId, questionId, commentId);
+      const verifiedComment = await commentService.verify(
+        resolvedWhiteboardId,
+        questionId,
+        commentId
+      );
       setComments((previousComments) =>
         previousComments.map((comment) =>
           comment.id === verifiedComment.id ? verifiedComment : comment

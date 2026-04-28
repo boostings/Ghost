@@ -334,9 +334,7 @@ export default function QuestionDetailScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Edit question"
                           >
-                            <Text
-                              style={[styles.questionActionText, { color: themeColors.text }]}
-                            >
+                            <Text style={[styles.questionActionText, { color: themeColors.text }]}>
                               Edit
                             </Text>
                           </TouchableOpacity>
@@ -364,9 +362,7 @@ export default function QuestionDetailScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Close question"
                           >
-                            <Text
-                              style={[styles.questionActionText, { color: themeColors.text }]}
-                            >
+                            <Text style={[styles.questionActionText, { color: themeColors.text }]}>
                               Close
                             </Text>
                           </TouchableOpacity>
@@ -386,9 +382,7 @@ export default function QuestionDetailScreen() {
                               question.isPinned ? 'Unpin question' : 'Pin question'
                             }
                           >
-                            <Text
-                              style={[styles.questionActionText, { color: themeColors.text }]}
-                            >
+                            <Text style={[styles.questionActionText, { color: themeColors.text }]}>
                               {question.isPinned ? 'Unpin' : 'Pin'}
                             </Text>
                           </TouchableOpacity>

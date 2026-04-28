@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.mockito.ArgumentMatchers;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -56,7 +56,7 @@ class AuditLogServiceTest {
                 .action(AuditAction.REPORT_SUBMITTED)
                 .build();
 
-        when(auditLogRepository.findAll(any(Specification.class), eq(pageable)))
+        when(auditLogRepository.findAll(ArgumentMatchers.<Specification<AuditLog>>any(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(auditLog), pageable, 1));
         when(auditLogMapper.toResponse(auditLog)).thenReturn(response);
 
@@ -69,7 +69,7 @@ class AuditLogServiceTest {
                 endAt
         );
 
-        verify(auditLogRepository).findAll(any(Specification.class), eq(pageable));
+        verify(auditLogRepository).findAll(ArgumentMatchers.<Specification<AuditLog>>any(), eq(pageable));
         verify(auditLogMapper).toResponse(auditLog);
     }
 
@@ -91,6 +91,6 @@ class AuditLogServiceTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("startAt must be before endAt");
 
-        verify(auditLogRepository, never()).findAll(any(Specification.class), eq(pageable));
+        verify(auditLogRepository, never()).findAll(ArgumentMatchers.<Specification<AuditLog>>any(), eq(pageable));
     }
 }

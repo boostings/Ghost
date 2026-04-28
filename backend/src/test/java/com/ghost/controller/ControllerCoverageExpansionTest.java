@@ -271,7 +271,6 @@ class ControllerCoverageExpansionTest {
         UUID userId = UUID.randomUUID();
         UUID whiteboardId = UUID.randomUUID();
         UUID questionId = UUID.randomUUID();
-        UUID commentId = UUID.randomUUID();
         UUID requestId = UUID.randomUUID();
         UUID reportId = UUID.randomUUID();
         UUID topicId = UUID.randomUUID();
@@ -304,7 +303,6 @@ class ControllerCoverageExpansionTest {
 
         WhiteboardResponse whiteboardResponse = WhiteboardResponse.builder().id(whiteboardId).build();
         QuestionResponse questionResponse = QuestionResponse.builder().id(questionId).title("Pinned").build();
-        CommentResponse commentResponse = CommentResponse.builder().id(commentId).body("Verified").build();
         TopicResponse topicResponse = TopicResponse.builder().id(topicId).name("Projects").build();
         ReportResponse reportResponse = ReportResponse.builder().id(reportId).status(ReportStatus.REVIEWED).build();
         JoinRequestResponse joinRequestResponse = JoinRequestResponse.builder().id(requestId).build();

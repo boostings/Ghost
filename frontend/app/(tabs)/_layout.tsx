@@ -87,9 +87,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   // surfaces it in `state.routes`.
   const visible = state.routes
     .map((route, index) => ({ route, index }))
-    .filter(({ route }) =>
-      TABS.some((t) => t.name === (route.name as TabDescriptor['name']))
-    );
+    .filter(({ route }) => TABS.some((t) => t.name === (route.name as TabDescriptor['name'])));
   const slotCount = visible.length;
 
   // The active pill indicator slides between tab slots. It animates a
@@ -126,7 +124,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     transform: [{ translateX: progress.value * slotWidth }],
   }));
 
-  const renderTab = ({ route, index }: { route: typeof state.routes[number]; index: number }) => {
+  const renderTab = ({ route, index }: { route: (typeof state.routes)[number]; index: number }) => {
     const descriptor = descriptors[route.key];
     const focused = state.index === index;
     const tabConfig = TABS.find((t) => t.name === (route.name as TabDescriptor['name']));
@@ -157,9 +155,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         iconActive={tabConfig.iconActive}
         iconInactive={tabConfig.iconInactive}
         showBadge={tabConfig.name === 'notifications'}
-        accessibilityLabel={
-          descriptor.options.tabBarAccessibilityLabel ?? `${tabConfig.label} tab`
-        }
+        accessibilityLabel={descriptor.options.tabBarAccessibilityLabel ?? `${tabConfig.label} tab`}
         onPress={onPress}
         onLongPress={onLongPress}
         reduceMotion={reduceMotion}
@@ -176,7 +172,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         style={[
           styles.bar,
           {
-            backgroundColor: `${colors.cardBg}E6`,
+            backgroundColor: colors.cardBg,
             borderColor: colors.surfaceBorder,
             shadowColor: '#000',
           },
@@ -204,9 +200,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         </View>
 
         {/* The actual tab buttons. */}
-        <View style={styles.row}>
-          {visible.map(renderTab)}
-        </View>
+        <View style={styles.row}>{visible.map(renderTab)}</View>
       </View>
     </View>
   );
@@ -255,9 +249,7 @@ function TabSlot({
   }, [focused, focusScale, reduceMotion]);
 
   const animatedIconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: focusScale.value * (1 - pressed.value * (1 - PRESSED_SCALE)) },
-    ],
+    transform: [{ scale: focusScale.value * (1 - pressed.value * (1 - PRESSED_SCALE)) }],
   }));
 
   const labelColor = focused ? colors.primary : colors.textMuted;
@@ -301,12 +293,7 @@ function NotificationBadge({ colors }: { colors: AppColors }) {
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   if (unreadCount === 0) return null;
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: colors.error, borderColor: colors.cardBg },
-      ]}
-    >
+    <View style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.cardBg }]}>
       <Text style={styles.badgeText} allowFontScaling={false}>
         {unreadCount > 99 ? '99+' : unreadCount}
       </Text>
