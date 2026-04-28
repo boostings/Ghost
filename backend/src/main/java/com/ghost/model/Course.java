@@ -6,12 +6,7 @@ import lombok.*;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "courses",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uq_courses_course_code", columnNames = {"course_code"})
-        }
-)
+@Table(name = "courses")
 @Getter
 @Setter
 @Builder

@@ -6,11 +6,11 @@ import type {
   PageResponse,
   CreateWhiteboardRequest,
   TransferOwnershipRequest,
+  InviteFacultyRequest,
   JoinRequestResponse,
   JoinRequestActionRequest,
   MemberResponse,
   PaginationParams,
-  UserResponse,
   JoinRequestStatus,
 } from '../types';
 
@@ -111,18 +111,6 @@ function toPageResponse<T>(
     };
   }
   return data;
-}
-
-function toMemberResponse(user: UserResponse): MemberResponse {
-  return {
-    id: user.id,
-    userId: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    role: user.role,
-    joinedAt: user.createdAt,
-  };
 }
 
 /**
@@ -263,7 +251,7 @@ export const whiteboardService = {
    * GET /whiteboards/{id}/members
    */
   getMembers: async (id: string, params?: PaginationParams): Promise<MemberResponse[]> => {
-    const response = await api.get<PageResponse<UserResponse> | UserResponse[]>(
+    const response = await api.get<PageResponse<MemberResponse> | MemberResponse[]>(
       `/whiteboards/${id}/members`,
       {
         params: {
@@ -272,8 +260,7 @@ export const whiteboardService = {
         },
       }
     );
-    const pageData = toPageResponse(response.data, params);
-    return pageData.content.map(toMemberResponse);
+    return toPageResponse(response.data, params).content;
   },
 
   /**
@@ -293,6 +280,15 @@ export const whiteboardService = {
     const payload: TransferOwnershipRequest =
       typeof data === 'string' ? { newOwnerEmail: data } : data;
     await api.put(`/whiteboards/${id}/transfer-ownership`, payload);
+  },
+
+  /**
+   * Invite an existing faculty user to a whiteboard (owner only).
+   * POST /whiteboards/{id}/invite-faculty
+   */
+  inviteFaculty: async (id: string, data: InviteFacultyRequest | string): Promise<void> => {
+    const payload: InviteFacultyRequest = typeof data === 'string' ? { email: data } : data;
+    await api.post(`/whiteboards/${id}/invite-faculty`, payload);
   },
 
   /**

@@ -33,6 +33,13 @@ export type FeedSection = {
   data: QuestionResponse[];
 };
 
+export type FeedStats = {
+  pinned: number;
+  open: number;
+  answered: number;
+  total: number;
+};
+
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -316,6 +323,26 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     return built;
   }, [isSearching, questions, sortMode, topicFilter]);
 
+  const stats: FeedStats = useMemo(() => {
+    const topicMatched = questions.filter(
+      (question) => topicFilter === 'ALL' || question.topicId === topicFilter
+    );
+    const pinned = topicMatched.filter((question) => question.isPinned).length;
+    const answered = topicMatched.filter(
+      (question) => !question.isPinned && question.verifiedAnswerId
+    ).length;
+    const open = topicMatched.filter(
+      (question) => !question.isPinned && !question.verifiedAnswerId
+    ).length;
+
+    return {
+      pinned,
+      open,
+      answered,
+      total: topicMatched.length,
+    };
+  }, [questions, topicFilter]);
+
   useEffect(() => {
     if (!whiteboardId) {
       return;
@@ -334,6 +361,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     whiteboard,
     questions,
     sections,
+    stats,
     topicFilters,
     loading,
     refreshing,

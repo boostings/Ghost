@@ -55,7 +55,7 @@ class CourseCatalogImportServiceTest {
         when(courseFinderClient.fetchSections("Fall 2026")).thenReturn(List.of(fallSection));
         when(courseFinderClient.fetchSections("Winter 2026")).thenReturn(List.of(winterSection));
         when(userRepository.findById(facultyId)).thenReturn(Optional.of(FacultyUser.builder().id(facultyId).build()));
-        when(courseRepository.findByCourseCode(any())).thenReturn(Optional.empty());
+        when(courseRepository.findByCourseCodeAndSectionIsNull(any())).thenReturn(Optional.empty());
         when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(semesterRepository.findByName(any())).thenReturn(Optional.empty());
         when(semesterRepository.save(any(Semester.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -128,7 +128,7 @@ class CourseCatalogImportServiceTest {
                 .thenReturn(List.of(section("Fall 2026", "IT", "326", "Systems Analysis", "001", "9001")));
         when(courseFinderClient.fetchSections("Winter 2026")).thenReturn(List.of());
         when(userRepository.findById(facultyId)).thenReturn(Optional.of(FacultyUser.builder().id(facultyId).build()));
-        when(courseRepository.findByCourseCode("IT326")).thenReturn(Optional.of(course));
+        when(courseRepository.findByCourseCodeAndSectionIsNull("IT326")).thenReturn(Optional.of(course));
         when(semesterRepository.findByName("Fall 2026")).thenReturn(Optional.of(semester));
         when(courseSectionRepository.findBySourceObjectId("Fall-2026-IT326-001-9001")).thenReturn(Optional.of(existing));
         when(courseSectionRepository.save(existing)).thenReturn(existing);

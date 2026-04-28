@@ -79,20 +79,19 @@ describe('whiteboardService', () => {
     });
   });
 
-  it('maps whiteboard members from user responses', async () => {
+  it('returns whiteboard member responses from the roster endpoint', async () => {
     const { module, apiMock } = await loadWhiteboardService();
     apiMock.get.mockResolvedValue({
       data: {
         content: [
           {
-            id: 'u-1',
+            id: 'membership-1',
+            userId: 'u-1',
             email: 'faculty@ilstu.edu',
             firstName: 'Professor',
             lastName: 'Ghost',
             role: 'FACULTY',
-            karmaScore: 0,
-            emailVerified: true,
-            createdAt: '2026-01-01T00:00:00.000Z',
+            joinedAt: '2026-01-01T00:00:00.000Z',
           },
         ],
         page: 0,
@@ -106,7 +105,7 @@ describe('whiteboardService', () => {
 
     expect(members).toEqual([
       {
-        id: 'u-1',
+        id: 'membership-1',
         userId: 'u-1',
         firstName: 'Professor',
         lastName: 'Ghost',
@@ -331,6 +330,7 @@ describe('whiteboardService', () => {
     await module.whiteboardService.requestToJoin('wb-2');
     await module.whiteboardService.handleJoinRequest('wb-1', 'req-1', { status: 'APPROVED' });
     await module.whiteboardService.transferOwnership('wb-1', 'faculty@ilstu.edu');
+    await module.whiteboardService.inviteFaculty('wb-1', 'primary@ilstu.edu');
 
     expect(discoverable.totalElements).toBe(1);
     expect(apiMock.get).toHaveBeenCalledWith('/whiteboards/discover', {
@@ -348,6 +348,9 @@ describe('whiteboardService', () => {
     });
     expect(apiMock.put).toHaveBeenNthCalledWith(2, '/whiteboards/wb-1/transfer-ownership', {
       newOwnerEmail: 'faculty@ilstu.edu',
+    });
+    expect(apiMock.post).toHaveBeenNthCalledWith(3, '/whiteboards/wb-1/invite-faculty', {
+      email: 'primary@ilstu.edu',
     });
   });
 });

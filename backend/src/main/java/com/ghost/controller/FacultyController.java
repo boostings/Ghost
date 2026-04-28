@@ -9,11 +9,11 @@ import com.ghost.dto.request.ReviewReportRequest;
 import com.ghost.dto.request.TransferOwnershipRequest;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.dto.response.ReportResponse;
 import com.ghost.dto.response.TopicResponse;
-import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.service.AuditLogService;
 import com.ghost.service.QuestionService;
@@ -212,7 +212,7 @@ public class FacultyController {
     }
 
     @GetMapping("/whiteboards/{wbId}/members")
-    public ResponseEntity<PageResponse<UserResponse>> getMembers(
+    public ResponseEntity<PageResponse<MemberResponse>> getMembers(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID wbId,
             @RequestParam(defaultValue = "0") int page,

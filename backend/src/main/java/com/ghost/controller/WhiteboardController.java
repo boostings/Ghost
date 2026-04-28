@@ -7,8 +7,8 @@ import com.ghost.dto.request.JoinWhiteboardRequest;
 import com.ghost.dto.request.TransferOwnershipRequest;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.dto.response.PageResponse;
-import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.service.WhiteboardService;
 import jakarta.validation.Valid;
@@ -131,14 +131,14 @@ public class WhiteboardController {
     }
 
     @GetMapping("/{id}/members")
-    public ResponseEntity<PageResponse<UserResponse>> getMembers(
+    public ResponseEntity<PageResponse<MemberResponse>> getMembers(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
         Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
-        Page<UserResponse> members = whiteboardService.getMemberResponses(userId, id, pageable);
+        Page<MemberResponse> members = whiteboardService.getMemberResponses(userId, id, pageable);
         return ResponseEntity.ok(PageResponse.from(members));
     }
 

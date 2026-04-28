@@ -20,6 +20,7 @@ import com.ghost.dto.response.BookmarkResponse;
 import com.ghost.dto.response.CommentResponse;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.dto.response.NotificationResponse;
 import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.QuestionResponse;
@@ -177,8 +178,9 @@ class ControllerCoverageExpansionTest {
         JoinRequestResponse joinRequestResponse = JoinRequestResponse.builder()
                 .id(requestId)
                 .build();
-        UserResponse memberResponse = UserResponse.builder()
+        MemberResponse memberResponse = MemberResponse.builder()
                 .id(memberId)
+                .userId(memberId)
                 .email("member@ilstu.edu")
                 .build();
         InviteInfoResponse inviteInfoResponse = InviteInfoResponse.builder()
@@ -209,7 +211,7 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<JoinRequestResponse> requested = whiteboardController.requestJoin(userId.toString(), whiteboardId);
         ResponseEntity<PageResponse<JoinRequestResponse>> requests = whiteboardController.getJoinRequests(userId.toString(), whiteboardId, 0, 20);
         ResponseEntity<Void> reviewed = whiteboardController.handleJoinRequest(userId.toString(), whiteboardId, requestId, joinAction);
-        ResponseEntity<PageResponse<UserResponse>> members = whiteboardController.getMembers(userId.toString(), whiteboardId, 0, 20);
+        ResponseEntity<PageResponse<MemberResponse>> members = whiteboardController.getMembers(userId.toString(), whiteboardId, 0, 20);
         ResponseEntity<Void> removedMember = whiteboardController.removeMember(userId.toString(), whiteboardId, memberId);
         ResponseEntity<Void> enlisted = whiteboardController.enlistUser(userId.toString(), whiteboardId, emailRequest);
         ResponseEntity<Void> transferred = whiteboardController.transferOwnership(userId.toString(), whiteboardId, transferRequest);
@@ -307,7 +309,11 @@ class ControllerCoverageExpansionTest {
         ReportResponse reportResponse = ReportResponse.builder().id(reportId).status(ReportStatus.REVIEWED).build();
         JoinRequestResponse joinRequestResponse = JoinRequestResponse.builder().id(requestId).build();
         InviteInfoResponse inviteInfoResponse = InviteInfoResponse.builder().inviteCode("JOIN326").build();
-        UserResponse userResponse = UserResponse.builder().id(memberId).email("member@ilstu.edu").build();
+        MemberResponse memberResponse = MemberResponse.builder()
+                .id(memberId)
+                .userId(memberId)
+                .email("member@ilstu.edu")
+                .build();
 
         when(whiteboardService.createWhiteboardResponse(userId, createWhiteboardRequest)).thenReturn(whiteboardResponse);
         when(whiteboardService.getJoinRequestResponses(eq(userId), eq(whiteboardId), any(Pageable.class)))
@@ -321,7 +327,7 @@ class ControllerCoverageExpansionTest {
         when(reportService.reviewReport(userId, reportId, reviewReportRequest)).thenReturn(reportResponse);
         when(auditLogService.exportToCsv(whiteboardId)).thenReturn("timestamp,action");
         when(whiteboardService.getMemberResponses(eq(userId), eq(whiteboardId), any(Pageable.class)))
-                .thenReturn(pageOf(userResponse));
+                .thenReturn(pageOf(memberResponse));
 
         ResponseEntity<WhiteboardResponse> created = facultyController.createWhiteboard(userId.toString(), createWhiteboardRequest);
         ResponseEntity<Void> deleted = facultyController.deleteWhiteboard(userId.toString(), whiteboardId);
@@ -340,7 +346,7 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<Void> deletedTopic = facultyController.deleteTopic(userId.toString(), whiteboardId, topicId);
         ResponseEntity<ReportResponse> reviewedReport = facultyController.reviewReport(userId.toString(), reportId, reviewReportRequest);
         ResponseEntity<String> csvExport = facultyController.exportToCsv(userId.toString(), whiteboardId);
-        ResponseEntity<PageResponse<UserResponse>> members = facultyController.getMembers(userId.toString(), whiteboardId, 0, 500);
+        ResponseEntity<PageResponse<MemberResponse>> members = facultyController.getMembers(userId.toString(), whiteboardId, 0, 500);
 
         verify(whiteboardService).createWhiteboardResponse(userId, createWhiteboardRequest);
         verify(whiteboardService).deleteWhiteboard(userId, whiteboardId);
@@ -384,7 +390,7 @@ class ControllerCoverageExpansionTest {
         assertThat(csvExport.getHeaders().getFirst("Content-Disposition")).contains("audit-logs.csv");
         assertThat(csvExport.getBody()).isEqualTo("timestamp,action");
         assertThat(members.getBody()).isNotNull();
-        assertThat(members.getBody().getContent()).containsExactly(userResponse);
+        assertThat(members.getBody().getContent()).containsExactly(memberResponse);
     }
 
     @Test
@@ -553,6 +559,11 @@ class ControllerCoverageExpansionTest {
                 .build();
         QuestionResponse questionResponse = QuestionResponse.builder().id(questionId).title("Question").build();
         UserResponse userResponse = UserResponse.builder().id(memberId).email("member@ilstu.edu").build();
+        MemberResponse memberResponse = MemberResponse.builder()
+                .id(memberId)
+                .userId(memberId)
+                .email("member@ilstu.edu")
+                .build();
         ReportResponse reportResponse = ReportResponse.builder().id(reportId).status(ReportStatus.DISMISSED).build();
         InviteInfoResponse inviteInfoResponse = InviteInfoResponse.builder().inviteCode("JOIN326").build();
 
@@ -573,7 +584,7 @@ class ControllerCoverageExpansionTest {
                 .thenReturn(JoinRequestResponse.builder().id(UUID.randomUUID()).build());
         when(whiteboardMembershipService.joinDemoWhiteboardIfAvailable(userId)).thenReturn(true);
         when(whiteboardMembershipService.getMemberResponses(eq(userId), eq(whiteboardId), any(Pageable.class)))
-                .thenReturn(pageOf(userResponse));
+                .thenReturn(pageOf(memberResponse));
         when(whiteboardMembershipService.getInviteInfo(userId, whiteboardId)).thenReturn(inviteInfoResponse);
 
         ResponseEntity<TopicResponse> createdTopic = topicController.createTopic(userId.toString(), whiteboardId, createTopicRequest);
@@ -632,7 +643,7 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<Void> removedMember = whiteboardMembershipController.removeMember(userId.toString(), whiteboardId, memberId);
         ResponseEntity<Void> invitedFaculty = whiteboardMembershipController.inviteFaculty(userId.toString(), whiteboardId, emailRequest);
         ResponseEntity<Void> leftWhiteboard = whiteboardMembershipController.leaveWhiteboard(userId.toString(), whiteboardId);
-        ResponseEntity<PageResponse<UserResponse>> members = whiteboardMembershipController.getMemberResponses(userId.toString(), whiteboardId, 0, 20);
+        ResponseEntity<PageResponse<MemberResponse>> members = whiteboardMembershipController.getMemberResponses(userId.toString(), whiteboardId, 0, 20);
         ResponseEntity<InviteInfoResponse> inviteInfo = whiteboardMembershipController.getInviteInfo(userId.toString(), whiteboardId);
 
         verify(topicService).getTopics(eq(userId), eq(whiteboardId), any(Pageable.class));
@@ -720,7 +731,7 @@ class ControllerCoverageExpansionTest {
         assertThat(invitedFaculty.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(leftWhiteboard.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(members.getBody()).isNotNull();
-        assertThat(members.getBody().getContent()).containsExactly(userResponse);
+        assertThat(members.getBody().getContent()).containsExactly(memberResponse);
         assertThat(inviteInfo.getBody()).isEqualTo(inviteInfoResponse);
     }
 

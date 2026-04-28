@@ -1,11 +1,10 @@
 package com.ghost.service;
 
 import com.ghost.dto.response.InviteInfoResponse;
-import com.ghost.dto.response.UserResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
-import com.ghost.mapper.UserMapper;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
@@ -32,8 +31,6 @@ public class WhiteboardMembershipService {
     private final WhiteboardMembershipRepository whiteboardMembershipRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
-    private final UserMapper userMapper;
-
     @Transactional
     public void joinByInviteCode(UUID userId, UUID whiteboardId, String inviteCode) {
         Whiteboard whiteboard = findWhiteboardByInviteCode(inviteCode);
@@ -226,11 +223,23 @@ public class WhiteboardMembershipService {
     }
 
     @Transactional(readOnly = true)
-    public Page<UserResponse> getMemberResponses(UUID userId, UUID whiteboardId, Pageable pageable) {
+    public Page<MemberResponse> getMemberResponses(UUID userId, UUID whiteboardId, Pageable pageable) {
         verifyMembership(userId, whiteboardId);
         return whiteboardMembershipRepository.findByWhiteboardId(whiteboardId, pageable)
-                .map(WhiteboardMembership::getUser)
-                .map(userMapper::toResponse);
+                .map(this::toMemberResponse);
+    }
+
+    private MemberResponse toMemberResponse(WhiteboardMembership membership) {
+        User user = membership.getUser();
+        return MemberResponse.builder()
+                .id(membership.getId())
+                .userId(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .role(membership.getRole())
+                .joinedAt(membership.getJoinedAt())
+                .build();
     }
 
     @Transactional(readOnly = true)

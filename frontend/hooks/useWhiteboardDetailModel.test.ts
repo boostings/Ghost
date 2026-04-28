@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { PageResponse, QuestionResponse, WhiteboardResponse } from '../types';
 
 const mockSetCurrentWhiteboard = jest.fn();
@@ -45,6 +45,7 @@ jest.mock('../services/questionService', () => ({
   __esModule: true,
   questionService: {
     list: jest.fn(),
+    search: jest.fn(),
   },
 }));
 
@@ -89,6 +90,34 @@ function makeEmptyQuestionPage(): PageResponse<QuestionResponse> {
   };
 }
 
+function makeQuestion(overrides: Partial<QuestionResponse> = {}): QuestionResponse {
+  return {
+    id: 'q-1',
+    whiteboardId: 'wb-1',
+    whiteboardCourseCode: 'IT326',
+    whiteboardCourseName: 'Principles Of Software Engineering',
+    title: 'When is Project 2 due?',
+    body: 'Looking at the syllabus and I see Project 2 listed.',
+    status: 'CLOSED',
+    topicId: 'topic-homework',
+    topicName: 'Homework',
+    authorId: 'student-1',
+    authorName: 'Test User',
+    karmaScore: 0,
+    userVote: null,
+    commentCount: 1,
+    verifiedAnswerId: 'comment-1',
+    verifiedAnswerPreview: 'Project 2 is due Friday.',
+    verifiedAnswerAuthorName: 'Jimmy Schade',
+    isPinned: false,
+    isHidden: false,
+    isBookmarked: false,
+    createdAt: '2026-04-27T16:42:23.246701',
+    updatedAt: '2026-04-27T16:42:23.246701',
+    ...overrides,
+  };
+}
+
 describe('useWhiteboardDetailModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -106,5 +135,32 @@ describe('useWhiteboardDetailModel', () => {
     expect(result.current.questions).toEqual([]);
     expect(result.current.sections).toEqual([]);
     expect(result.current.loadError).toBeNull();
+  });
+
+  it('keeps answered search results out of the open counter', async () => {
+    mockQuestionService.search.mockResolvedValue({
+      content: [makeQuestion()],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+
+    const { result } = renderHook(() => useWhiteboardDetailModel('wb-1'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setSearchQuery('project');
+    });
+
+    await waitFor(() => expect(mockQuestionService.search).toHaveBeenCalled());
+
+    expect(result.current.stats).toEqual({
+      pinned: 0,
+      open: 0,
+      answered: 1,
+      total: 1,
+    });
   });
 });

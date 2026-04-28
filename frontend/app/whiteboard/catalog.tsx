@@ -89,6 +89,18 @@ const BOOLEAN_FIRST_SORTS = new Set<CourseCatalogSortBy>([
   'noCostMaterials',
 ]);
 
+type FacultySetupMode = 'primary' | 'helping';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type CourseGroup = {
+  key: string;
+  courseCode: string;
+  courseName: string;
+  semester: string;
+  sections: CourseSectionResponse[];
+};
+
 function getDefaultSortDirection(sortKey: CourseCatalogSortBy): CourseCatalogSortDirection {
   return BOOLEAN_FIRST_SORTS.has(sortKey) ? 'DESC' : 'ASC';
 }
@@ -114,6 +126,18 @@ export default function CourseCatalogScreen() {
   const [creatingSectionId, setCreatingSectionId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [setupSection, setSetupSection] = useState<CourseSectionResponse | null>(null);
+  const [setupMode, setSetupMode] = useState<FacultySetupMode>('primary');
+  const [primaryInstructorEmail, setPrimaryInstructorEmail] = useState('');
+  const [primaryInstructorEmailError, setPrimaryInstructorEmailError] = useState<string | null>(
+    null
+  );
+  const [expandedCourseCodes, setExpandedCourseCodes] = useState<Set<string>>(() => new Set());
+  const [fullSectionsByCourseKey, setFullSectionsByCourseKey] = useState<
+    Record<string, CourseSectionResponse[]>
+  >({});
+  const [loadingCourseKeys, setLoadingCourseKeys] = useState<Set<string>>(() => new Set());
+  const [courseLoadErrors, setCourseLoadErrors] = useState<Record<string, string>>({});
 
   const requestSequenceRef = useRef(0);
   const stateRef = useRef({ hasMore, loadingMore, loading, page });
@@ -124,6 +148,28 @@ export default function CourseCatalogScreen() {
     const normalized = sanitizeSingleLine(subjectInput).toUpperCase();
     return normalized || undefined;
   }, [subjectInput]);
+
+  const courseGroups = useMemo<CourseGroup[]>(() => {
+    const groups = new Map<string, CourseGroup>();
+    sections.forEach((section) => {
+      const key = `${section.courseCode.trim().toUpperCase()}::${section.semester}`;
+      const existing = groups.get(key);
+      if (existing) {
+        if (!fullSectionsByCourseKey[key]) {
+          existing.sections.push(section);
+        }
+        return;
+      }
+      groups.set(key, {
+        key,
+        courseCode: section.courseCode,
+        courseName: section.courseName,
+        semester: section.semester,
+        sections: fullSectionsByCourseKey[key] ?? [section],
+      });
+    });
+    return Array.from(groups.values());
+  }, [fullSectionsByCourseKey, sections]);
 
   // Stable fetch — depends only on filter inputs, never on result/data state.
   // This prevents the debounce effect below from re-firing every time we
@@ -154,6 +200,12 @@ export default function CourseCatalogScreen() {
         setHasMore(requestedPage + 1 < response.totalPages);
         setTotalElements(response.totalElements);
         setLoadError(null);
+        if (mode === 'replace') {
+          setExpandedCourseCodes(new Set());
+          setFullSectionsByCourseKey({});
+          setLoadingCourseKeys(new Set());
+          setCourseLoadErrors({});
+        }
       } catch (error: unknown) {
         if (sequence !== requestSequenceRef.current) return;
         if (mode === 'replace') setSections([]);
@@ -188,16 +240,17 @@ export default function CourseCatalogScreen() {
     void fetchSections('append', p + 1);
   }, [fetchSections]);
 
-  const createWhiteboardFromSection = useCallback(
-    async (section: CourseSectionResponse) => {
+  const openSetupSheet = useCallback(
+    (section: CourseSectionResponse) => {
       const existingWhiteboard = findMatchingWhiteboard(whiteboards, {
         courseCode: section.courseCode,
         semester: section.semester,
+        section: section.section,
       });
       if (existingWhiteboard) {
         Alert.alert(
-          'Class Already Exists',
-          `${existingWhiteboard.courseCode} already has a whiteboard for ${existingWhiteboard.semester}.`,
+          'Section Already Exists',
+          `${existingWhiteboard.courseCode} section ${existingWhiteboard.section ?? section.section} already has a whiteboard for ${existingWhiteboard.semester}.`,
           [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -209,15 +262,55 @@ export default function CourseCatalogScreen() {
         return;
       }
 
-      setCreatingSectionId(section.id);
+      setSetupSection(section);
+      setSetupMode('primary');
+      setPrimaryInstructorEmail('');
+      setPrimaryInstructorEmailError(null);
+    },
+    [router, whiteboards]
+  );
+
+  const closeSetupSheet = useCallback(() => {
+    if (creatingSectionId) return;
+    setSetupSection(null);
+    setPrimaryInstructorEmailError(null);
+  }, [creatingSectionId]);
+
+  const createWhiteboardFromSection = useCallback(
+    async () => {
+      if (!setupSection) return;
+      const normalizedPrimaryInstructorEmail = sanitizeSingleLine(primaryInstructorEmail).toLowerCase();
+      if (setupMode === 'helping') {
+        if (!normalizedPrimaryInstructorEmail) {
+          setPrimaryInstructorEmailError('Primary instructor email is required');
+          return;
+        }
+        if (!EMAIL_PATTERN.test(normalizedPrimaryInstructorEmail)) {
+          setPrimaryInstructorEmailError('Enter a valid email address');
+          return;
+        }
+      }
+
+      setCreatingSectionId(setupSection.id);
       try {
         const created = await whiteboardService.createWhiteboard({
-          courseCode: section.courseCode,
-          courseName: section.courseName,
-          section: section.section,
-          semester: section.semester,
+          courseCode: setupSection.courseCode,
+          courseName: setupSection.courseName,
+          section: setupSection.section,
+          semester: setupSection.semester,
         });
         addWhiteboard(created);
+        if (setupMode === 'helping') {
+          try {
+            await whiteboardService.inviteFaculty(created.id, normalizedPrimaryInstructorEmail);
+          } catch (inviteError: unknown) {
+            Alert.alert(
+              'Whiteboard Created',
+              `The whiteboard was created, but the primary instructor invite failed: ${extractErrorMessage(inviteError)}`
+            );
+          }
+        }
+        setSetupSection(null);
         router.replace(`/whiteboard/${created.id}`);
       } catch (error: unknown) {
         Alert.alert('Create failed', extractErrorMessage(error));
@@ -225,7 +318,7 @@ export default function CourseCatalogScreen() {
         setCreatingSectionId(null);
       }
     },
-    [addWhiteboard, router, whiteboards]
+    [addWhiteboard, primaryInstructorEmail, router, setupMode, setupSection]
   );
 
   const handleSortChoice = useCallback(
@@ -241,18 +334,78 @@ export default function CourseCatalogScreen() {
     [sortBy]
   );
 
+  const toggleCourseGroup = useCallback(
+    async (group: CourseGroup) => {
+      haptic.selection();
+      if (expandedCourseCodes.has(group.key)) {
+        setExpandedCourseCodes((current) => {
+          const next = new Set(current);
+          next.delete(group.key);
+          return next;
+        });
+        return;
+      }
+
+      setExpandedCourseCodes((current) => new Set(current).add(group.key));
+      if (fullSectionsByCourseKey[group.key] || loadingCourseKeys.has(group.key)) {
+        return;
+      }
+
+      setLoadingCourseKeys((current) => new Set(current).add(group.key));
+      setCourseLoadErrors((current) => {
+        const next = { ...current };
+        delete next[group.key];
+        return next;
+      });
+
+      try {
+        const fullSections = await courseCatalogService.getAllSectionsForCourse({
+          courseCode: group.courseCode,
+          semester: group.semester,
+        });
+        setFullSectionsByCourseKey((current) => ({
+          ...current,
+          [group.key]: fullSections,
+        }));
+      } catch (error: unknown) {
+        setCourseLoadErrors((current) => ({
+          ...current,
+          [group.key]: extractErrorMessage(error),
+        }));
+      } finally {
+        setLoadingCourseKeys((current) => {
+          const next = new Set(current);
+          next.delete(group.key);
+          return next;
+        });
+      }
+    },
+    [expandedCourseCodes, fullSectionsByCourseKey, loadingCourseKeys]
+  );
+
   const renderSection = useCallback(
-    ({ item, index }: { item: CourseSectionResponse; index: number }) => (
-      <SectionCard
-        section={item}
+    ({ item, index }: { item: CourseGroup; index: number }) => (
+      <CourseGroupCard
+        group={item}
         index={index}
-        creating={creatingSectionId === item.id}
-        disabled={creatingSectionId !== null && creatingSectionId !== item.id}
-        onPress={() => createWhiteboardFromSection(item)}
+        expanded={expandedCourseCodes.has(item.key)}
+        loadingSections={loadingCourseKeys.has(item.key)}
+        loadError={courseLoadErrors[item.key] ?? null}
+        creatingSectionId={creatingSectionId}
+        onToggle={() => void toggleCourseGroup(item)}
+        onCreateSection={openSetupSheet}
         reduceMotion={reduceMotion}
       />
     ),
-    [createWhiteboardFromSection, creatingSectionId, reduceMotion]
+    [
+      courseLoadErrors,
+      creatingSectionId,
+      expandedCourseCodes,
+      loadingCourseKeys,
+      openSetupSheet,
+      reduceMotion,
+      toggleCourseGroup,
+    ]
   );
 
   return (
@@ -296,9 +449,9 @@ export default function CourseCatalogScreen() {
         </View>
 
         <FlatList
-          data={sections}
+          data={courseGroups}
           renderItem={renderSection}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.key}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -356,6 +509,24 @@ export default function CourseCatalogScreen() {
           haptic.selection();
           setSortDirection((d) => (d === 'ASC' ? 'DESC' : 'ASC'));
         }}
+      />
+      <FacultySetupSheet
+        visible={setupSection != null}
+        section={setupSection}
+        mode={setupMode}
+        primaryInstructorEmail={primaryInstructorEmail}
+        primaryInstructorEmailError={primaryInstructorEmailError}
+        loading={creatingSectionId != null}
+        onClose={closeSetupSheet}
+        onModeChange={(mode) => {
+          setSetupMode(mode);
+          setPrimaryInstructorEmailError(null);
+        }}
+        onPrimaryInstructorEmailChange={(value) => {
+          setPrimaryInstructorEmail(value);
+          setPrimaryInstructorEmailError(null);
+        }}
+        onCreate={createWhiteboardFromSection}
       />
     </View>
   );
@@ -553,6 +724,121 @@ function ResultLine({
 
 // ---------- Section card ----------
 
+function CourseGroupCard({
+  group,
+  index,
+  expanded,
+  loadingSections,
+  loadError,
+  creatingSectionId,
+  onToggle,
+  onCreateSection,
+  reduceMotion,
+}: {
+  group: CourseGroup;
+  index: number;
+  expanded: boolean;
+  loadingSections: boolean;
+  loadError: string | null;
+  creatingSectionId: string | null;
+  onToggle: () => void;
+  onCreateSection: (section: CourseSectionResponse) => void;
+  reduceMotion: boolean;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const [code, number] = splitCourseCode(group.courseCode);
+  const instructorCount = new Set(
+    group.sections.map((section) => section.instructor).filter(Boolean)
+  ).size;
+  const openCount = group.sections.filter((section) => section.openSection).length;
+  const enter = reduceMotion
+    ? FadeIn.duration(180)
+    : FadeInDown.duration(360)
+        .delay(Math.min(index, 8) * 40)
+        .easing(OUT_EASE);
+
+  return (
+    <Animated.View entering={enter} style={animatedStyle}>
+      <Pressable
+        onPress={onToggle}
+        onPressIn={() => {
+          scale.value = withSpring(PRESSED_SCALE, Spring.press);
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, Spring.press);
+        }}
+        style={({ pressed }) => [styles.courseGroupCard, pressed && styles.cardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${expanded ? 'Hide' : 'Show'} ${group.courseCode} sections`}
+      >
+        <View style={styles.cardEdge} />
+        <View style={styles.courseGroupBody}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.codeBlock}>
+              <Text style={styles.codeSubject}>{code}</Text>
+              {number ? <Text style={styles.codeNumber}>{number}</Text> : null}
+            </View>
+            <View style={styles.cardTopRight}>
+              <View style={styles.sectionPill}>
+                <Text style={styles.sectionPillLabel}>SECTIONS</Text>
+                <Text style={styles.sectionPillValue}>{group.sections.length}</Text>
+              </View>
+              <Ionicons
+                name={expanded ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={Colors.textMuted}
+              />
+            </View>
+          </View>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {group.courseName}
+          </Text>
+          <View style={styles.metaChips}>
+            <View style={styles.metaChip}>
+              <Text style={styles.metaChipText}>
+                {openCount} open {openCount === 1 ? 'section' : 'sections'}
+              </Text>
+            </View>
+            <View style={styles.metaChip}>
+              <Text style={styles.metaChipText}>
+                {instructorCount || 0} {instructorCount === 1 ? 'instructor' : 'instructors'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.sectionList}>
+          {loadingSections ? (
+            <View style={styles.sectionListState}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.sectionListStateText}>Loading all sections…</Text>
+            </View>
+          ) : null}
+          {loadError ? (
+            <View style={styles.sectionListState}>
+              <Text style={styles.sectionListError}>{loadError}</Text>
+            </View>
+          ) : null}
+          {group.sections.map((section, sectionIndex) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              index={sectionIndex}
+              creating={creatingSectionId === section.id}
+              disabled={creatingSectionId !== null && creatingSectionId !== section.id}
+              onPress={() => onCreateSection(section)}
+              reduceMotion={reduceMotion}
+            />
+          ))}
+        </View>
+      ) : null}
+    </Animated.View>
+  );
+}
+
 interface SectionCardProps {
   section: CourseSectionResponse;
   index: number;
@@ -679,6 +965,154 @@ function splitCourseCode(code: string): [string, string] {
   const match = code.match(/^([A-Za-z]+)\s*(.*)$/);
   if (!match) return [code, ''];
   return [match[1].toUpperCase(), match[2].trim()];
+}
+
+// ---------- Faculty setup sheet ----------
+
+function FacultySetupSheet({
+  visible,
+  section,
+  mode,
+  primaryInstructorEmail,
+  primaryInstructorEmailError,
+  loading,
+  onClose,
+  onModeChange,
+  onPrimaryInstructorEmailChange,
+  onCreate,
+}: {
+  visible: boolean;
+  section: CourseSectionResponse | null;
+  mode: FacultySetupMode;
+  primaryInstructorEmail: string;
+  primaryInstructorEmailError: string | null;
+  loading: boolean;
+  onClose: () => void;
+  onModeChange: (mode: FacultySetupMode) => void;
+  onPrimaryInstructorEmailChange: (value: string) => void;
+  onCreate: () => void;
+}) {
+  const colorScheme = useColorScheme();
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Animated.View
+        entering={FadeIn.duration(200)}
+        exiting={FadeOut.duration(180)}
+        style={styles.sheetBackdrop}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityLabel="Close faculty setup sheet"
+        />
+        <Animated.View
+          entering={SlideInDown.duration(Duration.drawer).easing(IOS_EASE)}
+          exiting={SlideOutDown.duration(280).easing(IOS_EASE)}
+          style={styles.sheetWrapper}
+        >
+          <BlurView
+            intensity={80}
+            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            style={styles.sheet}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sheetEyebrow}>FACULTY SETUP</Text>
+                <Text style={styles.sheetTitle} numberOfLines={2}>
+                  {section?.courseCode ?? 'Class'} whiteboard
+                </Text>
+              </View>
+            </View>
+
+            <SetupChoice
+              title="I'm the primary instructor"
+              subtitle="Create the whiteboard with you as the owner and faculty member."
+              selected={mode === 'primary'}
+              onPress={() => onModeChange('primary')}
+            />
+            <SetupChoice
+              title="I'm helping teach this class"
+              subtitle="Create it now and invite the primary instructor as faculty."
+              selected={mode === 'helping'}
+              onPress={() => onModeChange('helping')}
+            />
+
+            {mode === 'helping' ? (
+              <View style={styles.emailFieldGroup}>
+                <Text style={styles.emailLabel}>Primary instructor email</Text>
+                <TextInput
+                  value={primaryInstructorEmail}
+                  onChangeText={onPrimaryInstructorEmailChange}
+                  placeholder="professor@ilstu.edu"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  style={[
+                    styles.emailInput,
+                    primaryInstructorEmailError ? styles.emailInputError : null,
+                  ]}
+                  selectionColor={Colors.primary}
+                />
+                {primaryInstructorEmailError ? (
+                  <Text style={styles.emailError}>{primaryInstructorEmailError}</Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.sheetDone, loading && styles.sheetDoneDisabled]}
+              onPress={onCreate}
+              disabled={loading}
+              accessibilityRole="button"
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.sheetDoneText}>Create whiteboard</Text>
+              )}
+            </Pressable>
+          </BlurView>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+function SetupChoice({
+  title,
+  subtitle,
+  selected,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.setupChoice, selected && styles.setupChoiceSelected]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+    >
+      <View style={[styles.setupRadio, selected && styles.setupRadioSelected]}>
+        {selected ? <View style={styles.setupRadioDot} /> : null}
+      </View>
+      <View style={styles.setupChoiceText}>
+        <Text style={styles.setupChoiceTitle}>{title}</Text>
+        <Text style={styles.setupChoiceSubtitle}>{subtitle}</Text>
+      </View>
+    </Pressable>
+  );
 }
 
 // ---------- Sort sheet ----------
@@ -976,6 +1410,38 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
   },
+  courseGroupCard: {
+    flexDirection: 'row',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  courseGroupBody: { flex: 1, padding: 14 },
+  sectionList: {
+    marginLeft: 14,
+    marginBottom: 4,
+  },
+  sectionListState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  sectionListStateText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionListError: {
+    color: Colors.error,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
   cardPressed: {
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderColor: 'rgba(187,39,68,0.45)',
@@ -1097,6 +1563,78 @@ const styles = StyleSheet.create({
   },
   directionLabel: { color: Colors.text, fontSize: 13, fontWeight: '800' },
 
+  setupChoice: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 10,
+  },
+  setupChoiceSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(187,39,68,0.16)',
+  },
+  setupRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: Colors.textMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  setupRadioSelected: { borderColor: Colors.primary },
+  setupRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  setupChoiceText: { flex: 1 },
+  setupChoiceTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  setupChoiceSubtitle: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
+  },
+  emailFieldGroup: { marginTop: 4, marginBottom: 12 },
+  emailLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  emailInput: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: Colors.text,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  emailInputError: { borderColor: Colors.error },
+  emailError: {
+    color: Colors.error,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+
   sortGroup: { marginBottom: 14 },
   sortGroupTitle: {
     fontSize: 11,
@@ -1132,5 +1670,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sheetDoneDisabled: { opacity: 0.65 },
   sheetDoneText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 0.6 },
 });

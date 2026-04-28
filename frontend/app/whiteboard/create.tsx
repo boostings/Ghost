@@ -27,7 +27,12 @@ interface FormErrors {
   courseCode?: string;
   courseName?: string;
   semester?: string;
+  primaryInstructorEmail?: string;
 }
+
+type FacultySetupMode = 'primary' | 'helping';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function CreateWhiteboardScreen() {
   const router = useRouter();
@@ -38,6 +43,8 @@ export default function CreateWhiteboardScreen() {
   const [courseName, setCourseName] = useState('');
   const [section, setSection] = useState('');
   const [semester, setSemester] = useState('');
+  const [facultySetupMode, setFacultySetupMode] = useState<FacultySetupMode>('primary');
+  const [primaryInstructorEmail, setPrimaryInstructorEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -46,6 +53,7 @@ export default function CreateWhiteboardScreen() {
     const normalizedCourseCode = sanitizeSingleLine(courseCode).toUpperCase();
     const normalizedCourseName = sanitizeSingleLine(courseName);
     const normalizedSemester = sanitizeSingleLine(semester);
+    const normalizedPrimaryInstructorEmail = sanitizeSingleLine(primaryInstructorEmail).toLowerCase();
 
     if (!normalizedCourseCode) {
       nextErrors.courseCode = 'Course code is required';
@@ -63,6 +71,14 @@ export default function CreateWhiteboardScreen() {
       nextErrors.semester = 'Semester is required';
     } else if (normalizedSemester.length > 40) {
       nextErrors.semester = 'Semester is too long';
+    }
+
+    if (facultySetupMode === 'helping') {
+      if (!normalizedPrimaryInstructorEmail) {
+        nextErrors.primaryInstructorEmail = 'Primary instructor email is required';
+      } else if (!EMAIL_PATTERN.test(normalizedPrimaryInstructorEmail)) {
+        nextErrors.primaryInstructorEmail = 'Enter a valid email address';
+      }
     }
 
     setErrors(nextErrors);
@@ -87,8 +103,8 @@ export default function CreateWhiteboardScreen() {
       const existingWhiteboard = findMatchingWhiteboard(whiteboards, payload);
       if (existingWhiteboard) {
         Alert.alert(
-          'Class Already Exists',
-          `${existingWhiteboard.courseCode} already has a whiteboard for ${existingWhiteboard.semester}.`,
+          'Section Already Exists',
+          `${existingWhiteboard.courseCode} section ${existingWhiteboard.section ?? payload.section ?? 'unlisted'} already has a whiteboard for ${existingWhiteboard.semester}.`,
           [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -102,6 +118,19 @@ export default function CreateWhiteboardScreen() {
 
       const createdWhiteboard = await whiteboardService.createWhiteboard(payload);
       addWhiteboard(createdWhiteboard);
+      if (facultySetupMode === 'helping') {
+        try {
+          await whiteboardService.inviteFaculty(
+            createdWhiteboard.id,
+            sanitizeSingleLine(primaryInstructorEmail).toLowerCase()
+          );
+        } catch (inviteError: unknown) {
+          Alert.alert(
+            'Whiteboard Created',
+            `The whiteboard was created, but the primary instructor invite failed: ${extractErrorMessage(inviteError)}`
+          );
+        }
+      }
       router.replace(`/whiteboard/${createdWhiteboard.id}`);
     } catch (error: unknown) {
       Alert.alert('Create Failed', extractErrorMessage(error));
@@ -138,7 +167,7 @@ export default function CreateWhiteboardScreen() {
             <GlassCard>
               <Text style={styles.formTitle}>Class Details</Text>
               <Text style={styles.formSubtitle}>
-                A whiteboard is shared by all sections with the same course code and semester.
+                A whiteboard is tied to one course section for a specific semester.
               </Text>
 
               <GlassInput
@@ -189,6 +218,42 @@ export default function CreateWhiteboardScreen() {
                 error={errors.semester}
               />
 
+              <View style={styles.setupGroup}>
+                <Text style={styles.setupTitle}>Your role in this class</Text>
+                <Text style={styles.setupSubtitle}>
+                  Choose how Ghost should set up faculty access for this whiteboard.
+                </Text>
+                <SetupOption
+                  title="I'm the primary instructor"
+                  subtitle="Create the whiteboard with you as the owner and faculty member."
+                  selected={facultySetupMode === 'primary'}
+                  onPress={() => setFacultySetupMode('primary')}
+                />
+                <SetupOption
+                  title="I'm helping teach this class"
+                  subtitle="Create it for your section and invite the primary instructor as faculty."
+                  selected={facultySetupMode === 'helping'}
+                  onPress={() => setFacultySetupMode('helping')}
+                />
+              </View>
+
+              {facultySetupMode === 'helping' ? (
+                <GlassInput
+                  label="Primary Instructor Email"
+                  placeholder="professor@ilstu.edu"
+                  value={primaryInstructorEmail}
+                  onChangeText={(value) => {
+                    setPrimaryInstructorEmail(value);
+                    if (errors.primaryInstructorEmail) {
+                      setErrors((prev) => ({ ...prev, primaryInstructorEmail: undefined }));
+                    }
+                  }}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  error={errors.primaryInstructorEmail}
+                />
+              ) : null}
+
               <View style={styles.buttonRow}>
                 <GlassButton
                   title="Create Whiteboard"
@@ -202,6 +267,35 @@ export default function CreateWhiteboardScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
+  );
+}
+
+function SetupOption({
+  title,
+  subtitle,
+  selected,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.setupOption, selected && styles.setupOptionSelected]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+    >
+      <View style={[styles.radio, selected && styles.radioSelected]}>
+        {selected ? <View style={styles.radioDot} /> : null}
+      </View>
+      <View style={styles.setupOptionText}>
+        <Text style={styles.setupOptionTitle}>{title}</Text>
+        <Text style={styles.setupOptionSubtitle}>{subtitle}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -260,6 +354,69 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     marginBottom: 18,
     lineHeight: 18,
+  },
+  setupGroup: {
+    marginTop: 6,
+    marginBottom: 18,
+  },
+  setupTitle: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  setupSubtitle: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.sm,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  setupOption: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 10,
+  },
+  setupOptionSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(187,39,68,0.14)',
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: Colors.textMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  radioSelected: {
+    borderColor: Colors.primary,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  setupOptionText: {
+    flex: 1,
+  },
+  setupOptionTitle: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  setupOptionSubtitle: {
+    color: Colors.textMuted,
+    fontSize: Fonts.sizes.xs,
+    lineHeight: 17,
   },
   buttonRow: {
     marginTop: 8,

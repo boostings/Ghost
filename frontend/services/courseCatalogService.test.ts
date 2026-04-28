@@ -80,11 +80,66 @@ describe('courseCatalogService', () => {
       params: {
         semester: 'Fall 2026',
         q: 'systems',
+        courseCode: undefined,
         subject: 'IT',
         sortBy: 'teacher',
         sortDirection: 'DESC',
         page: 1,
         size: 10,
+      },
+    });
+  });
+
+  it('loads every page for a specific course folder', async () => {
+    const { module, apiMock } = await loadCourseCatalogService();
+    apiMock.get
+      .mockResolvedValueOnce({
+        data: {
+          content: [{ id: 'section-1' }],
+          page: 0,
+          size: 100,
+          totalElements: 2,
+          totalPages: 2,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          content: [{ id: 'section-2' }],
+          page: 1,
+          size: 100,
+          totalElements: 2,
+          totalPages: 2,
+        },
+      });
+
+    const result = await module.courseCatalogService.getAllSectionsForCourse({
+      courseCode: 'ACC131',
+      semester: 'Fall 2026',
+    });
+
+    expect(result).toEqual([{ id: 'section-1' }, { id: 'section-2' }]);
+    expect(apiMock.get).toHaveBeenNthCalledWith(1, '/course-catalog/sections', {
+      params: {
+        semester: 'Fall 2026',
+        q: undefined,
+        courseCode: 'ACC131',
+        subject: undefined,
+        sortBy: 'section',
+        sortDirection: 'ASC',
+        page: 0,
+        size: 100,
+      },
+    });
+    expect(apiMock.get).toHaveBeenNthCalledWith(2, '/course-catalog/sections', {
+      params: {
+        semester: 'Fall 2026',
+        q: undefined,
+        courseCode: 'ACC131',
+        subject: undefined,
+        sortBy: 'section',
+        sortDirection: 'ASC',
+        page: 1,
+        size: 100,
       },
     });
   });

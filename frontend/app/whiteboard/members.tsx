@@ -24,37 +24,60 @@ import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { formatDate } from '../../utils/formatDate';
-import type { MemberResponse, JoinRequestResponse } from '../../types';
+import type { MemberResponse, JoinRequestResponse, WhiteboardResponse } from '../../types';
 
 export default function MembersScreen() {
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
   const user = useAuthStore((state) => state.user);
-  const isFaculty = user?.role === 'FACULTY';
 
   const [members, setMembers] = useState<MemberResponse[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequestResponse[]>([]);
+  const [whiteboard, setWhiteboard] = useState<WhiteboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const isOwner = whiteboard != null && user != null && whiteboard.ownerId === user.id;
+  const canModerate =
+    whiteboard?.myRole === 'FACULTY' ||
+    isOwner ||
+    (whiteboard != null && whiteboard.myRole === undefined && user?.role === 'FACULTY');
+
   const fetchData = useCallback(async () => {
     if (!whiteboardId) return;
     try {
-      const membersData = await whiteboardService.getMembers(whiteboardId);
+      const [membersData, nextWhiteboard] = await Promise.all([
+        whiteboardService.getMembers(whiteboardId),
+        whiteboardService.getById(whiteboardId).catch(() => null),
+      ]);
       setMembers(membersData);
-      if (isFaculty) {
-        const requests = await whiteboardService.getJoinRequests(whiteboardId);
-        setJoinRequests(requests);
+      setWhiteboard(nextWhiteboard);
+
+      const shouldLoadJoinRequests =
+        nextWhiteboard?.myRole === 'FACULTY' ||
+        (nextWhiteboard != null && user != null && nextWhiteboard.ownerId === user.id) ||
+        (nextWhiteboard != null && nextWhiteboard.myRole === undefined && user?.role === 'FACULTY');
+
+      if (shouldLoadJoinRequests) {
+        try {
+          const requests = await whiteboardService.getJoinRequests(whiteboardId);
+          setJoinRequests(requests);
+        } catch {
+          setJoinRequests([]);
+        }
+      } else {
+        setJoinRequests([]);
       }
       setLoadError(null);
-    } catch {
+    } catch (error: unknown) {
       setMembers([]);
       setJoinRequests([]);
-      setLoadError('Failed to load members. Pull down to retry.');
+      setWhiteboard(null);
+      setLoadError(extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [whiteboardId, isFaculty]);
+  }, [whiteboardId, user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +154,7 @@ export default function MembersScreen() {
           {member.role}
         </Text>
       </View>
-      {isFaculty && member.userId !== user?.id && member.role !== 'FACULTY' && (
+      {canModerate && member.userId !== user?.id && member.role !== 'FACULTY' && (
         <TouchableOpacity
           onPress={() => handleRemoveMember(member)}
           style={styles.removeButton}
@@ -202,7 +225,7 @@ export default function MembersScreen() {
               </GlassCard>
 
               {/* Pending Join Requests */}
-              {isFaculty && pendingRequests.length > 0 && (
+              {canModerate && pendingRequests.length > 0 && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>
                     Pending Requests ({pendingRequests.length})

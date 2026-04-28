@@ -24,6 +24,7 @@ public class CourseCatalogController {
     public ResponseEntity<PageResponse<CourseSectionResponse>> getSections(
             @RequestParam(required = false) String semester,
             @RequestParam(required = false, name = "q") String query,
+            @RequestParam(required = false) String courseCode,
             @RequestParam(required = false) String subject,
             @RequestParam(defaultValue = "courseCode") String sortBy,
             @RequestParam(defaultValue = "ASC") String sortDirection,
@@ -38,6 +39,7 @@ public class CourseCatalogController {
         return ResponseEntity.ok(PageResponse.from(courseCatalogService.getSections(
                 semester,
                 query,
+                courseCode,
                 subject,
                 pageable
         )));

@@ -1,10 +1,9 @@
 package com.ghost.service;
 
 import com.ghost.dto.response.InviteInfoResponse;
-import com.ghost.dto.response.UserResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ForbiddenException;
-import com.ghost.mapper.UserMapper;
 import com.ghost.model.Course;
 import com.ghost.model.FacultyUser;
 import com.ghost.model.Semester;
@@ -50,9 +49,6 @@ class WhiteboardMembershipServiceTest {
 
     @Mock
     private AuditLogService auditLogService;
-
-    @Mock
-    private UserMapper userMapper;
 
     @InjectMocks
     private WhiteboardMembershipService whiteboardMembershipService;
@@ -279,9 +275,14 @@ class WhiteboardMembershipServiceTest {
                 .user(member)
                 .role(Role.STUDENT)
                 .build();
-        UserResponse memberResponse = UserResponse.builder()
-                .id(member.getId())
+        MemberResponse memberResponse = MemberResponse.builder()
+                .id(memberRecord.getId())
+                .userId(member.getId())
                 .email(member.getEmail())
+                .firstName(member.getFirstName())
+                .lastName(member.getLastName())
+                .role(Role.STUDENT)
+                .joinedAt(memberRecord.getJoinedAt())
                 .build();
 
         when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId))
@@ -290,14 +291,17 @@ class WhiteboardMembershipServiceTest {
         when(whiteboardRepository.findById(whiteboardId)).thenReturn(Optional.of(whiteboard));
         when(whiteboardMembershipRepository.findByWhiteboardId(eq(whiteboardId), any()))
                 .thenReturn(new PageImpl<>(List.of(memberRecord), PageRequest.of(0, 20), 1));
-        when(userMapper.toResponse(member)).thenReturn(memberResponse);
-
         InviteInfoResponse inviteInfo = whiteboardMembershipService.getInviteInfo(userId, whiteboardId);
         var page = whiteboardMembershipService.getMemberResponses(userId, whiteboardId, PageRequest.of(0, 20));
 
         assertThat(inviteInfo.getInviteCode()).isEqualTo("JOIN326");
         assertThat(inviteInfo.getQrData()).isEqualTo("ghost://join/JOIN326");
-        assertThat(page.getContent()).containsExactly(memberResponse);
+        assertThat(page.getContent()).hasSize(1);
+        MemberResponse actualMember = page.getContent().get(0);
+        assertThat(actualMember.getId()).isEqualTo(memberResponse.getId());
+        assertThat(actualMember.getUserId()).isEqualTo(memberResponse.getUserId());
+        assertThat(actualMember.getEmail()).isEqualTo(memberResponse.getEmail());
+        assertThat(actualMember.getRole()).isEqualTo(Role.STUDENT);
     }
 
     @Test

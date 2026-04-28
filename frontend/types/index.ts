@@ -310,6 +310,10 @@ export interface TransferOwnershipRequest {
   newOwnerEmail: string;
 }
 
+export interface InviteFacultyRequest {
+  email: string;
+}
+
 export interface JoinRequestActionRequest {
   status: JoinRequestStatus;
 }

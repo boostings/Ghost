@@ -15,7 +15,11 @@ import java.util.UUID;
 @Repository
 public interface WhiteboardRepository extends JpaRepository<Whiteboard, UUID> {
 
-    Optional<Whiteboard> findByCourseCourseCodeAndSemesterName(String courseCode, String semesterName);
+    Optional<Whiteboard> findByCourseCourseCodeAndCourseSectionAndSemesterName(
+            String courseCode,
+            String section,
+            String semesterName
+    );
 
     Optional<Whiteboard> findByInviteCode(String inviteCode);
 

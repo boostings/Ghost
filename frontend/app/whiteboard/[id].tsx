@@ -53,6 +53,7 @@ export default function WhiteboardDetailScreen() {
     whiteboard,
     questions,
     sections,
+    stats,
     topicFilters,
     loading,
     refreshing,
@@ -88,13 +89,6 @@ export default function WhiteboardDetailScreen() {
 
   const visual = useMemo(() => getCourseVisual(whiteboard?.courseCode), [whiteboard?.courseCode]);
   const visualTint = useMemo(() => visualColors(visual), [visual]);
-
-  const stats = useMemo(() => {
-    const pinned = sections.find((section) => section.key === 'pinned')?.data.length ?? 0;
-    const open = sections.find((section) => section.key === 'open')?.data.length ?? 0;
-    const answered = sections.find((section) => section.key === 'answered')?.data.length ?? 0;
-    return { pinned, open, answered, total: pinned + open + answered };
-  }, [sections]);
 
   const heroEntering = reduceMotion
     ? FadeIn.duration(Duration.fast)

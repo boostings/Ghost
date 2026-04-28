@@ -36,6 +36,7 @@ export const courseCatalogService = {
     params?: PaginationParams & {
       semester?: string;
       query?: string;
+      courseCode?: string;
       subject?: string;
       sortBy?: CourseCatalogSortBy;
       sortDirection?: CourseCatalogSortDirection;
@@ -47,6 +48,7 @@ export const courseCatalogService = {
         params: {
           semester: params?.semester,
           q: params?.query,
+          courseCode: params?.courseCode,
           subject: params?.subject,
           sortBy: params?.sortBy,
           sortDirection: params?.sortDirection,
@@ -56,6 +58,40 @@ export const courseCatalogService = {
       }
     );
     return response.data;
+  },
+
+  getAllSectionsForCourse: async (params: {
+    courseCode: string;
+    semester: string;
+  }): Promise<CourseSectionResponse[]> => {
+    const size = 100;
+    const firstPage = await courseCatalogService.getSections({
+      courseCode: params.courseCode,
+      semester: params.semester,
+      sortBy: 'section',
+      sortDirection: 'ASC',
+      page: 0,
+      size,
+    });
+
+    if (firstPage.totalPages <= 1) {
+      return firstPage.content;
+    }
+
+    const remainingPages = await Promise.all(
+      Array.from({ length: firstPage.totalPages - 1 }, (_, index) =>
+        courseCatalogService.getSections({
+          courseCode: params.courseCode,
+          semester: params.semester,
+          sortBy: 'section',
+          sortDirection: 'ASC',
+          page: index + 1,
+          size,
+        })
+      )
+    );
+
+    return [...firstPage.content, ...remainingPages.flatMap((page) => page.content)];
   },
 
   importAllowedTerms: async (): Promise<CourseCatalogImportResult> => {

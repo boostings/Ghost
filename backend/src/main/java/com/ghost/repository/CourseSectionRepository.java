@@ -26,6 +26,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
                     JOIN section.course course
                     JOIN section.semester semester
                     WHERE (CAST(:semester AS string) IS NULL OR semester.name = :semester)
+                      AND (CAST(:courseCode AS string) IS NULL OR course.courseCode = :courseCode)
                       AND (CAST(:subject AS string) IS NULL OR course.subject = :subject)
                       AND (
                         CAST(:query AS string) IS NULL
@@ -43,6 +44,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
                     JOIN section.course course
                     JOIN section.semester semester
                     WHERE (CAST(:semester AS string) IS NULL OR semester.name = :semester)
+                      AND (CAST(:courseCode AS string) IS NULL OR course.courseCode = :courseCode)
                       AND (CAST(:subject AS string) IS NULL OR course.subject = :subject)
                       AND (
                         CAST(:query AS string) IS NULL
@@ -60,6 +62,7 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
             @Param("semester") String semester,
             @Param("query") String query,
             @Param("querySquashed") String querySquashed,
+            @Param("courseCode") String courseCode,
             @Param("subject") String subject,
             Pageable pageable
     );

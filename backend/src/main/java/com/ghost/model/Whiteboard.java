@@ -14,7 +14,7 @@ import java.util.UUID;
 @Table(
         name = "whiteboards",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_whiteboards_course_semester", columnNames = {"course_id", "semester_id"})
+                @UniqueConstraint(name = "uq_whiteboards_course_semester_section", columnNames = {"course_id", "semester_id"})
         }
 )
 @Getter

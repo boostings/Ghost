@@ -87,7 +87,7 @@ public class CourseCatalogImportService {
 
     private Course findOrCreateCourse(CourseFinderSection section) {
         String courseCode = normalizeCourseCode(section.getSubject(), section.getCatalogNumber());
-        var existingCourse = courseRepository.findByCourseCode(courseCode);
+        var existingCourse = courseRepository.findByCourseCodeAndSectionIsNull(courseCode);
         Course course = existingCourse
                 .orElseGet(() -> Course.builder()
                         .courseCode(courseCode)

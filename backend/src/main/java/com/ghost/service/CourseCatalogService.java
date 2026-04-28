@@ -72,16 +72,25 @@ public class CourseCatalogService {
     public Page<CourseSectionResponse> getSections(
             String semester,
             String query,
+            String courseCode,
             String subject,
             Pageable pageable
     ) {
         String normalizedSemester = normalizeOptional(semester);
         String normalizedQuery = normalizeOptional(query);
+        String normalizedCourseCode = normalizeCourseCodeOptional(courseCode);
         String normalizedSubject = normalizeUpperOptional(subject);
         String squashedQuery = normalizedQuery == null ? null : normalizedQuery.replaceAll("\\s+", "");
 
         return courseSectionRepository
-                .searchSections(normalizedSemester, normalizedQuery, squashedQuery, normalizedSubject, pageable)
+                .searchSections(
+                        normalizedSemester,
+                        normalizedQuery,
+                        squashedQuery,
+                        normalizedCourseCode,
+                        normalizedSubject,
+                        pageable
+                )
                 .map(courseSectionMapper::toResponse);
     }
 
@@ -95,6 +104,11 @@ public class CourseCatalogService {
     private String normalizeUpperOptional(String value) {
         String normalized = normalizeOptional(value);
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeCourseCodeOptional(String value) {
+        String normalized = normalizeOptional(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
     }
 
     private String normalizeSortKey(String sortBy) {

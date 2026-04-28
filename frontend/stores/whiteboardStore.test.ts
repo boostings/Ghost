@@ -32,19 +32,22 @@ describe('whiteboardStore', () => {
     expect(next.isLoading).toBe(false);
   });
 
-  it('deduplicates repeated whiteboards by id and class identity', () => {
+  it('deduplicates repeated whiteboards by id and class section identity', () => {
     const first = makeWhiteboard('wb-1', 'Data Structures');
     const sameId = { ...first, section: '002' };
-    const sameClass = makeWhiteboard('wb-2', 'Data Structures');
+    const sameClassSection = makeWhiteboard('wb-2', 'Data Structures');
+    const otherSection = { ...makeWhiteboard('wb-4', 'Data Structures'), section: '002' };
     const otherClass = {
       ...makeWhiteboard('wb-3', 'Accounting'),
       courseCode: 'ACC131',
     };
 
-    useWhiteboardStore.getState().setWhiteboards([first, sameId, sameClass, otherClass]);
-    useWhiteboardStore.getState().addWhiteboard(sameClass);
+    useWhiteboardStore
+      .getState()
+      .setWhiteboards([first, sameId, sameClassSection, otherSection, otherClass]);
+    useWhiteboardStore.getState().addWhiteboard(sameClassSection);
 
-    expect(useWhiteboardStore.getState().whiteboards).toEqual([first, otherClass]);
+    expect(useWhiteboardStore.getState().whiteboards).toEqual([first, otherSection, otherClass]);
   });
 
   it('adds, updates, and removes whiteboards', () => {

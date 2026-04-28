@@ -3,7 +3,7 @@ package com.ghost.service;
 import com.ghost.dto.request.CreateWhiteboardRequest;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
-import com.ghost.dto.response.UserResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
@@ -65,8 +65,9 @@ public class WhiteboardService {
         Course course = courseService.findOrCreate(normalizedCourseCode, normalizedCourseName, normalizedSection);
         Semester semester = semesterService.findOrCreate(normalizedSemester);
 
-        Optional<Whiteboard> existing = whiteboardRepository.findByCourseCourseCodeAndSemesterName(
+        Optional<Whiteboard> existing = whiteboardRepository.findByCourseCourseCodeAndCourseSectionAndSemesterName(
                 normalizedCourseCode,
+                normalizedSection,
                 normalizedSemester
         );
 
@@ -290,7 +291,7 @@ public class WhiteboardService {
     }
 
     @Transactional(readOnly = true)
-    public Page<UserResponse> getMemberResponses(UUID userId, UUID whiteboardId, Pageable pageable) {
+    public Page<MemberResponse> getMemberResponses(UUID userId, UUID whiteboardId, Pageable pageable) {
         return whiteboardMembershipService.getMemberResponses(userId, whiteboardId, pageable);
     }
 

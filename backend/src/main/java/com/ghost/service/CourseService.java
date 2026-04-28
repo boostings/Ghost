@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class CourseService {
@@ -14,20 +16,14 @@ public class CourseService {
 
     @Transactional
     public Course findOrCreate(String courseCode, String courseName, String section) {
-        return courseRepository.findByCourseCode(courseCode)
-                .map(existingCourse -> updateSectionIfNeeded(existingCourse, section))
+        Optional<Course> existingCourse = section == null
+                ? courseRepository.findByCourseCodeAndSectionIsNull(courseCode)
+                : courseRepository.findByCourseCodeAndSection(courseCode, section);
+        return existingCourse
                 .orElseGet(() -> courseRepository.save(Course.builder()
                         .courseCode(courseCode)
                         .courseName(courseName)
                         .section(section)
                         .build()));
-    }
-
-    private Course updateSectionIfNeeded(Course course, String section) {
-        if ((course.getSection() == null || course.getSection().isBlank()) && section != null) {
-            course.setSection(section);
-            return courseRepository.save(course);
-        }
-        return course;
     }
 }

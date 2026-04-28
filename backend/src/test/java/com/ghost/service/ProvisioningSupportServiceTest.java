@@ -19,22 +19,21 @@ import static org.mockito.Mockito.when;
 class ProvisioningSupportServiceTest {
 
     @Test
-    void courseServiceShouldUpdateMissingSectionWhenExistingCourseIsReused() {
+    void courseServiceShouldCreateSeparateCoursesForSeparateSections() {
         CourseRepository courseRepository = mock(CourseRepository.class);
         CourseService courseService = new CourseService(courseRepository);
         Course course = Course.builder()
                 .courseCode("IT326")
                 .courseName("Software Engineering")
-                .section(null)
+                .section("001")
                 .build();
 
-        when(courseRepository.findByCourseCode("IT326")).thenReturn(Optional.of(course));
-        when(courseRepository.save(course)).thenReturn(course);
+        when(courseRepository.findByCourseCodeAndSection("IT326", "001")).thenReturn(Optional.of(course));
 
         Course result = courseService.findOrCreate("IT326", "Software Engineering", "001");
 
         assertThat(result.getSection()).isEqualTo("001");
-        verify(courseRepository).save(course);
+        verify(courseRepository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

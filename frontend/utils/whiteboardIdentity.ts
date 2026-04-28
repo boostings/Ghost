@@ -1,11 +1,16 @@
-import type { CreateWhiteboardRequest, WhiteboardResponse } from '../types';
+import type { WhiteboardResponse } from '../types';
 
-type WhiteboardIdentityInput = Pick<CreateWhiteboardRequest, 'courseCode' | 'semester'>;
+type WhiteboardIdentityInput = {
+  courseCode: string;
+  semester: string;
+  section?: string | null;
+};
 
 export function normalizeWhiteboardIdentity(input: WhiteboardIdentityInput): string {
   const courseCode = input.courseCode.trim().replace(/\s+/g, '').toUpperCase();
   const semester = input.semester.trim().replace(/\s+/g, ' ').toUpperCase();
-  return `${courseCode}::${semester}`;
+  const section = input.section?.trim().replace(/\s+/g, '').toUpperCase() || 'NO_SECTION';
+  return `${courseCode}::${semester}::${section}`;
 }
 
 export function findMatchingWhiteboard(

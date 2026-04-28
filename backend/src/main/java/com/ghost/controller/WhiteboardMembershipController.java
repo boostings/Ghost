@@ -3,8 +3,8 @@ package com.ghost.controller;
 import com.ghost.dto.request.EmailRequest;
 import com.ghost.dto.request.JoinWhiteboardRequest;
 import com.ghost.dto.response.InviteInfoResponse;
+import com.ghost.dto.response.MemberResponse;
 import com.ghost.dto.response.PageResponse;
-import com.ghost.dto.response.UserResponse;
 import com.ghost.service.WhiteboardMembershipService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -79,14 +79,14 @@ public class WhiteboardMembershipController {
     }
 
     @GetMapping("/whiteboards/{wbId}/members")
-    public ResponseEntity<PageResponse<UserResponse>> getMemberResponses(
+    public ResponseEntity<PageResponse<MemberResponse>> getMemberResponses(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID wbId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
         Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
-        Page<UserResponse> members = whiteboardMembershipService.getMemberResponses(userId, wbId, pageable);
+        Page<MemberResponse> members = whiteboardMembershipService.getMemberResponses(userId, wbId, pageable);
         return ResponseEntity.ok(PageResponse.from(members));
     }
 
