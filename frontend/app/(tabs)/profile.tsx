@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '../../components/ui/Avatar';
+import { Ease } from '../../constants/motion';
 import { type AppColors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
@@ -57,9 +58,9 @@ function getStanding(karma: number, colors: AppColors): Standing {
     return {
       label: 'MEMBER',
       description: 'Good standing',
-      color: colors.info,
-      background: `${colors.info}26`,
-      border: `${colors.info}59`,
+      color: colors.textSecondary,
+      background: colors.surfaceLight,
+      border: colors.surfaceBorder,
     };
   }
   return {
@@ -170,33 +171,41 @@ export default function ProfileScreen() {
   const lastName = user?.lastName || '';
   const fullName = `${firstName} ${lastName}`.trim();
   const role = user?.role || 'STUDENT';
+  const isFaculty = role === 'FACULTY';
   const karmaScore = user?.karmaScore ?? 0;
   const standing = getStanding(karmaScore, colors);
 
-  const loadQuestions = useCallback(async (mode: 'replace' | 'append', requestedPage: number) => {
-    if (mode === 'replace') setLoading(true);
-    else setLoadingMore(true);
-    try {
-      const response = await questionService.getMyQuestions({
-        page: requestedPage,
-        size: PAGE_SIZE,
-      });
-      setQuestions((current) =>
-        mode === 'replace' ? response.content : [...current, ...response.content]
-      );
-      setPage(requestedPage);
-      setQuestionCount(response.totalElements);
-      setHasMore(requestedPage + 1 < response.totalPages);
-      setError(null);
-    } catch {
-      if (mode === 'replace') setQuestions([]);
-      setHasMore(false);
-      setError('Could not load your questions.');
-    } finally {
-      if (mode === 'replace') setLoading(false);
-      else setLoadingMore(false);
-    }
-  }, []);
+  const loadQuestions = useCallback(
+    async (mode: 'replace' | 'append', requestedPage: number) => {
+      if (mode === 'replace') setLoading(true);
+      else setLoadingMore(true);
+      try {
+        const response = await questionService.getMyQuestions({
+          role: isFaculty ? 'TEACHING' : 'AUTHOR',
+          status: isFaculty ? 'ANSWERED' : undefined,
+          page: requestedPage,
+          size: PAGE_SIZE,
+        });
+        setQuestions((current) =>
+          mode === 'replace' ? response.content : [...current, ...response.content]
+        );
+        setPage(requestedPage);
+        setQuestionCount(response.totalElements);
+        setHasMore(requestedPage + 1 < response.totalPages);
+        setError(null);
+      } catch {
+        if (mode === 'replace') setQuestions([]);
+        setHasMore(false);
+        setError(
+          isFaculty ? 'Could not load class activity.' : 'Could not load your questions.'
+        );
+      } finally {
+        if (mode === 'replace') setLoading(false);
+        else setLoadingMore(false);
+      }
+    },
+    [isFaculty]
+  );
 
   useEffect(() => {
     void loadQuestions('replace', 0);
@@ -342,10 +351,10 @@ export default function ProfileScreen() {
 
               <View style={styles.statsRow}>
                 <StatTile
-                  icon="help-circle-outline"
+                  icon={isFaculty ? 'checkmark-circle-outline' : 'help-circle-outline'}
                   colors={colors}
                   value={loading ? '—' : questionCount.toLocaleString()}
-                  label="Questions"
+                  label={isFaculty ? 'Resolved' : 'Questions'}
                 />
                 <StatTile
                   icon="flash-outline"
@@ -371,7 +380,9 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionEyebrow, { color: colors.text }]}>YOUR QUESTIONS</Text>
+                <Text style={[styles.sectionEyebrow, { color: colors.text }]}>
+                  {isFaculty ? 'ANSWERED IN YOUR CLASSES' : 'YOUR QUESTIONS'}
+                </Text>
                 <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
                   {loading ? 'Loading…' : `${questionCount.toLocaleString()} total`}
                 </Text>
@@ -398,10 +409,12 @@ export default function ProfileScreen() {
                   <Ionicons name="chatbubbles-outline" size={28} color={colors.primary} />
                 </View>
                 <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                  {error ?? 'No questions yet'}
+                  {error ?? (isFaculty ? 'No answered questions yet' : 'No questions yet')}
                 </Text>
                 <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
-                  Ask your first question on a class whiteboard to see it here.
+                  {isFaculty
+                    ? 'When questions in classes you teach get a verified answer, they appear here.'
+                    : 'Ask your first question on a class whiteboard to see it here.'}
                 </Text>
               </View>
             )
@@ -579,10 +592,9 @@ function QuestionRow({
   const statusColor = isClosed ? colors.primary : colors.openStatus;
   return (
     <Animated.View
-      entering={FadeInDown.duration(360)
+      entering={FadeInDown.duration(220)
         .delay(Math.min(index, 6) * 40)
-        .springify()
-        .damping(20)}
+        .easing(Ease.out)}
     >
       <Pressable
         onPress={onPress}

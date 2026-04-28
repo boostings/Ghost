@@ -193,7 +193,7 @@ export default function MembersScreen() {
                   </View>
                   <View style={styles.summaryDivider} />
                   <View style={styles.summaryItem}>
-                    <Ionicons name="time-outline" size={20} color={Colors.info} />
+                    <Ionicons name="time-outline" size={20} color={Colors.warning} />
                     <Text style={styles.summaryValue}>{pendingRequests.length}</Text>
                     <Text style={styles.summaryLabel}>Pending</Text>
                   </View>

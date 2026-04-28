@@ -37,14 +37,15 @@ export const Stagger = {
   footer: 280,
 } as const;
 
-// Helpers for consistent screen entrances.
+// Helpers for consistent screen entrances. Per Emil Kowalski:
+// UI entrances use ease-out (not springs) and stay under 300ms — springs are
+// reserved for natural motion like drag/drop and press/release.
 export const enterCard = (delay = 0) =>
-  FadeInDown.duration(Duration.hero).delay(delay).springify().damping(18);
+  FadeInDown.duration(Duration.normal).delay(delay).easing(Ease.out);
 
 export const enterList = (index: number) =>
-  FadeInDown.duration(Duration.slow)
+  FadeInDown.duration(Duration.normal)
     .delay(index * Stagger.list)
-    .springify()
-    .damping(18);
+    .easing(Ease.out);
 
-export const enterFade = (delay = 0) => FadeIn.duration(Duration.slow).delay(delay);
+export const enterFade = (delay = 0) => FadeIn.duration(Duration.normal).delay(delay);

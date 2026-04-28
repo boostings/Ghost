@@ -175,52 +175,70 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.duration(360).delay(60)}>
-            <Text style={styles.sectionTitle}>Notifications</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Notifications</Text>
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+              ]}
+            >
               <View style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="notifications-outline" size={18} color={Colors.primary} />
+                <View style={[styles.rowIcon, { backgroundColor: `${colors.primary}26` }]}>
+                  <Ionicons name="notifications-outline" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>Push notifications</Text>
-                  <Text style={styles.rowHint}>Alerts for new answers and comments</Text>
+                  <Text style={[styles.rowLabel, { color: colors.text }]}>Push notifications</Text>
+                  <Text style={[styles.rowHint, { color: colors.textMuted }]}>
+                    Alerts for new answers and comments
+                  </Text>
                 </View>
                 <Switch
                   value={notificationsEnabled}
                   onValueChange={setNotificationsEnabled}
-                  trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(187,39,68,0.5)' }}
-                  thumbColor={notificationsEnabled ? Colors.primary : Colors.textMuted}
+                  trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
+                  thumbColor={notificationsEnabled ? colors.primary : colors.textMuted}
                 />
               </View>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: colors.surfaceBorder }]} />
               <View style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="mail-outline" size={18} color={Colors.primary} />
+                <View style={[styles.rowIcon, { backgroundColor: `${colors.primary}26` }]}>
+                  <Ionicons name="mail-outline" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>Email notifications</Text>
-                  <Text style={styles.rowHint}>Daily summary of important updates</Text>
+                  <Text style={[styles.rowLabel, { color: colors.text }]}>Email notifications</Text>
+                  <Text style={[styles.rowHint, { color: colors.textMuted }]}>
+                    Daily summary of important updates
+                  </Text>
                 </View>
                 <Switch
                   value={emailNotifications}
                   onValueChange={setEmailNotifications}
-                  trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(187,39,68,0.5)' }}
-                  thumbColor={emailNotifications ? Colors.primary : Colors.textMuted}
+                  trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
+                  thumbColor={emailNotifications ? colors.primary : colors.textMuted}
                 />
               </View>
             </View>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(360).delay(120)}>
-            <Text style={styles.sectionTitle}>Account</Text>
-            <View style={styles.card}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Account</Text>
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+              ]}
+            >
               <View style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="person-outline" size={18} color={Colors.primary} />
+                <View style={[styles.rowIcon, { backgroundColor: `${colors.primary}26` }]}>
+                  <Ionicons name="person-outline" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>{user?.email ?? 'Signed in'}</Text>
-                  <Text style={styles.rowHint}>Currently signed in account</Text>
+                  <Text style={[styles.rowLabel, { color: colors.text }]}>
+                    {user?.email ?? 'Signed in'}
+                  </Text>
+                  <Text style={[styles.rowHint, { color: colors.textMuted }]}>
+                    Currently signed in account
+                  </Text>
                 </View>
               </View>
             </View>
@@ -238,7 +256,7 @@ export default function SettingsScreen() {
             />
           </Animated.View>
 
-          <Text style={styles.versionText}>Ghost v1.0.0</Text>
+          <Text style={[styles.versionText, { color: colors.textMuted }]}>Ghost v1.0.0</Text>
         </ScrollView>
       </SafeAreaView>
     </View>

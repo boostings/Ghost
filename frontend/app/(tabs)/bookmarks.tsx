@@ -158,9 +158,13 @@ export default function SavedScreen() {
           <Animated.View
             entering={reduceMotion ? FadeIn.duration(160) : FadeIn.duration(240).delay(40)}
           >
-            <View style={styles.groupHeader}>
-              <Text style={styles.groupHeaderText}>{item.group.classCode}</Text>
-              <Text style={styles.groupHeaderCount}>{item.group.items.length}</Text>
+            <View style={[styles.groupHeader, { borderBottomColor: colors.surfaceBorder }]}>
+              <Text style={[styles.groupHeaderText, { color: colors.text }]}>
+                {item.group.classCode}
+              </Text>
+              <Text style={[styles.groupHeaderCount, { color: colors.primary }]}>
+                {item.group.items.length}
+              </Text>
             </View>
           </Animated.View>
         );
@@ -203,17 +207,23 @@ export default function SavedScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>BOOKMARKED</Text>
+            <Text style={[styles.eyebrow, { color: colors.primary }]}>BOOKMARKED</Text>
             <View style={styles.heroRow}>
-              <Text style={styles.headerTitle}>Saved</Text>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Saved</Text>
               {bookmarks.length > 0 ? (
-                <Text style={styles.heroCount}>{bookmarks.length}</Text>
+                <Text style={[styles.heroCount, { color: colors.primary }]}>
+                  {bookmarks.length}
+                </Text>
               ) : null}
             </View>
             {empty ? (
-              <Text style={styles.headerMeta}>Nothing saved yet</Text>
+              <Text style={[styles.headerMeta, { color: colors.textMuted }]}>
+                Nothing saved yet
+              </Text>
             ) : groups.length > 1 ? (
-              <Text style={styles.headerMeta}>{groups.length} classes</Text>
+              <Text style={[styles.headerMeta, { color: colors.textMuted }]}>
+                {groups.length} classes
+              </Text>
             ) : null}
           </View>
         </View>
@@ -234,11 +244,23 @@ export default function SavedScreen() {
                       haptic.selection();
                       setFilter(option.key);
                     }}
-                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    style={[
+                      styles.filterChip,
+                      { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+                      active && {
+                        backgroundColor: `${colors.primary}26`,
+                        borderColor: colors.primary,
+                      },
+                    ]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                   >
-                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        { color: active ? colors.text : colors.textSecondary },
+                      ]}
+                    >
                       {option.label}
                     </Text>
                   </Pressable>
@@ -304,12 +326,20 @@ function SavedRow({
   onPress: () => void;
   onRemove: () => void;
 }) {
+  const colors = useThemeColors();
   const q = item.question;
   return (
     <Animated.View entering={entering} style={styles.rowWrap}>
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        style={({ pressed }) => [
+          styles.row,
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+          pressed && {
+            backgroundColor: colors.surfaceLight,
+            borderColor: `${colors.primary}66`,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={`Open saved question: ${q.title}`}
       >
@@ -318,8 +348,16 @@ function SavedRow({
           <View style={styles.rowTopRow}>
             <View style={styles.rowBadges}>
               {q.topicName ? (
-                <View style={styles.topicChip}>
-                  <Text style={styles.topicChipText} numberOfLines={1}>
+                <View
+                  style={[
+                    styles.topicChip,
+                    { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                  ]}
+                >
+                  <Text
+                    style={[styles.topicChipText, { color: colors.textSecondary }]}
+                    numberOfLines={1}
+                  >
                     {q.topicName}
                   </Text>
                 </View>
@@ -333,29 +371,33 @@ function SavedRow({
               accessibilityRole="button"
               accessibilityLabel="Remove from saved"
             >
-              <Ionicons name="bookmark" size={14} color={Colors.primary} />
+              <Ionicons name="bookmark" size={14} color={colors.primary} />
             </Pressable>
           </View>
 
-          <Text style={styles.rowTitle} numberOfLines={2}>
+          <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
             {q.title}
           </Text>
-          <Text style={styles.rowBodyText} numberOfLines={2}>
+          <Text style={[styles.rowBodyText, { color: colors.textSecondary }]} numberOfLines={2}>
             {q.isHidden ? '[hidden]' : q.body}
           </Text>
 
           <View style={styles.rowFooter}>
-            <Text style={styles.metaText} numberOfLines={1}>
+            <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
               {q.authorName} · saved {formatDate(item.createdAt)}
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
-                <Ionicons name="caret-up" size={11} color={Colors.textSecondary} />
-                <Text style={styles.statText}>{q.karmaScore}</Text>
+                <Ionicons name="caret-up" size={11} color={colors.textSecondary} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  {q.karmaScore}
+                </Text>
               </View>
               <View style={styles.stat}>
-                <Ionicons name="chatbubble-outline" size={11} color={Colors.textSecondary} />
-                <Text style={styles.statText}>{q.commentCount}</Text>
+                <Ionicons name="chatbubble-outline" size={11} color={colors.textSecondary} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  {q.commentCount}
+                </Text>
               </View>
             </View>
           </View>

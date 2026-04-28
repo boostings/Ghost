@@ -19,7 +19,7 @@ import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Stagger } from '../../constants/motion';
+import { Duration, Ease, Stagger } from '../../constants/motion';
 import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/authStore';
@@ -113,10 +113,9 @@ export default function NewPasswordScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.hero)
+              entering={FadeInDown.duration(Duration.normal)
                 .delay(Stagger.card)
-                .springify()
-                .damping(20)}
+                .easing(Ease.out)}
             >
               <GlassInput
                 label="New Password"

@@ -222,9 +222,9 @@ export default function AlertsScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>ACTIVITY</Text>
-            <Text style={styles.headerTitle}>Alerts</Text>
-            <Text style={styles.headerMeta}>
+            <Text style={[styles.eyebrow, { color: colors.primary }]}>ACTIVITY</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Alerts</Text>
+            <Text style={[styles.headerMeta, { color: colors.textMuted }]}>
               {empty
                 ? 'Nothing new yet'
                 : unreadCount === 0
@@ -237,13 +237,17 @@ export default function AlertsScreen() {
               onPress={handleMarkAll}
               style={({ pressed }) => [
                 styles.markAllButton,
-                pressed && styles.markAllButtonPressed,
+                {
+                  backgroundColor: `${colors.primary}1F`,
+                  borderColor: `${colors.primary}40`,
+                },
+                pressed && { backgroundColor: `${colors.primary}33` },
               ]}
               accessibilityRole="button"
               accessibilityLabel="Mark all as read"
             >
-              <Ionicons name="checkmark-done" size={14} color={Colors.primary} />
-              <Text style={styles.markAllText}>Mark all read</Text>
+              <Ionicons name="checkmark-done" size={14} color={colors.primary} />
+              <Text style={[styles.markAllText, { color: colors.primary }]}>Mark all read</Text>
             </Pressable>
           ) : null}
         </View>
@@ -302,15 +306,20 @@ function AlertRow({
   entering: ReturnType<typeof FadeInDown.duration>;
   onPress: () => void;
 }) {
-  const icon = ICONS[item.type] ?? { name: 'notifications', tint: Colors.primary };
+  const colors = useThemeColors();
+  const icon = ICONS[item.type] ?? { name: 'notifications', tint: colors.primary };
   return (
     <Animated.View entering={entering} style={styles.rowWrap}>
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
           styles.row,
-          item.isRead ? styles.rowRead : styles.rowUnread,
-          pressed && styles.rowPressed,
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+          !item.isRead && {
+            backgroundColor: colors.surfaceLight,
+            borderColor: `${colors.primary}4D`,
+          },
+          pressed && { backgroundColor: colors.surfaceLight },
         ]}
         accessibilityRole="button"
         accessibilityLabel={item.title}
@@ -322,20 +331,28 @@ function AlertRow({
         <View style={styles.rowBody}>
           <View style={styles.rowTopRow}>
             <Text
-              style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]}
+              style={[
+                styles.rowTitle,
+                { color: item.isRead ? colors.textSecondary : colors.text },
+                !item.isRead && styles.rowTitleUnread,
+              ]}
               numberOfLines={2}
             >
               {item.title}
             </Text>
-            <Text style={styles.rowTime}>{formatRelative(item.createdAt)}</Text>
+            <Text style={[styles.rowTime, { color: colors.textMuted }]}>
+              {formatRelative(item.createdAt)}
+            </Text>
           </View>
           {item.body ? (
-            <Text style={styles.rowBodyText} numberOfLines={2}>
+            <Text style={[styles.rowBodyText, { color: colors.textMuted }]} numberOfLines={2}>
               {item.body}
             </Text>
           ) : null}
         </View>
-        {!item.isRead ? <View style={styles.unreadDot} /> : null}
+        {!item.isRead ? (
+          <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+        ) : null}
       </Pressable>
     </Animated.View>
   );

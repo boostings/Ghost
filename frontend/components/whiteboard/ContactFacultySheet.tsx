@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import GlassModal from '../ui/GlassModal';
 import { AnimatedIcon } from '../AnimatedIcon';
-import { Colors } from '../../constants/colors';
+import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { whiteboardService } from '../../services/whiteboardService';
 import { haptic } from '../../utils/haptics';
@@ -19,6 +19,7 @@ export const ContactFacultySheet: React.FC<ContactFacultySheetProps> = ({
   onClose,
   whiteboardId,
 }) => {
+  const colors = useThemeColors();
   const [faculty, setFaculty] = useState<MemberResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,12 +59,14 @@ export const ContactFacultySheet: React.FC<ContactFacultySheetProps> = ({
     <GlassModal visible={visible} onClose={onClose} title="Contact faculty">
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={Colors.primary} />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
       ) : faculty.length === 0 ? (
-        <Text style={styles.empty}>No faculty listed for this class yet.</Text>
+        <Text style={[styles.empty, { color: colors.textMuted }]}>
+          No faculty listed for this class yet.
+        </Text>
       ) : (
         faculty.map((member) => {
           const initials =
@@ -72,23 +75,29 @@ export const ContactFacultySheet: React.FC<ContactFacultySheetProps> = ({
           return (
             <Pressable
               key={member.id}
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+              style={({ pressed }) => [
+                styles.row,
+                { borderBottomColor: colors.surfaceBorder },
+                pressed && { opacity: 0.7 },
+              ]}
               onPress={() => handleEmail(member.email)}
               accessibilityRole="button"
               accessibilityLabel={`Email ${fullName}`}
             >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials || '?'}</Text>
+              <View style={[styles.avatar, { backgroundColor: `${colors.primary}33` }]}>
+                <Text style={[styles.avatarText, { color: colors.primary }]}>
+                  {initials || '?'}
+                </Text>
               </View>
               <View style={styles.identity}>
-                <Text style={styles.name} numberOfLines={1}>
+                <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
                   {fullName}
                 </Text>
-                <Text style={styles.email} numberOfLines={1}>
+                <Text style={[styles.email, { color: colors.textMuted }]} numberOfLines={1}>
                   {member.email}
                 </Text>
               </View>
-              <AnimatedIcon name="mail-outline" size={18} color={Colors.primary} motion="none" />
+              <AnimatedIcon name="mail-outline" size={18} color={colors.primary} motion="none" />
             </Pressable>
           );
         })

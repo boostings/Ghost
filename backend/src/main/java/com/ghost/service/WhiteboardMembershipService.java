@@ -149,8 +149,32 @@ public class WhiteboardMembershipService {
             throw new BadRequestException("Can only invite users with FACULTY role");
         }
 
-        if (whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, faculty.getId())) {
-            throw new BadRequestException("Faculty member is already in this whiteboard");
+        // Already in the whiteboard? Promote their existing membership to FACULTY
+        // instead of refusing. This covers the common case where a user joined as
+        // a student (e.g. observing the class) and the owner now wants to grant
+        // them moderator powers — without forcing a leave/rejoin dance.
+        WhiteboardMembership existing = whiteboardMembershipRepository
+                .findByWhiteboardIdAndUserId(whiteboardId, faculty.getId())
+                .orElse(null);
+
+        if (existing != null) {
+            if (existing.getRole() == Role.FACULTY) {
+                throw new BadRequestException("Faculty member is already in this whiteboard");
+            }
+            String oldRole = existing.getRole().name();
+            existing.setRole(Role.FACULTY);
+            whiteboardMembershipRepository.save(existing);
+
+            auditLogService.logAction(
+                    whiteboardId,
+                    ownerId,
+                    AuditAction.FACULTY_INVITED,
+                    "User",
+                    faculty.getId(),
+                    "role=" + oldRole,
+                    "role=FACULTY"
+            );
+            return;
         }
 
         WhiteboardMembership membership = WhiteboardMembership.builder()

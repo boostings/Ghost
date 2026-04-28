@@ -21,7 +21,7 @@ import GlassButton from '../../components/ui/GlassButton';
 import GlassModal from '../../components/ui/GlassModal';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Stagger, enterList } from '../../constants/motion';
+import { Duration, Ease, Stagger, enterList } from '../../constants/motion';
 import { Spacing } from '../../constants/spacing';
 import { whiteboardService } from '../../services/whiteboardService';
 import { useAuthStore } from '../../stores/authStore';
@@ -225,10 +225,9 @@ export default function OnboardingScreen() {
 
           <GlassCard
             style={styles.card}
-            entering={FadeInDown.duration(Duration.hero)
+            entering={FadeInDown.duration(Duration.normal)
               .delay(Stagger.card)
-              .springify()
-              .damping(20)}
+              .easing(Ease.out)}
           >
             <Text style={[styles.cardTitle, { color: colors.text }]}>Join a Class</Text>
             <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
@@ -293,8 +292,7 @@ export default function OnboardingScreen() {
             style={styles.card}
             entering={FadeInDown.duration(Duration.hero)
               .delay(Stagger.card + 80)
-              .springify()
-              .damping(20)}
+              .easing(Ease.out)}
           >
             <Text style={[styles.cardTitle, { color: colors.text }]}>Available Classes</Text>
             <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>

@@ -129,7 +129,7 @@ public class WhiteboardService {
     @Transactional
     public WhiteboardResponse createWhiteboardResponse(UUID facultyId, CreateWhiteboardRequest req) {
         Whiteboard whiteboard = createWhiteboard(facultyId, req);
-        return whiteboardResponseAssembler.toResponse(whiteboard, true);
+        return whiteboardResponseAssembler.toResponse(whiteboard, true, facultyId);
     }
 
     @Transactional
@@ -251,7 +251,8 @@ public class WhiteboardService {
         return whiteboardMembershipRepository.findByUserId(userId, pageable)
                 .map(membership -> whiteboardResponseAssembler.toResponse(
                         membership.getWhiteboard(),
-                        membership.getRole() == Role.FACULTY
+                        membership.getRole() == Role.FACULTY,
+                        userId
                 ));
     }
 
@@ -261,14 +262,18 @@ public class WhiteboardService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         return whiteboardRepository.findDiscoverableForUser(userId, pageable)
-                .map(whiteboard -> whiteboardResponseAssembler.toResponse(whiteboard, false));
+                .map(whiteboard -> whiteboardResponseAssembler.toResponse(whiteboard, false, userId));
     }
 
     @Transactional(readOnly = true)
     public WhiteboardResponse getWhiteboardResponse(UUID userId, UUID whiteboardId) {
         WhiteboardMembership membership = verifyMembership(userId, whiteboardId);
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
-        return whiteboardResponseAssembler.toResponse(whiteboard, membership.getRole() == Role.FACULTY);
+        return whiteboardResponseAssembler.toResponse(
+                whiteboard,
+                membership.getRole() == Role.FACULTY,
+                userId
+        );
     }
 
     @Transactional(readOnly = true)

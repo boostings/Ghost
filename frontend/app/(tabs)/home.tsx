@@ -23,7 +23,7 @@ import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import { AnimatedIcon } from '../../components/AnimatedIcon';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Stagger, enterList } from '../../constants/motion';
+import { Duration, Ease, Stagger, enterList } from '../../constants/motion';
 import { Spacing, Shadow } from '../../constants/spacing';
 import { haptic } from '../../utils/haptics';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
@@ -32,7 +32,6 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
 import { parseInviteCode } from '../../utils/inviteCode';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
-import { MyQuestionCard } from '../../components/MyQuestionCard';
 import type { QuestionResponse, WhiteboardResponse } from '../../types';
 
 const WHITEBOARD_PAGE_SIZE = 20;
@@ -55,6 +54,8 @@ export default function HomeScreen() {
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showAllAwaiting, setShowAllAwaiting] = useState(false);
+  const [showAllAnswered, setShowAllAnswered] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -219,9 +220,13 @@ export default function HomeScreen() {
 
   const renderWhiteboardCard = useCallback(
     ({ item, index }: { item: WhiteboardResponse; index: number }) => (
-      <Animated.View entering={enterList(index)} layout={LinearTransition.springify().damping(20)}>
+      <Animated.View
+        entering={enterList(index)}
+        layout={LinearTransition.duration(Duration.normal).easing(Ease.out)}
+      >
         <GlassCard
           style={styles.whiteboardCard}
+          highlight={false}
           accessibilityLabel={`Open ${item.courseCode} whiteboard`}
           onPress={() =>
             router.push({
@@ -288,6 +293,23 @@ export default function HomeScreen() {
             {item.courseName}
           </Text>
 
+          {item.ownerName ? (
+            <View style={styles.teacherRow}>
+              <AnimatedIcon
+                name="school-outline"
+                size={14}
+                color={colors.textMuted}
+                motion="none"
+              />
+              <Text
+                style={[styles.teacherText, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {item.ownerName}
+              </Text>
+            </View>
+          ) : null}
+
           <View style={[styles.cardFooter, { borderTopColor: colors.surfaceBorder }]}>
             <View style={styles.metaItem}>
               <AnimatedIcon
@@ -331,32 +353,98 @@ export default function HomeScreen() {
     items: QuestionResponse[]
   ) => {
     if (items.length === 0) return null;
+    const expanded = variant === 'awaiting' ? showAllAwaiting : showAllAnswered;
+    const visibleItems = expanded ? items : items.slice(0, 3);
+    const remaining = items.length - 3;
+    const toggle = () =>
+      variant === 'awaiting'
+        ? setShowAllAwaiting((v) => !v)
+        : setShowAllAnswered((v) => !v);
+
+    const isAnswered = variant === 'answered';
+    const accent = isAnswered ? colors.verifiedAnswer : colors.warning;
+
     return (
       <View style={styles.stripBlock}>
         <Text style={[styles.stripTitle, { color: colors.text }]}>{title}</Text>
-        <FlatList
-          horizontal
-          data={items}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.stripList}
-          ItemSeparatorComponent={() => <View style={styles.stripSeparator} />}
-          renderItem={({ item }) => (
-            <MyQuestionCard question={item} variant={variant} onPress={navigateToQuestion} />
-          )}
-        />
+        <View
+          style={[
+            styles.questionRowGroup,
+            { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+          ]}
+        >
+          {visibleItems.map((item, idx) => (
+            <Pressable
+              key={item.id}
+              onPress={() => navigateToQuestion(item)}
+              style={({ pressed }) => [
+                styles.questionRow,
+                idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.surfaceBorder },
+                pressed && { backgroundColor: colors.surfaceLight },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Open question: ${item.title}`}
+            >
+              <View style={[styles.statusDot, { backgroundColor: accent }]} />
+              <View style={styles.questionRowBody}>
+                <Text
+                  style={[styles.questionRowTitle, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text
+                  style={[styles.questionRowMeta, { color: colors.textMuted }]}
+                  numberOfLines={1}
+                >
+                  {[
+                    item.whiteboardCourseCode,
+                    item.commentCount > 0
+                      ? `${item.commentCount} ${item.commentCount === 1 ? 'reply' : 'replies'}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              </View>
+              <AnimatedIcon
+                name="chevron-forward"
+                size={16}
+                color={colors.textMuted}
+                motion="none"
+              />
+            </Pressable>
+          ))}
+        </View>
+        {items.length > 3 ? (
+          <Pressable
+            onPress={toggle}
+            style={({ pressed }) => [
+              styles.loadMoreButton,
+              pressed && { opacity: 0.6 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={expanded ? 'Show fewer' : `Show ${remaining} more`}
+          >
+            <Text style={[styles.loadMoreText, { color: colors.primary }]}>
+              {expanded ? 'Show fewer' : `Show ${remaining} more`}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   };
 
-  const awaitingTitle = isFaculty ? 'Awaiting your answer' : 'Awaiting an answer';
-  const answeredTitle = isFaculty ? 'Recently answered in your classes' : 'Recently answered';
+  const awaitingTitle = isFaculty ? 'Recently asked' : 'Awaiting an answer';
+  const answeredTitle = 'Recently answered';
   const myQuestionsHeader = (
     <Animated.View
-      entering={FadeInDown.duration(Duration.normal).delay(Stagger.hero).springify().damping(22)}
+      entering={FadeInDown.duration(Duration.normal).delay(Stagger.hero).easing(Ease.out)}
     >
       {renderMyQuestionStrip(awaitingTitle, 'awaiting', awaitingQuestions)}
-      {renderMyQuestionStrip(answeredTitle, 'answered', answeredQuestions)}
+      {!isFaculty
+        ? renderMyQuestionStrip(answeredTitle, 'answered', answeredQuestions)
+        : null}
       {whiteboards.length > 0 ? (
         <Text style={[styles.classesHeading, { color: colors.text }]}>Your Classes</Text>
       ) : null}
@@ -379,7 +467,7 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <Animated.View
           style={styles.header}
-          entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero).springify().damping(22)}
+          entering={FadeInDown.duration(Duration.normal).easing(Ease.out)}
         >
           <View style={styles.headerCopy}>
             <Text style={[styles.eyebrow, { color: colors.primary }]}>
@@ -578,11 +666,48 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     marginBottom: Spacing.sm,
   },
-  stripList: {
-    paddingRight: Spacing.xxl,
+  questionRowGroup: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
-  stripSeparator: {
-    width: Spacing.md,
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  questionRowBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  questionRowTitle: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+    marginBottom: 2,
+  },
+  questionRowMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  loadMoreButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  loadMoreText: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   classesHeading: {
     fontSize: Fonts.sizes.lg,
@@ -595,6 +720,7 @@ const styles = StyleSheet.create({
   },
   whiteboardCard: {
     marginBottom: Spacing.lg,
+    ...Shadow.soft,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -638,9 +764,20 @@ const styles = StyleSheet.create({
   courseName: {
     fontSize: Fonts.sizes.xl,
     fontWeight: '700',
-    marginBottom: 14,
+    marginBottom: 8,
     letterSpacing: -0.3,
     lineHeight: Fonts.sizes.xl + 6,
+  },
+  teacherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  teacherText: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   cardFooter: {
     flexDirection: 'row',

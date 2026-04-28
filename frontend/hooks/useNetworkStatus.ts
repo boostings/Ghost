@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 
 interface NetworkStatus {
@@ -7,19 +7,13 @@ interface NetworkStatus {
   isOffline: boolean;
 }
 
-function toNetworkStatus(state: NetInfoState): NetworkStatus {
-  const isConnected = state.isConnected;
-  const isInternetReachable = state.isInternetReachable ?? null;
+const OFFLINE_CONFIRM_MS = 6000;
 
-  // Only flag offline when the radio is explicitly disconnected. NetInfo's
-  // isInternetReachable probes Apple/Google endpoints that fail to resolve on
-  // the iOS Simulator (and behind some captive portals) even when the API is
-  // reachable, which produced false-positive banners.
-  return {
-    isConnected,
-    isInternetReachable,
-    isOffline: isConnected === false,
-  };
+function rawIsOffline(state: NetInfoState): boolean {
+  // Require BOTH signals to agree the device is offline. NetInfo on iOS 17+
+  // simulators (and behind some captive portals) can flap either signal alone
+  // even when the API is reachable, which produced false-positive banners.
+  return state.isConnected === false && state.isInternetReachable === false;
 }
 
 export function useNetworkStatus(): NetworkStatus {
@@ -28,23 +22,44 @@ export function useNetworkStatus(): NetworkStatus {
     isInternetReachable: null,
     isOffline: false,
   });
+  const offlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setStatus(toNetworkStatus(state));
-    });
+    function clearTimer() {
+      if (offlineTimer.current) {
+        clearTimeout(offlineTimer.current);
+        offlineTimer.current = null;
+      }
+    }
 
+    function apply(state: NetInfoState) {
+      const next: NetworkStatus = {
+        isConnected: state.isConnected,
+        isInternetReachable: state.isInternetReachable ?? null,
+        isOffline: false,
+      };
+      if (rawIsOffline(state)) {
+        if (!offlineTimer.current) {
+          offlineTimer.current = setTimeout(() => {
+            setStatus((prev) => ({ ...prev, isOffline: true }));
+          }, OFFLINE_CONFIRM_MS);
+        }
+        setStatus((prev) => ({ ...next, isOffline: prev.isOffline }));
+      } else {
+        clearTimer();
+        setStatus(next);
+      }
+    }
+
+    const unsubscribe = NetInfo.addEventListener(apply);
     NetInfo.fetch()
-      .then((state) => setStatus(toNetworkStatus(state)))
-      .catch(() => {
-        setStatus({
-          isConnected: null,
-          isInternetReachable: null,
-          isOffline: false,
-        });
-      });
+      .then(apply)
+      .catch(() => {});
 
-    return unsubscribe;
+    return () => {
+      clearTimer();
+      unsubscribe();
+    };
   }, []);
 
   return status;

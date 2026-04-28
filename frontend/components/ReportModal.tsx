@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import GlassModal from './ui/GlassModal';
-import { Colors } from '../constants/colors';
+import { Colors, useThemeColors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { reportService } from '../services/reportService';
 import type { ReportReason } from '../types';
@@ -42,6 +42,7 @@ const ReportModal: React.FC<ReportModalProps> = ({
   title,
   onSubmitted,
 }) => {
+  const colors = useThemeColors();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -84,52 +85,78 @@ const ReportModal: React.FC<ReportModalProps> = ({
   const footer = (
     <TouchableOpacity
       onPress={handleSubmit}
-      style={[styles.submitButton, (!reason || submitting) && styles.submitButtonDisabled]}
+      style={[
+        styles.submitButton,
+        { backgroundColor: colors.primary },
+        (!reason || submitting) && styles.submitButtonDisabled,
+      ]}
       disabled={!reason || submitting}
       accessibilityRole="button"
       accessibilityLabel="Send report"
     >
       {submitting ? (
-        <ActivityIndicator size="small" color={Colors.text} />
+        <ActivityIndicator size="small" color="#FFFFFF" />
       ) : (
-        <Text style={styles.submitText}>Send</Text>
+        <Text style={[styles.submitText, { color: '#FFFFFF' }]}>Send</Text>
       )}
     </TouchableOpacity>
   );
 
   return (
     <GlassModal visible={visible} onClose={onClose} title={title} footer={footer}>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Select the reason and add optional context for faculty moderators.
       </Text>
 
       <View style={styles.reasonList}>
-        {REPORT_REASON_OPTIONS.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[styles.reasonOption, reason === option.value && styles.reasonOptionActive]}
-            onPress={() => setReason(option.value)}
-            accessibilityRole="button"
-            accessibilityLabel={`Report reason: ${option.label}`}
-          >
-            <Text style={[styles.reasonLabel, reason === option.value && styles.reasonLabelActive]}>
-              {option.label}
-            </Text>
-            <Text style={styles.reasonDescription}>{option.description}</Text>
-          </TouchableOpacity>
-        ))}
+        {REPORT_REASON_OPTIONS.map((option) => {
+          const active = reason === option.value;
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.reasonOption,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.surfaceBorder,
+                },
+                active && {
+                  backgroundColor: `${colors.primary}26`,
+                  borderColor: colors.primary,
+                },
+              ]}
+              onPress={() => setReason(option.value)}
+              accessibilityRole="button"
+              accessibilityLabel={`Report reason: ${option.label}`}
+            >
+              <Text style={[styles.reasonLabel, { color: active ? colors.primary : colors.text }]}>
+                {option.label}
+              </Text>
+              <Text style={[styles.reasonDescription, { color: colors.textMuted }]}>
+                {option.description}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <Text style={styles.notesLabel}>Notes (optional)</Text>
+      <Text style={[styles.notesLabel, { color: colors.textSecondary }]}>Notes (optional)</Text>
       <TextInput
-        style={styles.notesInput}
+        style={[
+          styles.notesInput,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.inputBorder,
+            color: colors.text,
+          },
+        ]}
         placeholder="Add context for faculty review..."
-        placeholderTextColor={Colors.textMuted}
+        placeholderTextColor={colors.textMuted}
         value={notes}
         onChangeText={setNotes}
         multiline
         maxLength={500}
-        selectionColor={Colors.primary}
+        selectionColor={colors.primary}
       />
     </GlassModal>
   );

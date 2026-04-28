@@ -7,6 +7,7 @@ import { useWhiteboardStore } from '../stores/whiteboardStore';
 import { questionService } from '../services/questionService';
 import { commentService } from '../services/commentService';
 import { bookmarkService } from '../services/bookmarkService';
+import { whiteboardService } from '../services/whiteboardService';
 import { sanitizeText } from '../utils/sanitize';
 import { extractErrorMessage } from './useApi';
 import { reconcileCommentEvent, sortCommentsByCreatedAt } from '../utils/questionCommentEvents';
@@ -31,6 +32,7 @@ export function useQuestionDetailModel({
 }: UseQuestionDetailModelOptions) {
   const user = useAuthStore((state) => state.user);
   const whiteboards = useWhiteboardStore((state) => state.whiteboards);
+  const addWhiteboard = useWhiteboardStore((state) => state.addWhiteboard);
   const { subscribe } = useWebSocket();
   const commentInputRef = useRef<TextInput>(null);
   const lastFetchRef = useRef(0);
@@ -47,17 +49,16 @@ export function useQuestionDetailModel({
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
-  // Per-whiteboard faculty check. A user may have FACULTY role globally but
-  // only own certain whiteboards; moderator actions (verify, pin, close)
-  // must be gated on owning *this* whiteboard. Defaults to true while the
-  // whiteboard is still loading so we don't briefly hide the controls from
-  // legitimate faculty.
+  // Per-whiteboard faculty check. Backend enforces moderation by membership
+  // role (verifyFacultyRole), and a globally-FACULTY user can be enrolled in
+  // another teacher's class as STUDENT — so the global User.role is unsafe to
+  // gate UI on. We resolve the viewer's whiteboard role from the store cache
+  // (or fetch it below) and only show moderation affordances when authoritative.
   const targetWhiteboardId = whiteboardId ?? question?.whiteboardId;
   const targetWhiteboard = targetWhiteboardId
     ? whiteboards.find((w) => w.id === targetWhiteboardId)
     : undefined;
-  const isFaculty =
-    user?.role === 'FACULTY' && (!targetWhiteboard || targetWhiteboard.ownerId === user.id);
+  const isFaculty = targetWhiteboard?.myRole === 'FACULTY';
 
   const fetchData = useCallback(async () => {
     if (!questionId) {
@@ -73,11 +74,21 @@ export function useQuestionDetailModel({
         ? questionService.getById(whiteboardId, questionId)
         : questionService.getByIdGlobal(questionId);
       const nextQuestion = await resolvedQuestion;
-      const nextComments = await commentService.list(nextQuestion.whiteboardId, questionId);
+
+      // Load comments and the whiteboard (for the viewer's per-board role) in
+      // parallel. Whiteboard fetch is best-effort: if it fails the moderation
+      // UI just stays hidden, which is the safe default.
+      const [nextComments, nextWhiteboard] = await Promise.all([
+        commentService.list(nextQuestion.whiteboardId, questionId),
+        whiteboardService.getById(nextQuestion.whiteboardId).catch(() => null),
+      ]);
 
       setQuestion(nextQuestion);
       setComments(sortCommentsByCreatedAt(nextComments));
       setIsBookmarked(nextQuestion.isBookmarked || false);
+      if (nextWhiteboard) {
+        addWhiteboard(nextWhiteboard);
+      }
       setLoadError(null);
       lastFetchRef.current = Date.now();
     } catch {
@@ -87,7 +98,7 @@ export function useQuestionDetailModel({
     } finally {
       setLoading(false);
     }
-  }, [questionId, whiteboardId]);
+  }, [addWhiteboard, questionId, whiteboardId]);
 
   useFocusEffect(
     useCallback(() => {

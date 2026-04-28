@@ -88,6 +88,12 @@ export interface WhiteboardResponse {
   isDemo: boolean;
   memberCount: number;
   createdAt: string;
+  /**
+   * Viewer's per-whiteboard role. Distinct from the user's global role:
+   * a globally-FACULTY user can be enrolled here as STUDENT (observer mode),
+   * with no moderator powers on this board.
+   */
+  myRole?: 'STUDENT' | 'FACULTY';
 }
 
 export interface CourseSectionResponse {

@@ -222,42 +222,42 @@ export default function QuestionDetailScreen() {
           keyboardVerticalOffset={0}
         >
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: themeColors.surfaceBorder }]}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={styles.backButton}
+              style={[styles.backButton, { backgroundColor: themeColors.surfaceLight }]}
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <AnimatedIcon name="chevron-back" size={20} color={Colors.text} motion="none" />
+              <AnimatedIcon name="chevron-back" size={20} color={themeColors.text} motion="none" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text style={[styles.headerTitle, { color: themeColors.text }]} numberOfLines={1}>
               Question
             </Text>
             <View style={styles.headerActions}>
               <TouchableOpacity
                 onPress={handleToggleBookmark}
-                style={styles.headerButton}
+                style={[styles.headerButton, { backgroundColor: themeColors.surfaceLight }]}
                 accessibilityRole="button"
                 accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
               >
                 <AnimatedIcon
                   name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
                   size={18}
-                  color={isBookmarked ? Colors.primary : Colors.textMuted}
+                  color={isBookmarked ? themeColors.primary : themeColors.textMuted}
                   motion="none"
                 />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleReportQuestion}
-                style={styles.headerButton}
+                style={[styles.headerButton, { backgroundColor: themeColors.surfaceLight }]}
                 accessibilityRole="button"
                 accessibilityLabel="Report question"
               >
                 <AnimatedIcon
                   name="flag-outline"
                   size={18}
-                  color={Colors.textMuted}
+                  color={themeColors.textMuted}
                   motion="none"
                 />
               </TouchableOpacity>
@@ -303,7 +303,9 @@ export default function QuestionDetailScreen() {
 
                     <Text style={styles.questionBody}>{question.body}</Text>
 
-                    <View style={styles.questionStats}>
+                    <View
+                      style={[styles.questionStats, { borderTopColor: themeColors.surfaceBorder }]}
+                    >
                       <KarmaDisplay
                         score={question.karmaScore}
                         userVote={question.userVote}
@@ -426,7 +428,15 @@ export default function QuestionDetailScreen() {
 
           {/* Comment Input */}
           {!isClosed && (
-            <View style={styles.commentInputContainer}>
+            <View
+              style={[
+                styles.commentInputContainer,
+                {
+                  backgroundColor: themeColors.backgroundLight,
+                  borderTopColor: themeColors.surfaceBorder,
+                },
+              ]}
+            >
               {editingCommentId && (
                 <View style={styles.editingBanner}>
                   <Text style={styles.editingText}>Editing comment</Text>
@@ -442,18 +452,26 @@ export default function QuestionDetailScreen() {
               <View style={styles.commentInputRow}>
                 <TextInput
                   ref={commentInputRef}
-                  style={styles.commentInput}
+                  style={[
+                    styles.commentInput,
+                    {
+                      backgroundColor: themeColors.inputBg,
+                      borderColor: themeColors.inputBorder,
+                      color: themeColors.text,
+                    },
+                  ]}
                   placeholder={editingCommentId ? 'Update your comment...' : 'Write a comment...'}
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={themeColors.textMuted}
                   value={commentText}
                   onChangeText={setCommentText}
                   multiline
                   maxLength={2000}
-                  selectionColor={Colors.primary}
+                  selectionColor={themeColors.primary}
                 />
                 <TouchableOpacity
                   style={[
                     styles.sendButton,
+                    { backgroundColor: themeColors.primary },
                     (!commentText.trim() || submitting) && styles.sendButtonDisabled,
                   ]}
                   onPress={submitComment}
@@ -462,12 +480,12 @@ export default function QuestionDetailScreen() {
                   accessibilityLabel="Post comment"
                 >
                   {submitting ? (
-                    <ActivityIndicator size="small" color={Colors.text} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <AnimatedIcon
                       name={editingCommentId ? 'checkmark' : 'arrow-up'}
                       size={20}
-                      color={Colors.text}
+                      color="#FFFFFF"
                       motion="none"
                     />
                   )}

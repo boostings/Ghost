@@ -76,7 +76,13 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
   const loadedWhiteboardIdRef = useRef<string | null>(null);
   const requestInFlightRef = useRef(false);
 
-  const isFaculty = user?.role === 'FACULTY';
+  // Per-whiteboard faculty check (see useQuestionDetailModel for rationale).
+  // A globally-FACULTY user may be enrolled here as STUDENT (observer mode);
+  // backend rejects moderator mutations either way, but UI shouldn't tease the
+  // affordances if they wouldn't actually work.
+  const isFaculty =
+    whiteboard?.myRole === 'FACULTY' ||
+    (whiteboard == null && user?.role === 'FACULTY');
   const isSearching = debouncedQuery.trim().length > 0;
 
   useEffect(() => {

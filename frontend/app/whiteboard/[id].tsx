@@ -34,7 +34,7 @@ import ContactFacultySheet from '../../components/whiteboard/ContactFacultySheet
 import { AnimatedIcon } from '../../components/AnimatedIcon';
 import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Stagger, enterList } from '../../constants/motion';
+import { Duration, Ease, Stagger, enterList } from '../../constants/motion';
 import { Shadow } from '../../constants/spacing';
 import { haptic } from '../../utils/haptics';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
@@ -99,24 +99,16 @@ export default function WhiteboardDetailScreen() {
   }, [sections]);
 
   const heroEntering = reduceMotion
-    ? FadeIn.duration(Duration.normal)
-    : FadeInDown.duration(Duration.hero).delay(Stagger.hero).springify().damping(22);
-
-  const actionRowEntering = reduceMotion
-    ? FadeIn.duration(Duration.normal)
-    : FadeInDown.duration(Duration.slow).delay(60).springify().damping(20);
+    ? FadeIn.duration(Duration.fast)
+    : FadeInDown.duration(Duration.normal).easing(Ease.out);
 
   const controlsEntering = reduceMotion
-    ? FadeIn.duration(Duration.normal)
-    : FadeInDown.duration(Duration.slow).delay(120).springify().damping(20);
+    ? FadeIn.duration(Duration.fast)
+    : FadeInDown.duration(Duration.normal).delay(60).easing(Ease.out);
 
   const filtersEntering = reduceMotion
-    ? FadeIn.duration(Duration.normal)
-    : FadeIn.duration(Duration.normal).delay(180);
-
-  const fabEntering = reduceMotion
-    ? FadeIn.duration(Duration.normal)
-    : FadeInUp.duration(Duration.slow).delay(Stagger.footer).springify().damping(14);
+    ? FadeIn.duration(Duration.fast)
+    : FadeIn.duration(Duration.normal).delay(100).easing(Ease.out);
 
   const renderQuestionCard = useCallback(
     ({ item, index }: { item: QuestionResponse; index: number }) => {
@@ -126,7 +118,7 @@ export default function WhiteboardDetailScreen() {
           style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
           entering={cardEntering}
           layout={
-            reduceMotion ? undefined : LinearTransition.springify().damping(22).stiffness(180)
+            reduceMotion ? undefined : LinearTransition.duration(Duration.fast).easing(Ease.out)
           }
           accessibilityLabel={`Open question: ${item.title}`}
           onPress={() =>
@@ -328,14 +320,48 @@ export default function WhiteboardDetailScreen() {
         end={{ x: 0, y: 0.45 }}
       />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Top row: just the back button. The title moves into the hero. */}
-        <View style={styles.topRow}>
+        {/* Top row: back + class actions (icon-only) */}
+        <Animated.View entering={heroEntering} style={styles.topRow}>
           <BackButton onPress={() => router.back()} />
-        </View>
+          <View style={styles.topActions}>
+            <IconAction
+              icon="mail-outline"
+              onPress={() => {
+                haptic.selection();
+                setContactSheetVisible(true);
+              }}
+              accessibilityLabel="Contact faculty"
+            />
+            <IconAction
+              icon="people-outline"
+              onPress={() => {
+                haptic.selection();
+                router.push({
+                  pathname: '/whiteboard/members',
+                  params: { whiteboardId: id },
+                });
+              }}
+              accessibilityLabel="View whiteboard members"
+            />
+            {isFaculty ? (
+              <IconAction
+                icon="settings-outline"
+                onPress={() => {
+                  haptic.selection();
+                  router.push({
+                    pathname: '/whiteboard/settings',
+                    params: { whiteboardId: id },
+                  });
+                }}
+                accessibilityLabel="Open whiteboard settings"
+              />
+            ) : null}
+          </View>
+        </Animated.View>
 
         {/* Hero */}
         <Animated.View entering={heroEntering} style={styles.hero}>
-          <View style={styles.heroTopRow}>
+          <View style={styles.heroTitleRow}>
             <View
               style={[
                 styles.iconDisc,
@@ -344,37 +370,18 @@ export default function WhiteboardDetailScreen() {
             >
               <AnimatedIcon
                 name={visual.icon}
-                size={18}
+                size={20}
                 color={visualTint.foreground}
                 motion="none"
               />
             </View>
-            {whiteboard?.isDemo ? (
-              <View
-                style={[
-                  styles.demoChip,
-                  { backgroundColor: `${colors.warning}26`, borderColor: `${colors.warning}40` },
-                ]}
-              >
-                <Text style={[styles.demoChipText, { color: colors.warning }]}>DEMO</Text>
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.codeChip,
-                  { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
-                ]}
-              >
-                <Text style={[styles.codeChipText, { color: colors.primary }]} numberOfLines={1}>
-                  {whiteboard?.courseCode || 'CLASS'}
-                </Text>
-              </View>
-            )}
+            <Text
+              style={[styles.heroTitle, { color: colors.text }]}
+              numberOfLines={2}
+            >
+              {whiteboard?.courseName || 'Whiteboard'}
+            </Text>
           </View>
-
-          <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
-            {whiteboard?.courseName || 'Whiteboard'}
-          </Text>
 
           {metaParts.length > 0 ? (
             <Text style={[styles.heroMeta, { color: colors.textMuted }]} numberOfLines={2}>
@@ -415,45 +422,6 @@ export default function WhiteboardDetailScreen() {
               />
             ) : null}
           </View>
-        </Animated.View>
-
-        {/* Action chips */}
-        <Animated.View entering={actionRowEntering} style={styles.actionRow}>
-          <ActionChip
-            icon="mail-outline"
-            label="Contact"
-            onPress={() => {
-              haptic.selection();
-              setContactSheetVisible(true);
-            }}
-            accessibilityLabel="Contact faculty"
-          />
-          <ActionChip
-            icon="people-outline"
-            label="Members"
-            onPress={() => {
-              haptic.selection();
-              router.push({
-                pathname: '/whiteboard/members',
-                params: { whiteboardId: id },
-              });
-            }}
-            accessibilityLabel="View whiteboard members"
-          />
-          {isFaculty ? (
-            <ActionChip
-              icon="settings-outline"
-              label="Settings"
-              onPress={() => {
-                haptic.selection();
-                router.push({
-                  pathname: '/whiteboard/settings',
-                  params: { whiteboardId: id },
-                });
-              }}
-              accessibilityLabel="Open whiteboard settings"
-            />
-          ) : null}
         </Animated.View>
 
         {/* Search + sort row */}
@@ -598,8 +566,14 @@ export default function WhiteboardDetailScreen() {
           }
         />
 
-        {/* FAB */}
-        <Animated.View entering={fabEntering} style={styles.fabWrap}>
+        <Animated.View
+          entering={
+            reduceMotion
+              ? FadeIn.duration(Duration.fast)
+              : FadeInUp.duration(Duration.slow).delay(Stagger.footer).springify().damping(14)
+          }
+          style={styles.fabWrap}
+        >
           <Pressable
             style={({ pressed }) => [
               styles.fab,
@@ -686,14 +660,12 @@ function BackButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function ActionChip({
+function IconAction({
   icon,
-  label,
   onPress,
   accessibilityLabel,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
-  label: string;
   onPress: () => void;
   accessibilityLabel: string;
 }) {
@@ -702,18 +674,15 @@ function ActionChip({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.actionChip,
+        styles.iconAction,
         { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.surfaceBorder },
-        pressed && {
-          backgroundColor: themeColors.surfaceLight,
-          borderColor: themeColors.primary,
-        },
+        pressed && { borderColor: themeColors.primary, transform: [{ scale: 0.97 }] },
       ]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      hitSlop={4}
     >
       <AnimatedIcon name={icon} size={16} color={themeColors.text} motion="none" />
-      <Text style={[styles.actionChipLabel, { color: themeColors.text }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -798,6 +767,20 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   backButton: {
     flexDirection: 'row',
@@ -819,58 +802,36 @@ const styles = StyleSheet.create({
 
   hero: {
     paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
-  heroTopRow: {
+  heroTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 6,
   },
   iconDisc: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  codeChip: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  codeChipText: {
-    fontSize: Fonts.sizes.xs,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  demoChip: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  demoChipText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
   heroTitle: {
-    fontSize: 30,
-    lineHeight: 34,
+    flex: 1,
+    fontSize: 26,
+    lineHeight: 30,
     fontWeight: '900',
     letterSpacing: -0.6,
-    marginBottom: 6,
   },
   heroMeta: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
-    marginBottom: 14,
+    marginBottom: 12,
   },
 
   statsStrip: {
@@ -882,9 +843,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },
   statDot: {
@@ -903,28 +864,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-  },
-
-  actionRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingTop: 4,
-    paddingBottom: 12,
-    gap: 8,
-  },
-  actionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  actionChipLabel: {
-    fontSize: Fonts.sizes.sm,
-    fontWeight: '700',
-    letterSpacing: 0.2,
   },
 
   controlsRow: {
@@ -1008,10 +947,12 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 130,
+    paddingBottom: 32,
   },
   emptyList: {
     flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: 0,
   },
 
   questionCard: {
@@ -1172,6 +1113,26 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
 
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  sortOptionSelected: {
+    backgroundColor: 'rgba(187,39,68,0.12)',
+  },
+  sortOptionLabel: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  sortOptionLabelSelected: {
+    color: Colors.primary,
+  },
+
   fabWrap: {
     position: 'absolute',
     right: 20,
@@ -1191,25 +1152,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     letterSpacing: 0.3,
-  },
-
-  sortOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  sortOptionSelected: {
-    backgroundColor: 'rgba(187,39,68,0.12)',
-  },
-  sortOptionLabel: {
-    fontSize: Fonts.sizes.md,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  sortOptionLabelSelected: {
-    color: Colors.primary,
   },
 });
