@@ -178,4 +178,12 @@ describe('authService', () => {
       token: 'ExponentPushToken[abc]',
     });
   });
+
+  it('clears the Expo push token through the users endpoint', async () => {
+    apiMock.delete.mockResolvedValue({ data: undefined });
+
+    await authService.clearPushToken();
+
+    expect(apiMock.delete).toHaveBeenCalledWith('/users/me/push-token');
+  });
 });

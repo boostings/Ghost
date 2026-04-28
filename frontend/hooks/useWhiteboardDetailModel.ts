@@ -77,11 +77,16 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
   const requestInFlightRef = useRef(false);
 
   // Per-whiteboard faculty check (see useQuestionDetailModel for rationale).
-  // A globally-FACULTY user may be enrolled here as STUDENT (observer mode);
-  // backend rejects moderator mutations either way, but UI shouldn't tease the
-  // affordances if they wouldn't actually work.
+  // A globally-FACULTY user may be enrolled here as STUDENT (observer mode); we
+  // gate moderator UI on the membership role from the backend. Owner is always
+  // faculty by definition. If myRole is missing (older backend that hasn't been
+  // redeployed yet), fall back to global User.role + ownership so we don't
+  // regress moderator access.
+  const isOwner = whiteboard != null && user != null && whiteboard.ownerId === user.id;
   const isFaculty =
     whiteboard?.myRole === 'FACULTY' ||
+    isOwner ||
+    (whiteboard != null && whiteboard.myRole === undefined && user?.role === 'FACULTY') ||
     (whiteboard == null && user?.role === 'FACULTY');
   const isSearching = debouncedQuery.trim().length > 0;
 

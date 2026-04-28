@@ -187,17 +187,20 @@ export default function TopicsScreen() {
                       placeholder="Topic name (e.g., Project)"
                       value={newTopicName}
                       onChangeText={setNewTopicName}
+                      autoCapitalize="words"
                       returnKeyType="done"
                       onSubmitEditing={handleCreateTopic}
                       style={styles.addInput}
                     />
                   </View>
-                  <GlassButton
-                    title="Add"
-                    onPress={handleCreateTopic}
-                    loading={creating}
-                    disabled={creating || !newTopicName.trim()}
-                  />
+                  <View style={styles.addButtonContainer}>
+                    <GlassButton
+                      title="Add"
+                      onPress={handleCreateTopic}
+                      loading={creating}
+                      disabled={creating || !newTopicName.trim()}
+                    />
+                  </View>
                 </View>
               </GlassCard>
 
@@ -271,9 +274,14 @@ const styles = StyleSheet.create({
   },
   addInputContainer: {
     flex: 1,
+    minWidth: 0,
   },
   addInput: {
     marginBottom: 0,
+  },
+  addButtonContainer: {
+    width: 96,
+    flexShrink: 0,
   },
   sectionLabel: {
     fontSize: Fonts.sizes.sm,

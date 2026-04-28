@@ -15,7 +15,6 @@ import {
 import Animated, {
   FadeIn,
   FadeInDown,
-  FadeInUp,
   LinearTransition,
   useReducedMotion,
 } from 'react-native-reanimated';
@@ -34,8 +33,7 @@ import ContactFacultySheet from '../../components/whiteboard/ContactFacultySheet
 import { AnimatedIcon } from '../../components/AnimatedIcon';
 import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Ease, Stagger, enterList } from '../../constants/motion';
-import { Shadow } from '../../constants/spacing';
+import { Duration, Ease, enterList } from '../../constants/motion';
 import { haptic } from '../../utils/haptics';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
 import {
@@ -325,6 +323,17 @@ export default function WhiteboardDetailScreen() {
           <BackButton onPress={() => router.back()} />
           <View style={styles.topActions}>
             <IconAction
+              icon="add-circle-outline"
+              onPress={() => {
+                haptic.medium();
+                router.push({
+                  pathname: '/question/create',
+                  params: { whiteboardId: id },
+                });
+              }}
+              accessibilityLabel="Ask a question"
+            />
+            <IconAction
               icon="mail-outline"
               onPress={() => {
                 haptic.selection();
@@ -565,35 +574,6 @@ export default function WhiteboardDetailScreen() {
             ) : null
           }
         />
-
-        <Animated.View
-          entering={
-            reduceMotion
-              ? FadeIn.duration(Duration.fast)
-              : FadeInUp.duration(Duration.slow).delay(Stagger.footer).springify().damping(14)
-          }
-          style={styles.fabWrap}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.fab,
-              { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.96 : 1 }] },
-              Shadow.primaryGlow(colors.primary),
-            ]}
-            onPress={() => {
-              haptic.medium();
-              router.push({
-                pathname: '/question/create',
-                params: { whiteboardId: id },
-              });
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Ask a question"
-          >
-            <AnimatedIcon name="add" size={20} color="#FFFFFF" motion="pop" />
-            <Text style={styles.fabLabel}>Ask</Text>
-          </Pressable>
-        </Animated.View>
 
         <ReportModal
           visible={reportModalVisible}
@@ -1133,24 +1113,4 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
-  fabWrap: {
-    position: 'absolute',
-    right: 20,
-    bottom: 24,
-  },
-  fab: {
-    height: 48,
-    paddingHorizontal: 18,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  fabLabel: {
-    fontSize: Fonts.sizes.md,
-    color: '#FFFFFF',
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
 });

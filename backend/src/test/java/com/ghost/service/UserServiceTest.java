@@ -119,4 +119,29 @@ class UserServiceTest {
                 eq("ExponentPushToken[new]")
         );
     }
+
+    @Test
+    void clearPushTokenShouldWriteGlobalAuditLog() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .expoPushToken("ExponentPushToken[old]")
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        userService.clearPushToken(userId);
+
+        assertThat(user.getExpoPushToken()).isNull();
+        verify(auditLogService).logAction(
+                eq(null),
+                eq(userId),
+                eq(AuditAction.USER_PUSH_TOKEN_UPDATED),
+                eq("User"),
+                eq(userId),
+                eq("ExponentPushToken[old]"),
+                eq(null)
+        );
+    }
 }

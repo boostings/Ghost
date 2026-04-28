@@ -82,6 +82,17 @@ public class UserService {
         log.debug("Push token updated for user: {}", userId);
     }
 
+    @Transactional
+    public void clearPushToken(UUID userId) {
+        User user = getUserEntityById(userId);
+        String oldToken = user.getExpoPushToken();
+
+        user.setExpoPushToken(null);
+        userRepository.save(user);
+        logUserAction(userId, AuditAction.USER_PUSH_TOKEN_UPDATED, userId, oldToken, null);
+        log.debug("Push token cleared for user: {}", userId);
+    }
+
     private void logUserAction(UUID actorId, AuditAction action, UUID targetId, String oldValue, String newValue) {
         auditLogService.logAction(
                 null,

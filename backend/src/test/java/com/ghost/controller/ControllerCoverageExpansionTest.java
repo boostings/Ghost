@@ -620,6 +620,7 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<UserResponse> me = userController.getMe(userId.toString());
         ResponseEntity<UserResponse> updatedUser = userController.updateMe(userId.toString(), updateUserRequest);
         ResponseEntity<Void> updatedPushToken = userController.updatePushToken(userId.toString(), pushTokenRequest);
+        ResponseEntity<Void> clearedPushToken = userController.clearPushToken(userId.toString());
 
         ResponseEntity<ReportResponse> createdReport = reportController.createReport(userId.toString(), reportRequest);
         ResponseEntity<PageResponse<ReportResponse>> reports = reportController.getReportsByWhiteboard(userId.toString(), whiteboardId, 0, 200);
@@ -652,6 +653,7 @@ class ControllerCoverageExpansionTest {
         verify(userService).getUserById(userId);
         verify(userService).updateUser(userId, updateUserRequest);
         verify(userService).updatePushToken(userId, "ExponentPushToken[abc]");
+        verify(userService).clearPushToken(userId);
         verify(reportService, times(2)).reportContent(userId, reportRequest);
         verify(whiteboardService).verifyFacultyRole(userId, whiteboardId);
         verify(reportService).getReportsForWhiteboard(eq(whiteboardId), any(Pageable.class));
@@ -704,6 +706,7 @@ class ControllerCoverageExpansionTest {
         assertThat(me.getBody()).isEqualTo(userResponse);
         assertThat(updatedUser.getBody()).isEqualTo(userResponse);
         assertThat(updatedPushToken.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(clearedPushToken.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(createdReport.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(createdReport.getBody()).isEqualTo(reportResponse);
         assertThat(reports.getBody()).isNotNull();

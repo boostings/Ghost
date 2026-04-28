@@ -20,14 +20,19 @@ import { Colors, useThemeColors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/authService';
+import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
+  const {
+    pushEnabled,
+    emailEnabled,
+    setPushEnabled,
+    setEmailEnabled,
+  } = useNotificationPreferences();
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -193,10 +198,10 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
                 <Switch
-                  value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
+                  value={pushEnabled}
+                  onValueChange={setPushEnabled}
                   trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
-                  thumbColor={notificationsEnabled ? colors.primary : colors.textMuted}
+                  thumbColor={pushEnabled ? colors.primary : colors.textMuted}
                 />
               </View>
               <View style={[styles.divider, { backgroundColor: colors.surfaceBorder }]} />
@@ -211,10 +216,10 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
                 <Switch
-                  value={emailNotifications}
-                  onValueChange={setEmailNotifications}
+                  value={emailEnabled}
+                  onValueChange={setEmailEnabled}
                   trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
-                  thumbColor={emailNotifications ? colors.primary : colors.textMuted}
+                  thumbColor={emailEnabled ? colors.primary : colors.textMuted}
                 />
               </View>
             </View>

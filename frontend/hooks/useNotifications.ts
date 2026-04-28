@@ -15,6 +15,7 @@ import {
   resolveNotificationRoute,
   toForegroundNotification,
 } from '../utils/notificationPayloads';
+import { useNotificationPreferences } from './useNotificationPreferences';
 import type {
   EventSubscription,
   Notification as ExpoNotification,
@@ -44,6 +45,7 @@ export function useNotifications() {
   const user = useAuthStore((state) => state.user);
   const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
   const addNotification = useNotificationStore((state) => state.addNotification);
+  const pushEnabled = useNotificationPreferences().pushEnabled;
   const { subscribe } = useWebSocket();
 
   const notificationListenerRef = useRef<EventSubscription | null>(null);
@@ -109,6 +111,16 @@ export function useNotifications() {
 
     const Notifications = getNativeNotificationsModule();
 
+    // Fetch initial unread count even when remote push delivery is disabled.
+    fetchUnreadCount();
+
+    if (!pushEnabled) {
+      authService.clearPushToken().catch(() => {
+        console.warn('[Notifications] Failed to clear push token from backend');
+      });
+      return;
+    }
+
     // Register for push notifications and save token to backend
     registerForPushNotifications().then((token) => {
       if (token) {
@@ -117,9 +129,6 @@ export function useNotifications() {
         });
       }
     });
-
-    // Fetch initial unread count
-    fetchUnreadCount();
 
     if (!Notifications) {
       return;
@@ -145,6 +154,7 @@ export function useNotifications() {
     };
   }, [
     accessToken,
+    pushEnabled,
     isAuthenticated,
     user,
     fetchUnreadCount,

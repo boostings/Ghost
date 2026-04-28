@@ -5,6 +5,7 @@ import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
 import com.ghost.model.Course;
@@ -218,20 +219,22 @@ public class WhiteboardService {
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
 
         if (!whiteboard.getOwner().getId().equals(ownerId)) {
-            throw new UnauthorizedException("Only the owner can delete the whiteboard");
+            throw new ForbiddenException("Only the owner can delete the whiteboard");
         }
 
+        String courseCode = whiteboard.getCourse().getCourseCode();
+        whiteboardRepository.delete(whiteboard);
+        whiteboardRepository.flush();
+
         auditLogService.logAction(
-                whiteboardId,
+                null,
                 ownerId,
                 AuditAction.WHITEBOARD_DELETED,
                 "Whiteboard",
                 whiteboardId,
-                whiteboard.getCourse().getCourseCode(),
+                courseCode,
                 null
         );
-
-        whiteboardRepository.delete(whiteboard);
     }
 
     @Transactional

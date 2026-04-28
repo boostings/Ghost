@@ -50,6 +50,13 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/me/push-token")
+    public ResponseEntity<Void> clearPushToken(@AuthenticationPrincipal String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
+        userService.clearPushToken(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/me/questions")
     public ResponseEntity<PageResponse<QuestionResponse>> getMyQuestions(
             @AuthenticationPrincipal String userIdStr,

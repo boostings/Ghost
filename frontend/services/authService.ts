@@ -125,4 +125,12 @@ export const authService = {
   updatePushToken: async (expoPushToken: string): Promise<void> => {
     await api.put('/users/me/push-token', { token: expoPushToken });
   },
+
+  /**
+   * Clear the saved Expo push notification token for the current user.
+   * DELETE /users/me/push-token
+   */
+  clearPushToken: async (): Promise<void> => {
+    await api.delete('/users/me/push-token');
+  },
 };

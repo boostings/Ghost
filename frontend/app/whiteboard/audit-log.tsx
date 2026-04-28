@@ -195,6 +195,22 @@ export default function AuditLogScreen() {
     await fetchLogs({ page: page + 1, replace: false });
   };
 
+  const handleActionFilterPress = (nextActionFilter: string) => {
+    if (nextActionFilter === actionFilter) {
+      return;
+    }
+    setActionFilter(nextActionFilter);
+    setLoading(true);
+  };
+
+  const handleDateFilterPress = (nextDateFilter: DateWindow) => {
+    if (nextDateFilter === dateFilter) {
+      return;
+    }
+    setDateFilter(nextDateFilter);
+    setLoading(true);
+  };
+
   const handleExport = async () => {
     if (!whiteboardId) {
       return;
@@ -331,10 +347,7 @@ export default function AuditLogScreen() {
                     borderColor: themeColors.primary,
                   },
                 ]}
-                onPress={() => {
-                  setActionFilter(item);
-                  setLoading(true);
-                }}
+                onPress={() => handleActionFilterPress(item)}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter audit log by ${item === 'ALL' ? 'all actions' : formatAction(item)}`}
               >
@@ -370,10 +383,7 @@ export default function AuditLogScreen() {
                     borderColor: themeColors.primary,
                   },
                 ]}
-                onPress={() => {
-                  setDateFilter(item.value);
-                  setLoading(true);
-                }}
+                onPress={() => handleDateFilterPress(item.value)}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter audit log by ${item.label}`}
               >

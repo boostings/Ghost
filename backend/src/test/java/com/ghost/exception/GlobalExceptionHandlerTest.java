@@ -69,6 +69,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleForbiddenExceptionShouldReturnForbidden() {
+        ResponseEntity<ApiError> response = handler.handleForbiddenException(
+                new ForbiddenException("Only the owner can delete the whiteboard")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(403);
+        assertThat(response.getBody().getMessage()).isEqualTo("Only the owner can delete the whiteboard");
+    }
+
+    @Test
     void handleBadRequestExceptionShouldReturnBadRequest() {
         ResponseEntity<ApiError> response = handler.handleBadRequestException(
                 new BadRequestException("Invite code is invalid")

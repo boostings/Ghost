@@ -23,6 +23,7 @@ import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
 import { authService } from '../../services/authService';
+import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
 import type { QuestionResponse } from '../../types';
 
 const PAGE_SIZE = 10;
@@ -101,6 +102,8 @@ export default function ProfileScreen() {
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
   const logout = useAuthStore((state) => state.logout);
+  const { pushEnabled, emailEnabled, setPushEnabled, setEmailEnabled } =
+    useNotificationPreferences();
 
   const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [questionCount, setQuestionCount] = useState<number>(0);
@@ -110,8 +113,6 @@ export default function ProfileScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   const performLogout = useCallback(() => {

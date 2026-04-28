@@ -119,8 +119,8 @@ export default function WhiteboardSettingsScreen() {
               await whiteboardService.delete(whiteboardId);
               Alert.alert('Deleted', 'The whiteboard has been deleted.');
               router.replace('/(tabs)/home');
-            } catch {
-              Alert.alert('Error', 'Failed to delete whiteboard.');
+            } catch (error: unknown) {
+              Alert.alert('Delete Failed', extractErrorMessage(error));
             } finally {
               setDeleting(false);
             }

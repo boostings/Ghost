@@ -106,7 +106,7 @@ api.interceptors.request.use(
 );
 
 /**
- * Response interceptor: On 401/403 auth errors, attempt to refresh the access token.
+ * Response interceptor: On 401 auth errors, attempt to refresh the access token.
  * If the refresh succeeds, retry the original request with the new token.
  * If the refresh fails, log the user out.
  */
@@ -128,7 +128,7 @@ api.interceptors.response.use(
     };
 
     const status = error.response?.status;
-    const isAuthError = status === 401 || status === 403;
+    const isAuthError = status === 401;
     const isNetworkError = error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || !status;
     const isAuthEndpoint =
       originalRequest?.url?.includes('/auth/refresh') ||
@@ -143,9 +143,7 @@ api.interceptors.response.use(
         : isNetworkError
           ? '[API RESPONSE NETWORK]'
           : '[API RESPONSE ERROR]';
-      const logMethod = isAuthError || isNetworkError ? console.warn : console.error;
-
-      logMethod(logLabel, {
+      console.warn(logLabel, {
         method: originalRequest?.method?.toUpperCase(),
         url: `${originalRequest?.baseURL ?? ''}${originalRequest?.url ?? ''}`,
         status,

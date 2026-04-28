@@ -54,11 +54,21 @@ export function useQuestionDetailModel({
   // another teacher's class as STUDENT — so the global User.role is unsafe to
   // gate UI on. We resolve the viewer's whiteboard role from the store cache
   // (or fetch it below) and only show moderation affordances when authoritative.
+  // Fallbacks: ownership grants faculty by definition; if the cached whiteboard
+  // is from an older backend that hasn't been redeployed with myRole, fall back
+  // to the global User.role so we don't regress access for legitimate faculty.
   const targetWhiteboardId = whiteboardId ?? question?.whiteboardId;
   const targetWhiteboard = targetWhiteboardId
     ? whiteboards.find((w) => w.id === targetWhiteboardId)
     : undefined;
-  const isFaculty = targetWhiteboard?.myRole === 'FACULTY';
+  const isOwner =
+    targetWhiteboard != null && user != null && targetWhiteboard.ownerId === user.id;
+  const isFaculty =
+    targetWhiteboard?.myRole === 'FACULTY' ||
+    isOwner ||
+    (targetWhiteboard != null &&
+      targetWhiteboard.myRole === undefined &&
+      user?.role === 'FACULTY');
 
   const fetchData = useCallback(async () => {
     if (!questionId) {

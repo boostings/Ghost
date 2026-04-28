@@ -191,7 +191,7 @@ export default function SavedScreen() {
         />
       );
     },
-    [handleRemove, reduceMotion, router]
+    [colors.primary, colors.surfaceBorder, colors.text, handleRemove, reduceMotion, router]
   );
 
   const empty = !loading && bookmarks.length === 0;
