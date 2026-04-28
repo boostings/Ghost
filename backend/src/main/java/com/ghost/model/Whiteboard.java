@@ -66,6 +66,12 @@ public class Whiteboard {
     @Builder.Default
     private List<Question> questions = new ArrayList<>();
 
+    @OneToMany(mappedBy = "whiteboard", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<Topic> topics = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

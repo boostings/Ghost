@@ -48,10 +48,10 @@ describe('commentService', () => {
     };
     apiMock.get.mockResolvedValue(response);
 
-    const comments = await commentService.getComments('q-1');
+    const comments = await commentService.getComments('wb-1', 'q-1');
 
     expect(comments).toEqual(response.data.content);
-    expect(apiMock.get).toHaveBeenCalledWith('/questions/q-1/comments', {
+    expect(apiMock.get).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1/comments', {
       params: {
         page: 0,
         size: Config.PAGE_SIZE,
@@ -81,10 +81,10 @@ describe('commentService', () => {
     };
     apiMock.get.mockResolvedValue(response);
 
-    const comments = await commentService.list('q-1', { page: 2, size: 5 });
+    const comments = await commentService.list('wb-1', 'q-1', { page: 2, size: 5 });
 
     expect(comments).toEqual(response.data);
-    expect(apiMock.get).toHaveBeenCalledWith('/questions/q-1/comments', {
+    expect(apiMock.get).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1/comments', {
       params: {
         page: 2,
         size: 5,
@@ -112,10 +112,12 @@ describe('commentService', () => {
     };
     apiMock.post.mockResolvedValue(response);
 
-    const comment = await commentService.verify('q-1', 'c-3');
+    const comment = await commentService.verify('wb-1', 'q-1', 'c-3');
 
     expect(comment).toEqual(response.data);
-    expect(apiMock.post).toHaveBeenCalledWith('/questions/q-1/comments/c-3/verify');
+    expect(apiMock.post).toHaveBeenCalledWith(
+      '/whiteboards/wb-1/questions/q-1/comments/c-3/verify'
+    );
   });
 
   it('posts votes and removes them with the karma endpoints', async () => {

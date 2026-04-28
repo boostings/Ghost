@@ -43,6 +43,7 @@ public class WhiteboardService {
     private final CourseService courseService;
     private final SemesterService semesterService;
     private final InviteCodeService inviteCodeService;
+    private final TopicService topicService;
     private final WhiteboardResponseAssembler whiteboardResponseAssembler;
     private final WhiteboardMembershipService whiteboardMembershipService;
     private final WhiteboardJoinRequestService whiteboardJoinRequestService;
@@ -110,7 +111,7 @@ public class WhiteboardService {
                 .build();
         whiteboardMembershipRepository.save(membership);
 
-        // Removed: default topics are no longer created with whiteboard
+        topicService.createDefaultTopics(whiteboard.getId(), facultyId);
 
         auditLogService.logAction(
                 whiteboard.getId(),

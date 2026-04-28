@@ -218,7 +218,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.submitComment();
     });
 
-    expect(mockCommentService.create).toHaveBeenCalledWith('q-1', { body: 'new answer' });
+    expect(mockCommentService.create).toHaveBeenCalledWith('wb-1', 'q-1', { body: 'new answer' });
     expect(result.current.comments.map((comment) => comment.id)).toEqual(['c-1', 'c-2']);
     expect(result.current.commentText).toBe('');
 
@@ -233,7 +233,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.submitComment();
     });
 
-    expect(mockCommentService.update).toHaveBeenCalledWith('q-1', 'c-1', {
+    expect(mockCommentService.update).toHaveBeenCalledWith('wb-1', 'q-1', 'c-1', {
       body: 'updated answer',
     });
     expect(result.current.comments[0].body).toBe('updated answer');
@@ -319,7 +319,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.deleteComment('c-1');
     });
 
-    expect(mockCommentService.delete).toHaveBeenCalledWith('q-1', 'c-1');
+    expect(mockCommentService.delete).toHaveBeenCalledWith('wb-1', 'q-1', 'c-1');
     expect(result.current.comments.map((comment) => comment.id)).toEqual(['c-2']);
     expect(result.current.commentText).toBe('');
     expect(result.current.editingCommentId).toBeNull();

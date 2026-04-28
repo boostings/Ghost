@@ -349,16 +349,6 @@ export default function WhiteboardDetailScreen() {
                 motion="none"
               />
             </View>
-            <View
-              style={[
-                styles.codeChip,
-                { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
-              ]}
-            >
-              <Text style={[styles.codeChipText, { color: colors.primary }]} numberOfLines={1}>
-                {whiteboard?.courseCode || 'CLASS'}
-              </Text>
-            </View>
             {whiteboard?.isDemo ? (
               <View
                 style={[
@@ -368,7 +358,18 @@ export default function WhiteboardDetailScreen() {
               >
                 <Text style={[styles.demoChipText, { color: colors.warning }]}>DEMO</Text>
               </View>
-            ) : null}
+            ) : (
+              <View
+                style={[
+                  styles.codeChip,
+                  { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+                ]}
+              >
+                <Text style={[styles.codeChipText, { color: colors.primary }]} numberOfLines={1}>
+                  {whiteboard?.courseCode || 'CLASS'}
+                </Text>
+              </View>
+            )}
           </View>
 
           <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
@@ -457,12 +458,17 @@ export default function WhiteboardDetailScreen() {
 
         {/* Search + sort row */}
         <Animated.View entering={controlsEntering} style={styles.controlsRow}>
-          <View style={styles.searchField}>
-            <AnimatedIcon name="search" size={16} color={Colors.textMuted} motion="none" />
+          <View
+            style={[
+              styles.searchField,
+              { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+            ]}
+          >
+            <AnimatedIcon name="search" size={16} color={colors.textMuted} motion="none" />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: colors.text }]}
               placeholder="Search questions"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCorrect={false}
@@ -479,14 +485,18 @@ export default function WhiteboardDetailScreen() {
                 <AnimatedIcon
                   name="close-circle"
                   size={16}
-                  color={Colors.textMuted}
+                  color={colors.textMuted}
                   motion="none"
                 />
               </TouchableOpacity>
             ) : null}
           </View>
           <Pressable
-            style={({ pressed }) => [styles.sortChip, pressed && styles.sortChipPressed]}
+            style={({ pressed }) => [
+              styles.sortChip,
+              { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+              pressed && { borderColor: colors.primary },
+            ]}
             onPress={() => {
               haptic.selection();
               setSortSheetVisible(true);
@@ -494,8 +504,8 @@ export default function WhiteboardDetailScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Change sort order. Current: ${sortLabel}`}
           >
-            <AnimatedIcon name="swap-vertical" size={14} color={Colors.text} motion="none" />
-            <Text style={styles.sortChipText} numberOfLines={1}>
+            <AnimatedIcon name="swap-vertical" size={14} color={colors.text} motion="none" />
+            <Text style={[styles.sortChipText, { color: colors.text }]} numberOfLines={1}>
               {sortLabel}
             </Text>
           </Pressable>
@@ -687,15 +697,23 @@ function ActionChip({
   onPress: () => void;
   accessibilityLabel: string;
 }) {
+  const themeColors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.actionChip, pressed && styles.actionChipPressed]}
+      style={({ pressed }) => [
+        styles.actionChip,
+        { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.surfaceBorder },
+        pressed && {
+          backgroundColor: themeColors.surfaceLight,
+          borderColor: themeColors.primary,
+        },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <AnimatedIcon name={icon} size={16} color={Colors.text} motion="none" />
-      <Text style={styles.actionChipLabel}>{label}</Text>
+      <AnimatedIcon name={icon} size={16} color={themeColors.text} motion="none" />
+      <Text style={[styles.actionChipLabel, { color: themeColors.text }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -709,6 +727,9 @@ function FilterChip({
   active: boolean;
   onPress: () => void;
 }) {
+  const themeColors = useThemeColors();
+  const inactiveBg = themeColors.surfaceLight;
+  const inactiveBorder = themeColors.surfaceBorder;
   return (
     <Pressable
       onPress={() => {
@@ -717,14 +738,26 @@ function FilterChip({
       }}
       style={({ pressed }) => [
         styles.filterChip,
-        active && styles.filterChipActive,
-        pressed && styles.filterChipPressed,
+        { backgroundColor: inactiveBg, borderColor: inactiveBorder },
+        active && {
+          backgroundColor: `${themeColors.primary}26`,
+          borderColor: themeColors.primary,
+        },
+        pressed && { backgroundColor: `${themeColors.primary}10` },
       ]}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={`Filter by ${label}`}
     >
-      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{label}</Text>
+      <Text
+        style={[
+          styles.filterChipText,
+          { color: themeColors.textSecondary },
+          active && { color: themeColors.primary },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -740,11 +773,17 @@ function StatPill({
   color: string;
   accent: string;
 }) {
+  const themeColors = useThemeColors();
   return (
-    <View style={styles.statPill}>
+    <View
+      style={[
+        styles.statPill,
+        { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.surfaceBorder },
+      ]}
+    >
       <View style={[styles.statDot, { backgroundColor: accent }]} />
       <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statLabel, { color: themeColors.textMuted }]}>{label}</Text>
     </View>
   );
 }
@@ -846,9 +885,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.10)',
   },
   statDot: {
     width: 6,
@@ -864,7 +901,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -883,18 +919,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  actionChipPressed: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderColor: 'rgba(187,39,68,0.45)',
   },
   actionChipLabel: {
     fontSize: Fonts.sizes.sm,
     fontWeight: '700',
-    color: Colors.text,
     letterSpacing: 0.2,
   },
 
@@ -912,13 +941,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
   },
   searchInput: {
     flex: 1,
-    color: Colors.text,
     fontSize: Fonts.sizes.md,
     paddingVertical: 0,
   },
@@ -929,17 +955,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-  sortChipPressed: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   sortChipText: {
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
-    color: Colors.text,
     maxWidth: 130,
   },
 
@@ -955,18 +975,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     alignSelf: 'center',
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  filterChipActive: {
-    backgroundColor: 'rgba(187,39,68,0.20)',
-    borderColor: Colors.primary,
-  },
-  filterChipPressed: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
   },
   filterChipText: {
     fontSize: 12,

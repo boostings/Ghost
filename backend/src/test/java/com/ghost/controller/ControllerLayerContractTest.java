@@ -23,7 +23,6 @@ class ControllerLayerContractTest {
             WhiteboardController.class,
             WhiteboardMembershipController.class,
             QuestionController.class,
-            CommentController.class,
             TopicController.class,
             ReportController.class,
             AuditLogController.class,

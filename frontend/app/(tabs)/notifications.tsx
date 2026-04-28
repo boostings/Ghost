@@ -315,7 +315,7 @@ function AlertRow({
         accessibilityRole="button"
         accessibilityLabel={item.title}
       >
-        <View style={[styles.rail, !item.isRead && styles.railUnread]} />
+        {/* Removed left rail; the dot on the right + the unread row tint already convey unread state. */}
         <View style={[styles.iconCell, { backgroundColor: `${icon.tint}1F` }]}>
           <Ionicons name={icon.name} size={16} color={icon.tint} />
         </View>
@@ -426,14 +426,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(187,39,68,0.30)',
   },
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.10)' },
-  rail: {
-    width: 3,
-    alignSelf: 'stretch',
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    marginRight: 12,
-  },
-  railUnread: { backgroundColor: Colors.primary },
   iconCell: {
+    marginLeft: 12,
     width: 32,
     height: 32,
     borderRadius: 10,

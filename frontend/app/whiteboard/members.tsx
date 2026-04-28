@@ -187,7 +187,9 @@ export default function MembersScreen() {
                   <View style={styles.summaryItem}>
                     <Ionicons name="people-outline" size={20} color={Colors.primary} />
                     <Text style={styles.summaryValue}>{studentMembers.length}</Text>
-                    <Text style={styles.summaryLabel}>Students</Text>
+                    <Text style={styles.summaryLabel}>
+                      {studentMembers.length === 1 ? 'Student' : 'Students'}
+                    </Text>
                   </View>
                   <View style={styles.summaryDivider} />
                   <View style={styles.summaryItem}>

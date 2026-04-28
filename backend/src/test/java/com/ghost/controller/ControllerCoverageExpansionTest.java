@@ -35,7 +35,6 @@ import com.ghost.model.enums.ReportStatus;
 import com.ghost.model.enums.VoteType;
 import com.ghost.service.AuditLogService;
 import com.ghost.service.BookmarkService;
-import com.ghost.service.CommentService;
 import com.ghost.service.KarmaService;
 import com.ghost.service.NotificationService;
 import com.ghost.service.QuestionService;
@@ -78,9 +77,6 @@ class ControllerCoverageExpansionTest {
     private QuestionService questionService;
 
     @Mock
-    private CommentService commentService;
-
-    @Mock
     private TopicService topicService;
 
     @Mock
@@ -111,7 +107,6 @@ class ControllerCoverageExpansionTest {
     private FacultyController facultyController;
     private StudentController studentController;
     private QuestionController questionController;
-    private CommentController commentController;
     private TopicController topicController;
     private NotificationController notificationController;
     private BookmarkController bookmarkController;
@@ -127,21 +122,18 @@ class ControllerCoverageExpansionTest {
         facultyController = new FacultyController(
                 whiteboardService,
                 questionService,
-                commentService,
                 topicService,
                 reportService,
                 auditLogService
         );
         studentController = new StudentController(
                 questionService,
-                commentService,
                 karmaService,
                 bookmarkService,
                 reportService,
                 whiteboardService
         );
         questionController = new QuestionController(questionService);
-        commentController = new CommentController(commentService);
         topicController = new TopicController(topicService);
         notificationController = new NotificationController(notificationService);
         bookmarkController = new BookmarkController(bookmarkService);
@@ -327,7 +319,6 @@ class ControllerCoverageExpansionTest {
         when(questionService.unpinQuestion(userId, whiteboardId, questionId)).thenReturn(questionResponse);
         when(questionService.forwardQuestion(userId, whiteboardId, questionId, forwardQuestionRequest))
                 .thenReturn(questionResponse);
-        when(commentService.markAsVerifiedAnswer(userId, questionId, commentId)).thenReturn(commentResponse);
         when(topicService.createTopic(userId, whiteboardId, "Projects")).thenReturn(topicResponse);
         when(reportService.reviewReport(userId, reportId, reviewReportRequest)).thenReturn(reportResponse);
         when(auditLogService.exportToCsv(whiteboardId)).thenReturn("timestamp,action");
@@ -347,7 +338,6 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<QuestionResponse> pinned = facultyController.pinQuestion(userId.toString(), whiteboardId, questionId);
         ResponseEntity<QuestionResponse> unpinned = facultyController.unpinQuestion(userId.toString(), whiteboardId, questionId);
         ResponseEntity<QuestionResponse> forwarded = facultyController.forwardQuestion(userId.toString(), whiteboardId, questionId, forwardQuestionRequest);
-        ResponseEntity<CommentResponse> verified = facultyController.markAsVerifiedAnswer(userId.toString(), questionId, commentId);
         ResponseEntity<TopicResponse> createdTopic = facultyController.createTopic(userId.toString(), whiteboardId, createTopicRequest);
         ResponseEntity<Void> deletedTopic = facultyController.deleteTopic(userId.toString(), whiteboardId, topicId);
         ResponseEntity<ReportResponse> reviewedReport = facultyController.reviewReport(userId.toString(), reportId, reviewReportRequest);
@@ -367,7 +357,6 @@ class ControllerCoverageExpansionTest {
         verify(questionService).pinQuestion(userId, whiteboardId, questionId);
         verify(questionService).unpinQuestion(userId, whiteboardId, questionId);
         verify(questionService).forwardQuestion(userId, whiteboardId, questionId, forwardQuestionRequest);
-        verify(commentService).markAsVerifiedAnswer(userId, questionId, commentId);
         verify(topicService).createTopic(userId, whiteboardId, "Projects");
         verify(topicService).deleteTopic(userId, whiteboardId, topicId);
         verify(reportService).reviewReport(userId, reportId, reviewReportRequest);
@@ -390,7 +379,6 @@ class ControllerCoverageExpansionTest {
         assertThat(pinned.getBody()).isEqualTo(questionResponse);
         assertThat(unpinned.getBody()).isEqualTo(questionResponse);
         assertThat(forwarded.getBody()).isEqualTo(questionResponse);
-        assertThat(verified.getBody()).isEqualTo(commentResponse);
         assertThat(createdTopic.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(createdTopic.getBody()).isEqualTo(topicResponse);
         assertThat(deletedTopic.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -402,7 +390,7 @@ class ControllerCoverageExpansionTest {
     }
 
     @Test
-    void studentQuestionAndCommentControllersShouldCoverMutationEndpoints() {
+    void studentAndQuestionControllersShouldCoverMutationEndpoints() {
         UUID userId = UUID.randomUUID();
         UUID whiteboardId = UUID.randomUUID();
         UUID questionId = UUID.randomUUID();
@@ -440,18 +428,18 @@ class ControllerCoverageExpansionTest {
         when(questionService.getQuestions(eq(userId), eq(whiteboardId), any(), eq("OPEN"), any(Pageable.class)))
                 .thenReturn(pageOf(questionResponse));
         when(questionService.getQuestionByIdAndWhiteboard(userId, questionId, whiteboardId)).thenReturn(questionResponse);
-        when(commentService.createComment(userId, questionId, createCommentRequest)).thenReturn(commentResponse);
-        when(commentService.getCommentsByQuestion(eq(userId), eq(questionId), any(Pageable.class)))
+        when(questionService.createComment(userId, whiteboardId, questionId, createCommentRequest))
+                .thenReturn(commentResponse);
+        when(questionService.getCommentsByQuestion(eq(userId), eq(whiteboardId), eq(questionId), any(Pageable.class)))
                 .thenReturn(pageOf(commentResponse));
-        when(commentService.editComment(userId, questionId, commentId, editCommentRequest)).thenReturn(commentResponse);
-        when(commentService.markAsVerifiedAnswer(userId, questionId, commentId)).thenReturn(commentResponse);
+        when(questionService.editComment(userId, whiteboardId, questionId, commentId, editCommentRequest))
+                .thenReturn(commentResponse);
+        when(questionService.markAsVerifiedAnswer(userId, whiteboardId, questionId, commentId))
+                .thenReturn(commentResponse);
 
         ResponseEntity<QuestionResponse> createdQuestion = studentController.createQuestion(userId.toString(), whiteboardId, createQuestionRequest);
         ResponseEntity<QuestionResponse> editedQuestion = studentController.editQuestion(userId.toString(), whiteboardId, questionId, editQuestionRequest);
         ResponseEntity<Void> deletedQuestion = studentController.deleteQuestion(userId.toString(), whiteboardId, questionId);
-        ResponseEntity<CommentResponse> createdComment = studentController.createComment(userId.toString(), questionId, createCommentRequest);
-        ResponseEntity<CommentResponse> editedComment = studentController.editComment(userId.toString(), questionId, commentId, editCommentRequest);
-        ResponseEntity<Void> deletedComment = studentController.deleteComment(userId.toString(), questionId, commentId);
 
         ResponseEntity<QuestionResponse> createdQuestionViaQuestionController =
                 questionController.createQuestion(userId.toString(), whiteboardId, createQuestionRequest);
@@ -472,16 +460,16 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<Void> questionForwarded =
                 questionController.forwardQuestion(userId.toString(), whiteboardId, questionId, forwardQuestionRequest);
 
-        ResponseEntity<CommentResponse> createdCommentViaCommentController =
-                commentController.createComment(userId.toString(), questionId, createCommentRequest);
+        ResponseEntity<CommentResponse> createdComment =
+                questionController.createComment(userId.toString(), whiteboardId, questionId, createCommentRequest);
         ResponseEntity<PageResponse<CommentResponse>> listedComments =
-                commentController.getComments(userId.toString(), questionId, 0, 0);
+                questionController.getComments(userId.toString(), whiteboardId, questionId, 0, 0);
         ResponseEntity<CommentResponse> updatedComment =
-                commentController.updateComment(userId.toString(), questionId, commentId, editCommentRequest);
+                questionController.updateComment(userId.toString(), whiteboardId, questionId, commentId, editCommentRequest);
         ResponseEntity<Void> commentDeleted =
-                commentController.deleteComment(userId.toString(), questionId, commentId);
+                questionController.deleteComment(userId.toString(), whiteboardId, questionId, commentId);
         ResponseEntity<CommentResponse> verifiedComment =
-                commentController.verifyComment(userId.toString(), questionId, commentId);
+                questionController.verifyComment(userId.toString(), whiteboardId, questionId, commentId);
 
         verify(questionService, times(2)).createQuestion(userId, whiteboardId, createQuestionRequest);
         verify(questionService, times(2)).editQuestion(userId, whiteboardId, questionId, editQuestionRequest);
@@ -492,20 +480,16 @@ class ControllerCoverageExpansionTest {
         verify(questionService).pinQuestion(userId, whiteboardId, questionId);
         verify(questionService).unpinQuestion(userId, whiteboardId, questionId);
         verify(questionService).forwardQuestion(userId, whiteboardId, questionId, forwardQuestionRequest);
-        verify(commentService, times(2)).createComment(userId, questionId, createCommentRequest);
-        verify(commentService).getCommentsByQuestion(eq(userId), eq(questionId), any(Pageable.class));
-        verify(commentService, times(2)).editComment(userId, questionId, commentId, editCommentRequest);
-        verify(commentService, times(2)).deleteComment(userId, questionId, commentId);
-        verify(commentService).markAsVerifiedAnswer(userId, questionId, commentId);
+        verify(questionService).createComment(userId, whiteboardId, questionId, createCommentRequest);
+        verify(questionService).getCommentsByQuestion(eq(userId), eq(whiteboardId), eq(questionId), any(Pageable.class));
+        verify(questionService).editComment(userId, whiteboardId, questionId, commentId, editCommentRequest);
+        verify(questionService).deleteComment(userId, whiteboardId, questionId, commentId);
+        verify(questionService).markAsVerifiedAnswer(userId, whiteboardId, questionId, commentId);
 
         assertThat(createdQuestion.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(createdQuestion.getBody()).isEqualTo(questionResponse);
         assertThat(editedQuestion.getBody()).isEqualTo(questionResponse);
         assertThat(deletedQuestion.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(createdComment.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(createdComment.getBody()).isEqualTo(commentResponse);
-        assertThat(editedComment.getBody()).isEqualTo(commentResponse);
-        assertThat(deletedComment.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(createdQuestionViaQuestionController.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(listedQuestions.getBody()).isNotNull();
         assertThat(listedQuestions.getBody().getContent()).containsExactly(questionResponse);
@@ -516,7 +500,8 @@ class ControllerCoverageExpansionTest {
         assertThat(questionPinned.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(questionUnpinned.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(questionForwarded.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(createdCommentViaCommentController.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(createdComment.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(createdComment.getBody()).isEqualTo(commentResponse);
         assertThat(listedComments.getBody()).isNotNull();
         assertThat(listedComments.getBody().getContent()).containsExactly(commentResponse);
         assertThat(updatedComment.getBody()).isEqualTo(commentResponse);

@@ -22,7 +22,7 @@ import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import KarmaDisplay from '../../components/ui/KarmaDisplay';
 import { AnimatedIcon } from '../../components/AnimatedIcon';
-import { Colors } from '../../constants/colors';
+import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useQuestionDetailModel } from '../../hooks/useQuestionDetailModel';
 import { formatFullDate } from '../../utils/formatDate';
@@ -30,6 +30,7 @@ import type { CommentResponse, VoteType } from '../../types';
 
 export default function QuestionDetailScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
   const { id, whiteboardId } = useLocalSearchParams<{ id: string; whiteboardId: string }>();
   const {
     commentInputRef,
@@ -323,17 +324,27 @@ export default function QuestionDetailScreen() {
                                 },
                               })
                             }
-                            style={styles.questionAction}
+                            style={[
+                              styles.questionAction,
+                              {
+                                backgroundColor: themeColors.surfaceLight,
+                                borderColor: themeColors.surfaceBorder,
+                              },
+                            ]}
                             accessibilityRole="button"
                             accessibilityLabel="Edit question"
                           >
-                            <Text style={styles.questionActionText}>Edit</Text>
+                            <Text
+                              style={[styles.questionActionText, { color: themeColors.text }]}
+                            >
+                              Edit
+                            </Text>
                           </TouchableOpacity>
                         )}
                         {(isAuthor || isFaculty) && (
                           <TouchableOpacity
                             onPress={handleDeleteQuestion}
-                            style={styles.questionAction}
+                            style={[styles.questionAction, styles.questionActionDanger]}
                             accessibilityRole="button"
                             accessibilityLabel="Delete question"
                           >
@@ -343,23 +354,41 @@ export default function QuestionDetailScreen() {
                         {isFaculty && !isClosed && (
                           <TouchableOpacity
                             onPress={handleCloseQuestion}
-                            style={styles.questionAction}
+                            style={[
+                              styles.questionAction,
+                              {
+                                backgroundColor: themeColors.surfaceLight,
+                                borderColor: themeColors.surfaceBorder,
+                              },
+                            ]}
                             accessibilityRole="button"
                             accessibilityLabel="Close question"
                           >
-                            <Text style={styles.questionActionText}>Close</Text>
+                            <Text
+                              style={[styles.questionActionText, { color: themeColors.text }]}
+                            >
+                              Close
+                            </Text>
                           </TouchableOpacity>
                         )}
                         {isFaculty && (
                           <TouchableOpacity
                             onPress={handleTogglePinnedState}
-                            style={styles.questionAction}
+                            style={[
+                              styles.questionAction,
+                              {
+                                backgroundColor: themeColors.surfaceLight,
+                                borderColor: themeColors.surfaceBorder,
+                              },
+                            ]}
                             accessibilityRole="button"
                             accessibilityLabel={
                               question.isPinned ? 'Unpin question' : 'Pin question'
                             }
                           >
-                            <Text style={styles.questionActionText}>
+                            <Text
+                              style={[styles.questionActionText, { color: themeColors.text }]}
+                            >
                               {question.isPinned ? 'Unpin' : 'Pin'}
                             </Text>
                           </TouchableOpacity>
@@ -591,17 +620,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   questionAction: {
-    paddingHorizontal: 12,
-    minHeight: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 14,
+    minHeight: 36,
+    borderRadius: 18,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  questionActionDanger: {
+    backgroundColor: `${Colors.error}14`,
+    borderColor: `${Colors.error}33`,
   },
   questionActionText: {
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.text,
   },
   questionActionTextDanger: {
     fontSize: Fonts.sizes.sm,

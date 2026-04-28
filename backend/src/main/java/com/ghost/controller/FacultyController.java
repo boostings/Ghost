@@ -7,7 +7,6 @@ import com.ghost.dto.request.ForwardQuestionRequest;
 import com.ghost.dto.request.JoinRequestActionRequest;
 import com.ghost.dto.request.ReviewReportRequest;
 import com.ghost.dto.request.TransferOwnershipRequest;
-import com.ghost.dto.response.CommentResponse;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
 import com.ghost.dto.response.PageResponse;
@@ -170,16 +169,6 @@ public class FacultyController {
             @Valid @RequestBody ForwardQuestionRequest request) {
         UUID userId = UUID.fromString(userIdStr);
         return ResponseEntity.ok(questionService.forwardQuestion(userId, wbId, qId, request));
-    }
-
-    @PostMapping("/whiteboards/{wbId}/questions/{qId}/comments/{commentId}/verify")
-    public ResponseEntity<CommentResponse> markAsVerifiedAnswer(
-            @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID wbId,
-            @PathVariable UUID qId,
-            @PathVariable UUID commentId) {
-        UUID userId = UUID.fromString(userIdStr);
-        return ResponseEntity.ok(questionService.markAsVerifiedAnswer(userId, qId, commentId));
     }
 
     @PostMapping("/whiteboards/{wbId}/topics")

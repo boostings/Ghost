@@ -20,7 +20,7 @@ import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
 import SettingsHeader from '../../components/whiteboard/SettingsHeader';
-import { Colors } from '../../constants/colors';
+import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { formatFullDate } from '../../utils/formatDate';
 import { auditLogService } from '../../services/auditLogService';
@@ -99,6 +99,7 @@ function getDateRange(value: DateWindow): { from?: string; to?: string } {
 }
 
 export default function AuditLogScreen() {
+  const themeColors = useThemeColors();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
 
   const [logs, setLogs] = useState<AuditLogResponse[]>([]);
@@ -319,7 +320,17 @@ export default function AuditLogScreen() {
             contentContainerStyle={styles.filterList}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.filterChip, actionFilter === item && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: themeColors.surfaceLight,
+                    borderColor: themeColors.surfaceBorder,
+                  },
+                  actionFilter === item && {
+                    backgroundColor: `${themeColors.primary}26`,
+                    borderColor: themeColors.primary,
+                  },
+                ]}
                 onPress={() => {
                   setActionFilter(item);
                   setLoading(true);
@@ -330,7 +341,8 @@ export default function AuditLogScreen() {
                 <Text
                   style={[
                     styles.filterChipText,
-                    actionFilter === item && styles.filterChipTextActive,
+                    { color: themeColors.textSecondary },
+                    actionFilter === item && { color: themeColors.primary },
                   ]}
                 >
                   {item === 'ALL' ? 'All' : formatAction(item)}
@@ -347,7 +359,17 @@ export default function AuditLogScreen() {
             contentContainerStyle={styles.filterListCompact}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.filterChip, dateFilter === item.value && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: themeColors.surfaceLight,
+                    borderColor: themeColors.surfaceBorder,
+                  },
+                  dateFilter === item.value && {
+                    backgroundColor: `${themeColors.primary}26`,
+                    borderColor: themeColors.primary,
+                  },
+                ]}
                 onPress={() => {
                   setDateFilter(item.value);
                   setLoading(true);
@@ -461,18 +483,12 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 14,
-    minHeight: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    minHeight: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: 'rgba(187,39,68,0.25)',
-    borderColor: Colors.primary,
   },
   filterChipText: {
     fontSize: Fonts.sizes.sm,

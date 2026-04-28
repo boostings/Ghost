@@ -1,14 +1,11 @@
 package com.ghost.controller;
 
-import com.ghost.dto.request.CreateCommentRequest;
 import com.ghost.dto.request.CreateQuestionRequest;
-import com.ghost.dto.request.EditCommentRequest;
 import com.ghost.dto.request.EditQuestionRequest;
 import com.ghost.dto.request.JoinWhiteboardRequest;
 import com.ghost.dto.request.ReportRequest;
 import com.ghost.dto.request.VoteRequest;
 import com.ghost.dto.response.BookmarkResponse;
-import com.ghost.dto.response.CommentResponse;
 import com.ghost.dto.response.JoinRequestResponse;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.dto.response.ReportResponse;
@@ -64,39 +61,6 @@ public class StudentController {
             @PathVariable UUID qId) {
         UUID userId = UUID.fromString(userIdStr);
         questionService.deleteQuestion(userId, wbId, qId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/whiteboards/{wbId}/questions/{qId}/comments")
-    public ResponseEntity<CommentResponse> createComment(
-            @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID wbId,
-            @PathVariable UUID qId,
-            @Valid @RequestBody CreateCommentRequest request) {
-        UUID userId = UUID.fromString(userIdStr);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(questionService.createComment(userId, qId, request));
-    }
-
-    @PutMapping("/whiteboards/{wbId}/questions/{qId}/comments/{commentId}")
-    public ResponseEntity<CommentResponse> editComment(
-            @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID wbId,
-            @PathVariable UUID qId,
-            @PathVariable UUID commentId,
-            @Valid @RequestBody EditCommentRequest request) {
-        UUID userId = UUID.fromString(userIdStr);
-        return ResponseEntity.ok(questionService.editComment(userId, qId, commentId, request));
-    }
-
-    @DeleteMapping("/whiteboards/{wbId}/questions/{qId}/comments/{commentId}")
-    public ResponseEntity<Void> deleteComment(
-            @AuthenticationPrincipal String userIdStr,
-            @PathVariable UUID wbId,
-            @PathVariable UUID qId,
-            @PathVariable UUID commentId) {
-        UUID userId = UUID.fromString(userIdStr);
-        questionService.deleteComment(userId, qId, commentId);
         return ResponseEntity.noContent().build();
     }
 

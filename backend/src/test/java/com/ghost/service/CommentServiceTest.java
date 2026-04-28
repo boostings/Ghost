@@ -15,10 +15,13 @@ import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
-import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
 import com.ghost.repository.CommentRepository;
+import com.ghost.repository.QuestionRepository;
+import com.ghost.repository.TopicRepository;
+import com.ghost.repository.UserRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +53,13 @@ class CommentServiceTest {
     private CommentRepository commentRepository;
 
     @Mock
-    private QuestionService questionService;
+    private QuestionRepository questionRepository;
+
+    @Mock
+    private TopicRepository topicRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private BookmarkService bookmarkService;
@@ -61,7 +71,10 @@ class CommentServiceTest {
     private AuditLogService auditLogService;
 
     @Mock
-    private NotificationService notificationService;
+    private NotificationFactory notificationFactory;
+
+    @Mock
+    private QuestionResponseAssembler questionResponseAssembler;
 
     @Mock
     private CommentResponseAssembler commentResponseAssembler;
@@ -69,8 +82,14 @@ class CommentServiceTest {
     @Mock
     private SimpMessagingTemplate messagingTemplate;
 
+    @Mock
+    private SearchService searchService;
+
+    @Mock
+    private WhiteboardMembershipRepository whiteboardMembershipRepository;
+
     @InjectMocks
-    private CommentService commentService;
+    private QuestionService commentService;
 
     private UUID questionId;
     private UUID commentId;
@@ -152,7 +171,7 @@ class CommentServiceTest {
                 .body("New comment")
                 .build();
 
-        when(questionService.getQuestionById(questionId)).thenReturn(question);
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(whiteboardService.verifyMembership(commenterId, whiteboard.getId())).thenReturn(membership);
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> {
             Comment saved = invocation.getArgument(0);
@@ -177,16 +196,7 @@ class CommentServiceTest {
                 null,
                 "New comment"
         );
-        verify(notificationService).createAndSend(
-                commenterId,
-                authorId,
-                NotificationType.COMMENT_ADDED,
-                "New Comment",
-                "Someone commented on your question: " + question.getTitle(),
-                "Question",
-                questionId,
-                whiteboard.getId()
-        );
+        verify(notificationFactory).sendCommentAddedNotification(commenter, question);
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/question/" + questionId + "/comments"),
                 any(java.util.Map.class)
@@ -196,7 +206,7 @@ class CommentServiceTest {
     @Test
     void createCommentShouldRejectClosedQuestion() {
         question.setStatus(QuestionStatus.CLOSED);
-        when(questionService.getQuestionById(questionId)).thenReturn(question);
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
 
         assertThatThrownBy(() -> commentService.createComment(
                 authorId,
@@ -299,6 +309,48 @@ class CommentServiceTest {
     }
 
     @Test
+    void deleteCommentShouldRejectClosedQuestion() {
+        question.setStatus(QuestionStatus.CLOSED);
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        assertThatThrownBy(() -> commentService.deleteComment(authorId, questionId, commentId))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("closed question");
+
+        verify(auditLogService, never()).logAction(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(commentRepository, never()).delete(any(Comment.class));
+    }
+
+    @Test
+    void deleteCommentShouldRejectVerifiedAnswer() {
+        question.setVerifiedAnswerId(commentId);
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        assertThatThrownBy(() -> commentService.deleteComment(authorId, questionId, commentId))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("verified answer");
+
+        verify(auditLogService, never()).logAction(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        verify(commentRepository, never()).delete(any(Comment.class));
+    }
+
+    @Test
     void AC3_markAsVerifiedAnswerShouldAttachVerifierAndReturnUpdatedComment() {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -321,6 +373,7 @@ class CommentServiceTest {
                         .role(Role.FACULTY)
                         .build()
         );
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(bookmarkService.getBookmarksByQuestionId(questionId)).thenReturn(List.of(
                 Bookmark.builder()
                         .user(User.builder().id(UUID.randomUUID()).build())
@@ -336,7 +389,9 @@ class CommentServiceTest {
         CommentResponse response = commentService.markAsVerifiedAnswer(facultyId, questionId, commentId);
 
         assertThat(comment.getVerifiedBy()).isEqualTo(facultyUser);
-        verify(questionService).markVerifiedAnswerAndClose(facultyId, questionId, commentId);
+        assertThat(question.getStatus()).isEqualTo(QuestionStatus.CLOSED);
+        assertThat(question.getVerifiedAnswerId()).isEqualTo(commentId);
+        verify(questionRepository).save(question);
         verify(auditLogService).logAction(
                 eq(question.getWhiteboard().getId()),
                 eq(facultyId),
@@ -348,15 +403,11 @@ class CommentServiceTest {
         );
         assertThat(response.getVerifiedById()).isEqualTo(facultyId);
         assertThat(response.isVerifiedAnswer()).isTrue();
-        verify(notificationService).createAndSend(
-                eq(facultyId),
-                any(UUID.class),
-                eq(NotificationType.QUESTION_ANSWERED),
-                eq("Bookmarked Question Answered"),
-                eq("A verified answer has been provided for: " + question.getTitle()),
-                eq("Question"),
-                eq(question.getId()),
-                eq(question.getWhiteboard().getId())
+        verify(notificationFactory).sendQuestionAnsweredNotification(facultyUser, question);
+        verify(notificationFactory, times(3)).sendBookmarkedQuestionAnsweredNotification(
+                eq(facultyUser),
+                eq(question),
+                any(User.class)
         );
     }
 
@@ -382,7 +433,7 @@ class CommentServiceTest {
     @Test
     void getCommentsByQuestionShouldRejectHiddenQuestion() {
         question.setHidden(true);
-        when(questionService.getQuestionById(questionId)).thenReturn(question);
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
 
         assertThatThrownBy(() -> commentService.getCommentsByQuestion(authorId, questionId, PageRequest.of(0, 20)))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -391,7 +442,7 @@ class CommentServiceTest {
 
     @Test
     void getCommentsByQuestionShouldMapVisibleComments() {
-        when(questionService.getQuestionById(questionId)).thenReturn(question);
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(eq(questionId), any()))
                 .thenReturn(new PageImpl<>(List.of(comment), PageRequest.of(0, 20), 1));
         when(commentResponseAssembler.toResponse(comment, authorId)).thenReturn(

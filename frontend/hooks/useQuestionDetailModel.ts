@@ -72,10 +72,8 @@ export function useQuestionDetailModel({
       const resolvedQuestion = whiteboardId
         ? questionService.getById(whiteboardId, questionId)
         : questionService.getByIdGlobal(questionId);
-      const [nextQuestion, nextComments] = await Promise.all([
-        resolvedQuestion,
-        commentService.list(questionId),
-      ]);
+      const nextQuestion = await resolvedQuestion;
+      const nextComments = await commentService.list(nextQuestion.whiteboardId, questionId);
 
       setQuestion(nextQuestion);
       setComments(sortCommentsByCreatedAt(nextComments));
@@ -171,10 +169,20 @@ export function useQuestionDetailModel({
 
     setSubmitting(true);
     try {
+      const resolvedWhiteboardId = whiteboardId || question?.whiteboardId;
+      if (!resolvedWhiteboardId) {
+        throw new Error('Missing whiteboard context.');
+      }
+
       if (editingCommentId) {
-        const updatedComment = await commentService.update(questionId, editingCommentId, {
-          body: sanitizedComment,
-        });
+        const updatedComment = await commentService.update(
+          resolvedWhiteboardId,
+          questionId,
+          editingCommentId,
+          {
+            body: sanitizedComment,
+          }
+        );
         setComments((previousComments) => {
           const existingIndex = previousComments.findIndex(
             (comment) => comment.id === updatedComment.id
@@ -190,7 +198,9 @@ export function useQuestionDetailModel({
         });
         setEditingCommentId(null);
       } else {
-        const newComment = await commentService.create(questionId, { body: sanitizedComment });
+        const newComment = await commentService.create(resolvedWhiteboardId, questionId, {
+          body: sanitizedComment,
+        });
         setComments((previousComments) => {
           const existingIndex = previousComments.findIndex(
             (comment) => comment.id === newComment.id
@@ -213,7 +223,7 @@ export function useQuestionDetailModel({
     } finally {
       setSubmitting(false);
     }
-  }, [commentText, editingCommentId, questionId, submitting]);
+  }, [commentText, editingCommentId, question?.whiteboardId, questionId, submitting, whiteboardId]);
 
   const startEditingComment = useCallback(
     (comment: CommentResponse) => {
@@ -240,7 +250,12 @@ export function useQuestionDetailModel({
         return;
       }
 
-      await commentService.delete(questionId, commentId);
+      const resolvedWhiteboardId = whiteboardId || question?.whiteboardId;
+      if (!resolvedWhiteboardId) {
+        throw new Error('Missing whiteboard context.');
+      }
+
+      await commentService.delete(resolvedWhiteboardId, questionId, commentId);
       setComments((previousComments) =>
         previousComments.filter((comment) => comment.id !== commentId)
       );
@@ -249,7 +264,7 @@ export function useQuestionDetailModel({
         cancelEditingComment();
       }
     },
-    [cancelEditingComment, editingCommentId, questionId]
+    [cancelEditingComment, editingCommentId, question?.whiteboardId, questionId, whiteboardId]
   );
 
   const voteOnQuestion = useCallback(
@@ -340,7 +355,12 @@ export function useQuestionDetailModel({
         return;
       }
 
-      const verifiedComment = await commentService.verify(questionId, commentId);
+      const resolvedWhiteboardId = whiteboardId || question?.whiteboardId;
+      if (!resolvedWhiteboardId) {
+        throw new Error('Missing whiteboard context.');
+      }
+
+      const verifiedComment = await commentService.verify(resolvedWhiteboardId, questionId, commentId);
       setComments((previousComments) =>
         previousComments.map((comment) =>
           comment.id === verifiedComment.id ? verifiedComment : comment
@@ -356,7 +376,7 @@ export function useQuestionDetailModel({
           : previousQuestion
       );
     },
-    [questionId]
+    [question?.whiteboardId, questionId, whiteboardId]
   );
 
   const toggleBookmark = useCallback(async () => {

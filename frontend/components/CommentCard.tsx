@@ -128,6 +128,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
             onUpvote={onUpvote}
             onDownvote={onDownvote}
             size="small"
+            direction="horizontal"
           />
 
           <View style={styles.actions}>

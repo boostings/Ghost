@@ -8,9 +8,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-  Image,
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -388,12 +387,21 @@ export default function HomeScreen() {
             </Text>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
           </View>
-          <Image
-            source={require('../../public/logo.png')}
-            style={[styles.headerLogo, { tintColor: colors.text }]}
-            resizeMode="contain"
-            accessibilityLabel="Ghost logo"
-          />
+          <Pressable
+            onPress={() => {
+              haptic.medium();
+              setShowJoinModal(true);
+            }}
+            style={({ pressed }) => [
+              styles.headerFab,
+              { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.95 : 1 }] },
+              Shadow.primaryGlow(colors.primary),
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Join a class"
+          >
+            <AnimatedIcon name="add" size={24} color="#FFFFFF" motion="pop" />
+          </Pressable>
         </Animated.View>
 
         {isLoading && whiteboards.length === 0 ? (
@@ -438,27 +446,6 @@ export default function HomeScreen() {
             }
           />
         )}
-
-        <Animated.View
-          style={styles.fabWrap}
-          entering={FadeInUp.duration(Duration.slow).delay(Stagger.footer).springify().damping(14)}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.fab,
-              { backgroundColor: colors.primary, transform: [{ scale: pressed ? 0.95 : 1 }] },
-              Shadow.primaryGlow(colors.primary),
-            ]}
-            onPress={() => {
-              haptic.medium();
-              setShowJoinModal(true);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Join a class"
-          >
-            <AnimatedIcon name="add" size={28} color="#FFFFFF" motion="pop" />
-          </Pressable>
-        </Animated.View>
 
         <GlassModal visible={showJoinModal} onClose={closeJoinModal} title={joinModalTitle}>
           <GlassInput
@@ -566,10 +553,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -0.8,
   },
-  headerLogo: {
-    width: 52,
-    height: 52,
+  headerFab: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     marginLeft: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -669,18 +659,6 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabWrap: {
-    position: 'absolute',
-    right: Spacing.xxl,
-    bottom: 110,
-  },
-  fab: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
   },

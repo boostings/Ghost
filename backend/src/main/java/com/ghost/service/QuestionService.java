@@ -18,10 +18,9 @@ import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
-import com.ghost.model.enums.NotificationType;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
-// CommentRepository removed; comments are managed through WhiteboardService
+import com.ghost.repository.CommentRepository;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
@@ -46,11 +45,12 @@ import java.util.UUID;
 public class QuestionService {
 
     private final QuestionRepository questionRepository;
+    private final CommentRepository commentRepository;
     private final TopicRepository topicRepository;
     private final UserRepository userRepository;
     private final WhiteboardService whiteboardService;
     private final AuditLogService auditLogService;
-    private final NotificationService notificationService;
+    private final NotificationFactory notificationFactory;
     private final QuestionResponseAssembler questionResponseAssembler;
     private final CommentResponseAssembler commentResponseAssembler;
     private final SearchService searchService;
@@ -173,7 +173,7 @@ public class QuestionService {
                 null
         );
 
-        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
         payload.put("id", questionId);
         publishQuestionEvent(question.getWhiteboard().getId(), "QUESTION_DELETED", payload);
         questionRepository.delete(question);
@@ -405,23 +405,17 @@ public class QuestionService {
     public QuestionResponse forwardQuestion(UUID facultyId, UUID whiteboardId, UUID questionId, ForwardQuestionRequest req) {
         Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
 
-        whiteboardService.verifyFacultyRole(facultyId, question.getWhiteboard().getId());
+        WhiteboardMembership facultyMembership = whiteboardService.verifyFacultyRole(
+                facultyId,
+                question.getWhiteboard().getId()
+        );
         User targetFaculty = userRepository.findById(req.getTargetFacultyId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", req.getTargetFacultyId()));
         if (!targetFaculty.isFaculty()) {
             throw new BadRequestException("Question can only be forwarded to a faculty member");
         }
 
-        notificationService.createAndSend(
-                facultyId,
-                targetFaculty.getId(),
-                NotificationType.QUESTION_FORWARDED,
-                "Question Forwarded",
-                "A question has been forwarded to you: " + question.getTitle(),
-                "Question",
-                questionId,
-                question.getWhiteboard().getId()
-        );
+        notificationFactory.sendQuestionForwardedNotification(facultyMembership.getUser(), targetFaculty, question);
 
         auditLogService.logAction(
                 question.getWhiteboard().getId(), facultyId, AuditAction.QUESTION_FORWARDED,
@@ -433,7 +427,16 @@ public class QuestionService {
     @Transactional
     public CommentResponse createComment(UUID userId, UUID questionId, CreateCommentRequest req) {
         Question question = getQuestionById(questionId);
+        return createCommentForQuestion(userId, question, req);
+    }
 
+    @Transactional
+    public CommentResponse createComment(UUID userId, UUID whiteboardId, UUID questionId, CreateCommentRequest req) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
+        return createCommentForQuestion(userId, question, req);
+    }
+
+    private CommentResponse createCommentForQuestion(UUID userId, Question question, CreateCommentRequest req) {
         if (question.getStatus() == QuestionStatus.CLOSED) {
             throw new BadRequestException("Cannot add comments to a closed question");
         }
@@ -458,18 +461,7 @@ public class QuestionService {
                 "Comment", comment.getId(), null, comment.getBody()
         );
 
-        if (!question.getAuthor().getId().equals(userId)) {
-            notificationService.createAndSend(
-                    userId,
-                    question.getAuthor().getId(),
-                    NotificationType.COMMENT_ADDED,
-                    "New Comment",
-                    "Someone commented on your question: " + question.getTitle(),
-                    "Question",
-                    questionId,
-                    question.getWhiteboard().getId()
-            );
-        }
+        notificationFactory.sendCommentAddedNotification(membership.getUser(), question);
 
         CommentResponse response = commentResponseAssembler.toResponse(comment, userId);
         publishCommentEvent(question.getId(), "COMMENT_CREATED", response);
@@ -479,6 +471,28 @@ public class QuestionService {
     @Transactional
     public CommentResponse editComment(UUID userId, UUID questionId, UUID commentId, EditCommentRequest req) {
         Comment comment = getCommentByIdAndQuestion(commentId, questionId);
+        return editCommentForEntity(userId, questionId, commentId, req, comment);
+    }
+
+    @Transactional
+    public CommentResponse editComment(
+            UUID userId,
+            UUID whiteboardId,
+            UUID questionId,
+            UUID commentId,
+            EditCommentRequest req
+    ) {
+        Comment comment = getCommentByIdAndQuestionAndWhiteboard(commentId, questionId, whiteboardId);
+        return editCommentForEntity(userId, questionId, commentId, req, comment);
+    }
+
+    private CommentResponse editCommentForEntity(
+            UUID userId,
+            UUID questionId,
+            UUID commentId,
+            EditCommentRequest req,
+            Comment comment
+    ) {
         whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         if (!comment.getAuthor().getId().equals(userId)) {
@@ -510,6 +524,16 @@ public class QuestionService {
     @Transactional
     public void deleteComment(UUID userId, UUID questionId, UUID commentId) {
         Comment comment = getCommentByIdAndQuestion(commentId, questionId);
+        deleteCommentEntity(userId, questionId, commentId, comment);
+    }
+
+    @Transactional
+    public void deleteComment(UUID userId, UUID whiteboardId, UUID questionId, UUID commentId) {
+        Comment comment = getCommentByIdAndQuestionAndWhiteboard(commentId, questionId, whiteboardId);
+        deleteCommentEntity(userId, questionId, commentId, comment);
+    }
+
+    private void deleteCommentEntity(UUID userId, UUID questionId, UUID commentId, Comment comment) {
         whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         boolean isAuthor = comment.getAuthor().getId().equals(userId);
@@ -522,20 +546,42 @@ public class QuestionService {
             }
         }
 
+        if (comment.getQuestion().getStatus() == QuestionStatus.CLOSED) {
+            throw new BadRequestException("Cannot delete a comment on a closed question");
+        }
+        if (commentId.equals(comment.getQuestion().getVerifiedAnswerId())) {
+            throw new BadRequestException("Cannot delete a verified answer");
+        }
+
         auditLogService.logAction(
                 comment.getQuestion().getWhiteboard().getId(), userId, AuditAction.COMMENT_DELETED,
                 "Comment", commentId, comment.getBody(), null
         );
 
-        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
         payload.put("id", commentId);
         publishCommentEvent(questionId, "COMMENT_DELETED", payload);
+        commentRepository.delete(comment);
     }
 
     @Transactional
     public CommentResponse markAsVerifiedAnswer(UUID facultyId, UUID questionId, UUID commentId) {
         Comment comment = getCommentByIdAndQuestion(commentId, questionId);
+        return markCommentAsVerifiedAnswer(facultyId, questionId, commentId, comment);
+    }
 
+    @Transactional
+    public CommentResponse markAsVerifiedAnswer(UUID facultyId, UUID whiteboardId, UUID questionId, UUID commentId) {
+        Comment comment = getCommentByIdAndQuestionAndWhiteboard(commentId, questionId, whiteboardId);
+        return markCommentAsVerifiedAnswer(facultyId, questionId, commentId, comment);
+    }
+
+    private CommentResponse markCommentAsVerifiedAnswer(
+            UUID facultyId,
+            UUID questionId,
+            UUID commentId,
+            Comment comment
+    ) {
         Question question = comment.getQuestion();
         WhiteboardMembership facultyMembership = whiteboardService.verifyMembership(
                 facultyId, question.getWhiteboard().getId());
@@ -578,35 +624,15 @@ public class QuestionService {
                 "Comment", commentId, null, "Verified answer for question: " + question.getId()
         );
 
-        if (!question.getAuthor().getId().equals(facultyId)) {
-            notificationService.createAndSend(
-                    facultyId,
-                    question.getAuthor().getId(),
-                    NotificationType.QUESTION_ANSWERED,
-                    "Your Question Was Answered",
-                    "A verified answer has been provided for: " + question.getTitle(),
-                    "Question",
-                    question.getId(),
-                    question.getWhiteboard().getId()
-            );
-        }
+        notificationFactory.sendQuestionAnsweredNotification(facultyMembership.getUser(), question);
 
         List<Bookmark> bookmarks = bookmarkService.getBookmarksByQuestionId(question.getId());
         for (Bookmark bookmark : bookmarks) {
-            UUID bookmarkUserId = bookmark.getUser().getId();
-            if (!bookmarkUserId.equals(question.getAuthor().getId())
-                    && !bookmarkUserId.equals(facultyId)) {
-                notificationService.createAndSend(
-                        facultyId,
-                        bookmarkUserId,
-                        NotificationType.QUESTION_ANSWERED,
-                        "Bookmarked Question Answered",
-                        "A verified answer has been provided for: " + question.getTitle(),
-                        "Question",
-                        question.getId(),
-                        question.getWhiteboard().getId()
-                );
-            }
+            notificationFactory.sendBookmarkedQuestionAnsweredNotification(
+                    facultyMembership.getUser(),
+                    question,
+                    bookmark.getUser()
+            );
         }
 
         return updatedComment;
@@ -615,6 +641,26 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public Page<CommentResponse> getCommentsByQuestion(UUID userId, UUID questionId, Pageable pageable) {
         Question question = getQuestionById(questionId);
+        return getCommentsForQuestion(userId, questionId, pageable, question);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CommentResponse> getCommentsByQuestion(
+            UUID userId,
+            UUID whiteboardId,
+            UUID questionId,
+            Pageable pageable
+    ) {
+        Question question = getQuestionEntityByIdAndWhiteboard(questionId, whiteboardId);
+        return getCommentsForQuestion(userId, questionId, pageable, question);
+    }
+
+    private Page<CommentResponse> getCommentsForQuestion(
+            UUID userId,
+            UUID questionId,
+            Pageable pageable,
+            Question question
+    ) {
         whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
         if (question.isHidden()) {
             throw new ResourceNotFoundException("Question", "id", questionId);
@@ -624,7 +670,7 @@ public class QuestionService {
     }
 
     private void publishCommentEvent(UUID questionId, String type, Object payload) {
-        java.util.Map<String, Object> message = new java.util.HashMap<>();
+        Map<String, Object> message = new HashMap<>();
         message.put("type", type);
         message.put("payload", payload);
         messagingTemplate.convertAndSend("/topic/question/" + questionId + "/comments", message);
@@ -639,12 +685,20 @@ public class QuestionService {
         return comment;
     }
 
+    private Comment getCommentByIdAndQuestionAndWhiteboard(UUID commentId, UUID questionId, UUID whiteboardId) {
+        Comment comment = getCommentByIdAndQuestion(commentId, questionId);
+        if (!comment.getQuestion().getWhiteboard().getId().equals(whiteboardId)) {
+            throw new ResourceNotFoundException("Comment", "id", commentId);
+        }
+        return comment;
+    }
+
     private boolean isFaculty(UUID userId, UUID whiteboardId) {
         return whiteboardService.verifyMembership(userId, whiteboardId).getRole() == Role.FACULTY;
     }
 
     private void publishQuestionEvent(UUID whiteboardId, String type, Object payload) {
-        java.util.Map<String, Object> message = new java.util.HashMap<>();
+        Map<String, Object> message = new HashMap<>();
         message.put("type", type);
         message.put("payload", payload);
         messagingTemplate.convertAndSend("/topic/whiteboard/" + whiteboardId + "/questions", message);

@@ -124,27 +124,27 @@ public class QuestionController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/comments")
+    @PostMapping("/{qId}/comments")
     public ResponseEntity<CommentResponse> createComment(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID wbId,
-            @PathVariable UUID id,
+            @PathVariable UUID qId,
             @Valid @RequestBody CreateCommentRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        CommentResponse comment = questionService.createComment(userId, id, request);
+        CommentResponse comment = questionService.createComment(userId, wbId, qId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(comment);
     }
 
-    @GetMapping("/{id}/comments")
+    @GetMapping("/{qId}/comments")
     public ResponseEntity<PageResponse<CommentResponse>> getComments(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID wbId,
-            @PathVariable UUID id,
+            @PathVariable UUID qId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
         Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
-        Page<CommentResponse> comments = questionService.getCommentsByQuestion(userId, id, pageable);
+        Page<CommentResponse> comments = questionService.getCommentsByQuestion(userId, wbId, qId, pageable);
         return ResponseEntity.ok(PageResponse.from(comments));
     }
 
@@ -156,7 +156,7 @@ public class QuestionController {
             @PathVariable UUID commentId,
             @Valid @RequestBody EditCommentRequest request) {
         UUID userId = UUID.fromString(userIdStr);
-        CommentResponse comment = questionService.editComment(userId, qId, commentId, request);
+        CommentResponse comment = questionService.editComment(userId, wbId, qId, commentId, request);
         return ResponseEntity.ok(comment);
     }
 
@@ -167,7 +167,7 @@ public class QuestionController {
             @PathVariable UUID qId,
             @PathVariable UUID commentId) {
         UUID userId = UUID.fromString(userIdStr);
-        questionService.deleteComment(userId, qId, commentId);
+        questionService.deleteComment(userId, wbId, qId, commentId);
         return ResponseEntity.noContent().build();
     }
 
@@ -178,7 +178,7 @@ public class QuestionController {
             @PathVariable UUID qId,
             @PathVariable UUID commentId) {
         UUID userId = UUID.fromString(userIdStr);
-        CommentResponse comment = questionService.markAsVerifiedAnswer(userId, qId, commentId);
+        CommentResponse comment = questionService.markAsVerifiedAnswer(userId, wbId, qId, commentId);
         return ResponseEntity.ok(comment);
     }
 }

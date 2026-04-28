@@ -15,10 +15,10 @@ import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
 import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
-import com.ghost.model.enums.NotificationType;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.model.enums.QuestionStatus;
 import com.ghost.model.enums.Role;
+import com.ghost.repository.CommentRepository;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
@@ -54,6 +54,9 @@ class QuestionServiceTest {
     private QuestionRepository questionRepository;
 
     @Mock
+    private CommentRepository commentRepository;
+
+    @Mock
     private TopicRepository topicRepository;
 
     @Mock
@@ -66,10 +69,13 @@ class QuestionServiceTest {
     private AuditLogService auditLogService;
 
     @Mock
-    private NotificationService notificationService;
+    private NotificationFactory notificationFactory;
 
     @Mock
     private QuestionResponseAssembler questionResponseAssembler;
+
+    @Mock
+    private CommentResponseAssembler commentResponseAssembler;
 
     @Mock
     private SearchService searchService;
@@ -79,6 +85,9 @@ class QuestionServiceTest {
 
     @Mock
     private WhiteboardMembershipRepository whiteboardMembershipRepository;
+
+    @Mock
+    private BookmarkService bookmarkService;
 
     @InjectMocks
     private QuestionService questionService;
@@ -667,6 +676,17 @@ class QuestionServiceTest {
                 .build();
 
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        User forwardingFaculty = FacultyUser.builder()
+                .id(facultyId)
+                .email("forwarder@ilstu.edu")
+                .build();
+        when(whiteboardService.verifyFacultyRole(facultyId, whiteboardId)).thenReturn(
+                WhiteboardMembership.builder()
+                        .whiteboard(whiteboard)
+                        .user(forwardingFaculty)
+                        .role(Role.FACULTY)
+                        .build()
+        );
         when(userRepository.findById(targetFacultyId)).thenReturn(Optional.of(targetFaculty));
         when(questionResponseAssembler.toResponse(question, facultyId, true)).thenReturn(response);
 
@@ -680,16 +700,7 @@ class QuestionServiceTest {
         );
 
         assertThat(result).isEqualTo(response);
-        verify(notificationService).createAndSend(
-                facultyId,
-                targetFacultyId,
-                NotificationType.QUESTION_FORWARDED,
-                "Question Forwarded",
-                "A question has been forwarded to you: " + question.getTitle(),
-                "Question",
-                questionId,
-                whiteboardId
-        );
+        verify(notificationFactory).sendQuestionForwardedNotification(forwardingFaculty, targetFaculty, question);
         verify(auditLogService).logAction(
                 whiteboardId,
                 facultyId,

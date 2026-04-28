@@ -138,7 +138,11 @@ class CoreWorkflowIntegrationTest {
 
         UUID questionId = responseId(questionResult);
 
-        MvcResult commentResult = mockMvc.perform(post("/api/questions/{qId}/comments", questionId)
+        MvcResult commentResult = mockMvc.perform(post(
+                        "/api/whiteboards/{wbId}/questions/{qId}/comments",
+                        whiteboard.getId(),
+                        questionId
+                )
                         .header("Authorization", bearerToken(faculty))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
@@ -150,7 +154,12 @@ class CoreWorkflowIntegrationTest {
 
         UUID commentId = responseId(commentResult);
 
-        mockMvc.perform(post("/api/questions/{qId}/comments/{id}/verify", questionId, commentId)
+        mockMvc.perform(post(
+                        "/api/whiteboards/{wbId}/questions/{qId}/comments/{id}/verify",
+                        whiteboard.getId(),
+                        questionId,
+                        commentId
+                )
                         .header("Authorization", bearerToken(faculty)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(commentId.toString()))

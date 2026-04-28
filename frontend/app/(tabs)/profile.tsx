@@ -345,7 +345,7 @@ export default function ProfileScreen() {
                   icon="help-circle-outline"
                   colors={colors}
                   value={loading ? '—' : questionCount.toLocaleString()}
-                  label="Questions asked"
+                  label="Questions"
                 />
                 <StatTile
                   icon="flash-outline"
@@ -365,7 +365,7 @@ export default function ProfileScreen() {
                   icon="ribbon-outline"
                   colors={colors}
                   value={standing.label.split(' ')[0]}
-                  valueStyle={{ color: standing.color, fontSize: 16 }}
+                  valueStyle={{ color: standing.color }}
                   label="Standing"
                 />
               </View>
