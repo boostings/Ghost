@@ -227,8 +227,10 @@ class WhiteboardMembershipServiceTest {
 
         when(whiteboardRepository.findById(whiteboardId)).thenReturn(Optional.of(whiteboard));
         when(userRepository.findByEmail("faculty@ilstu.edu")).thenReturn(Optional.of(faculty));
-        when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, facultyId)).thenReturn(false);
+        // inviteFaculty looks up first (must be empty so it creates a new membership);
+        // leaveWhiteboard then looks up again (must be present so it can delete).
         when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, facultyId))
+                .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(membership));
 
         whiteboardMembershipService.inviteFaculty(ownerId, whiteboardId, " Faculty@ilstu.edu ");
