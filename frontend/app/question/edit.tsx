@@ -50,8 +50,8 @@ export default function EditQuestionScreen() {
       setBody(question.body);
       setSelectedTopicId(question.topicId || undefined);
       setTopics(topicsData || []);
-    } catch {
-      Alert.alert('Error', 'Failed to load question data.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setLoading(false);
     }

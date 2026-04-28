@@ -3,8 +3,8 @@ package com.ghost.service;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
-import com.ghost.exception.UnauthorizedException;
 import com.ghost.mapper.UserMapper;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
@@ -139,7 +139,7 @@ public class WhiteboardMembershipService {
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
 
         if (!whiteboard.getOwner().getId().equals(ownerId)) {
-            throw new UnauthorizedException("Only the owner can invite faculty");
+            throw new ForbiddenException("Only the owner can invite faculty");
         }
 
         User faculty = userRepository.findByEmail(normalizeEmail(facultyEmail))
@@ -247,14 +247,14 @@ public class WhiteboardMembershipService {
     @Transactional(readOnly = true)
     public WhiteboardMembership verifyMembership(UUID userId, UUID whiteboardId) {
         return whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId)
-                .orElseThrow(() -> new UnauthorizedException("You are not a member of this whiteboard"));
+                .orElseThrow(() -> new ForbiddenException("You are not a member of this whiteboard"));
     }
 
     @Transactional(readOnly = true)
     public WhiteboardMembership verifyFacultyRole(UUID userId, UUID whiteboardId) {
         WhiteboardMembership membership = verifyMembership(userId, whiteboardId);
         if (membership.getRole() != Role.FACULTY) {
-            throw new UnauthorizedException("Only faculty members can perform this action");
+            throw new ForbiddenException("Only faculty members can perform this action");
         }
         return membership;
     }

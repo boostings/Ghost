@@ -299,10 +299,10 @@ class CommentServiceTest {
         UUID otherUserId = UUID.randomUUID();
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(whiteboardService.verifyFacultyRole(otherUserId, whiteboard.getId()))
-                .thenThrow(new com.ghost.exception.UnauthorizedException("No faculty role"));
+                .thenThrow(new com.ghost.exception.ForbiddenException("No faculty role"));
 
         assertThatThrownBy(() -> commentService.deleteComment(otherUserId, questionId, commentId))
-                .isInstanceOf(com.ghost.exception.UnauthorizedException.class)
+                .isInstanceOf(com.ghost.exception.ForbiddenException.class)
                 .hasMessageContaining("Only the author or faculty");
 
         verify(commentRepository, never()).delete(any(Comment.class));

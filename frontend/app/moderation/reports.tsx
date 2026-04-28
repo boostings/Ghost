@@ -22,6 +22,7 @@ import {
   REPORT_STATUS_FILTERS,
   useModerationReportsModel,
 } from '../../hooks/useModerationReportsModel';
+import { extractErrorMessage } from '../../hooks/useApi';
 import { formatDate } from '../../utils/formatDate';
 import type { ReportResponse } from '../../types';
 
@@ -63,8 +64,8 @@ export default function ReportsScreen() {
     try {
       await dismissReport(reportId);
       Alert.alert('Dismissed', 'Report has been dismissed.');
-    } catch {
-      Alert.alert('Error', 'Failed to dismiss report.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 
@@ -78,8 +79,8 @@ export default function ReportsScreen() {
           try {
             await removeReportedContent(report.id);
             Alert.alert('Removed', 'Content has been hidden.');
-          } catch {
-            Alert.alert('Error', 'Failed to remove content.');
+          } catch (error: unknown) {
+            Alert.alert('Error', extractErrorMessage(error));
           }
         },
       },

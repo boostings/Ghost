@@ -22,6 +22,7 @@ import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
+import { extractErrorMessage } from '../../hooks/useApi';
 import { formatDate } from '../../utils/formatDate';
 import type { MemberResponse, JoinRequestResponse } from '../../types';
 
@@ -83,8 +84,8 @@ export default function MembersScreen() {
             try {
               await whiteboardService.removeMember(whiteboardId, member.userId);
               setMembers((prev) => prev.filter((m) => m.userId !== member.userId));
-            } catch {
-              Alert.alert('Error', 'Failed to remove member.');
+            } catch (error: unknown) {
+              Alert.alert('Error', extractErrorMessage(error));
             }
           },
         },
@@ -102,8 +103,8 @@ export default function MembersScreen() {
       if (status === 'APPROVED') {
         await fetchData(); // Refresh members
       }
-    } catch {
-      Alert.alert('Error', `Failed to ${status.toLowerCase()} request.`);
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 

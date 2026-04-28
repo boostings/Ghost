@@ -91,8 +91,8 @@ export default function TopicsScreen() {
               }
               await topicService.remove(whiteboardId, topic.id);
               setTopics((prev) => prev.filter((t) => t.id !== topic.id));
-            } catch {
-              Alert.alert('Error', 'Failed to delete topic.');
+            } catch (error: unknown) {
+              Alert.alert('Error', extractErrorMessage(error));
             }
           },
         },

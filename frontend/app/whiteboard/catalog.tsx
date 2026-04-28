@@ -45,6 +45,7 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
 import { findMatchingWhiteboard } from '../../utils/whiteboardIdentity';
+import { extractErrorMessage } from '../../hooks/useApi';
 import type { CourseSectionResponse } from '../../types';
 
 const PAGE_SIZE = 30;
@@ -153,12 +154,12 @@ export default function CourseCatalogScreen() {
         setHasMore(requestedPage + 1 < response.totalPages);
         setTotalElements(response.totalElements);
         setLoadError(null);
-      } catch {
+      } catch (error: unknown) {
         if (sequence !== requestSequenceRef.current) return;
         if (mode === 'replace') setSections([]);
         setHasMore(false);
         setTotalElements(0);
-        setLoadError('Unable to load classes from the catalog.');
+        setLoadError(extractErrorMessage(error));
       } finally {
         if (sequence !== requestSequenceRef.current) return;
         if (mode === 'replace') setLoading(false);
@@ -218,8 +219,8 @@ export default function CourseCatalogScreen() {
         });
         addWhiteboard(created);
         router.replace(`/whiteboard/${created.id}`);
-      } catch {
-        Alert.alert('Create failed', 'Unable to create a whiteboard for this class.');
+      } catch (error: unknown) {
+        Alert.alert('Create failed', extractErrorMessage(error));
       } finally {
         setCreatingSectionId(null);
       }

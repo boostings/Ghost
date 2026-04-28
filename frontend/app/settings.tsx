@@ -21,6 +21,7 @@ import { Fonts } from '../constants/fonts';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/authService';
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
+import { extractErrorMessage } from '../hooks/useApi';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -75,11 +76,12 @@ export default function SettingsScreen() {
       await authService.deleteAccount();
       logout();
       router.replace('/(auth)/login');
-    } catch {
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error);
       if (Platform.OS === 'web') {
-        window.alert('Failed to delete account. Please try again.');
+        window.alert(message);
       } else {
-        Alert.alert('Error', 'Failed to delete account. Please try again.');
+        Alert.alert('Error', message);
       }
     } finally {
       setDeletingAccount(false);

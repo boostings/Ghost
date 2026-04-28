@@ -23,6 +23,7 @@ import SettingsHeader from '../../components/whiteboard/SettingsHeader';
 import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { formatFullDate } from '../../utils/formatDate';
+import { extractErrorMessage } from '../../hooks/useApi';
 import { auditLogService } from '../../services/auditLogService';
 import type { AuditLogResponse, AuditAction } from '../../types';
 
@@ -247,8 +248,8 @@ export default function AuditLogScreen() {
         });
         Alert.alert('Export', 'Audit log CSV ready to share.');
       }
-    } catch {
-      Alert.alert('Error', 'Failed to export audit logs.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setExporting(false);
     }

@@ -5,7 +5,7 @@ import com.ghost.dto.request.EditQuestionRequest;
 import com.ghost.dto.request.ForwardQuestionRequest;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
-import com.ghost.exception.UnauthorizedException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.model.Course;
 import com.ghost.model.FacultyUser;
 import com.ghost.model.Question;
@@ -276,7 +276,7 @@ class QuestionServiceTest {
                 questionId,
                 EditQuestionRequest.builder().title("Nope").build()
         ))
-                .isInstanceOf(UnauthorizedException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Only the author");
     }
 
@@ -310,10 +310,10 @@ class QuestionServiceTest {
 
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(whiteboardService.verifyFacultyRole(otherUserId, whiteboardId))
-                .thenThrow(new UnauthorizedException("No faculty role"));
+                .thenThrow(new ForbiddenException("No faculty role"));
 
         assertThatThrownBy(() -> questionService.deleteQuestion(otherUserId, whiteboardId, questionId))
-                .isInstanceOf(UnauthorizedException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Only the author or faculty");
 
         verify(questionRepository, never()).delete(any(Question.class));

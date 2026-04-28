@@ -2,8 +2,8 @@ package com.ghost.service;
 
 import com.ghost.dto.response.TopicResponse;
 import com.ghost.exception.BadRequestException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
-import com.ghost.exception.UnauthorizedException;
 import com.ghost.mapper.TopicMapper;
 import com.ghost.model.Topic;
 import com.ghost.model.Whiteboard;
@@ -125,14 +125,14 @@ public class TopicService {
 
     private void verifyMembership(UUID userId, UUID whiteboardId) {
         whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId)
-                .orElseThrow(() -> new UnauthorizedException("You are not a member of this whiteboard"));
+                .orElseThrow(() -> new ForbiddenException("You are not a member of this whiteboard"));
     }
 
     private void verifyFacultyRole(UUID userId, UUID whiteboardId) {
         var membership = whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, userId)
-                .orElseThrow(() -> new UnauthorizedException("You are not a member of this whiteboard"));
+                .orElseThrow(() -> new ForbiddenException("You are not a member of this whiteboard"));
         if (membership.getRole() != Role.FACULTY) {
-            throw new UnauthorizedException("Only faculty members can perform this action");
+            throw new ForbiddenException("Only faculty members can perform this action");
         }
     }
 }

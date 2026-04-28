@@ -8,6 +8,7 @@ import com.ghost.dto.request.ForwardQuestionRequest;
 import com.ghost.dto.response.CommentResponse;
 import com.ghost.dto.response.QuestionResponse;
 import com.ghost.exception.BadRequestException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
 import com.ghost.model.Bookmark;
@@ -102,7 +103,7 @@ public class QuestionService {
 
         // Verify author
         if (!question.getAuthor().getId().equals(userId)) {
-            throw new UnauthorizedException("Only the author can edit this question");
+            throw new ForbiddenException("Only the author can edit this question");
         }
 
         // Verify status is OPEN
@@ -161,8 +162,8 @@ public class QuestionService {
         if (!isAuthor) {
             try {
                 whiteboardService.verifyFacultyRole(userId, question.getWhiteboard().getId());
-            } catch (UnauthorizedException e) {
-                throw new UnauthorizedException("Only the author or faculty can delete this question");
+            } catch (UnauthorizedException | ForbiddenException e) {
+                throw new ForbiddenException("Only the author or faculty can delete this question");
             }
         }
 
@@ -496,7 +497,7 @@ public class QuestionService {
         whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         if (!comment.getAuthor().getId().equals(userId)) {
-            throw new UnauthorizedException("Only the author can edit this comment");
+            throw new ForbiddenException("Only the author can edit this comment");
         }
 
         if (comment.getEditDeadline() == null || comment.getEditDeadline().isBefore(LocalDateTime.now())) {
@@ -541,8 +542,8 @@ public class QuestionService {
         if (!isAuthor) {
             try {
                 whiteboardService.verifyFacultyRole(userId, comment.getQuestion().getWhiteboard().getId());
-            } catch (UnauthorizedException e) {
-                throw new UnauthorizedException("Only the author or faculty can delete this comment");
+            } catch (UnauthorizedException | ForbiddenException e) {
+                throw new ForbiddenException("Only the author or faculty can delete this comment");
             }
         }
 
@@ -587,7 +588,7 @@ public class QuestionService {
                 facultyId, question.getWhiteboard().getId());
 
         if (facultyMembership.getRole() != Role.FACULTY) {
-            throw new UnauthorizedException("Only faculty can mark a verified answer");
+            throw new ForbiddenException("Only faculty can mark a verified answer");
         }
         if (question.getStatus() == QuestionStatus.CLOSED) {
             throw new BadRequestException("Question is already closed");

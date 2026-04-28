@@ -6,7 +6,7 @@ import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.exception.ResourceNotFoundException;
-import com.ghost.exception.UnauthorizedException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.repository.CourseRepository;
 import com.ghost.repository.CourseSectionRepository;
 import com.ghost.repository.SemesterRepository;
@@ -38,7 +38,7 @@ public class CourseCatalogImportService {
         User faculty = userRepository.findById(facultyId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", facultyId));
         if (!faculty.isFaculty()) {
-            throw new UnauthorizedException("Only faculty members can import the course catalog");
+            throw new ForbiddenException("Only faculty members can import the course catalog");
         }
 
         int imported = 0;

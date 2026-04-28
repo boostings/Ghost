@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { bookmarkService } from '../services/bookmarkService';
 import { questionService } from '../services/questionService';
 import { whiteboardService } from '../services/whiteboardService';
+import { extractErrorMessage } from './useApi';
 import { useWebSocket } from './useWebSocket';
 import { useAuthStore } from '../stores/authStore';
 import { useWhiteboardStore } from '../stores/whiteboardStore';
@@ -232,8 +233,8 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
             item.id === questionId ? { ...item, isBookmarked: !item.isBookmarked } : item
           )
         );
-      } catch {
-        Alert.alert('Error', 'Failed to update bookmark.');
+      } catch (error: unknown) {
+        Alert.alert('Error', extractErrorMessage(error));
       }
     },
     [questions]

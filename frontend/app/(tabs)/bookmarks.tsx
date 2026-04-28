@@ -18,6 +18,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { Colors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
 import { bookmarkService } from '../../services/bookmarkService';
+import { extractErrorMessage } from '../../hooks/useApi';
 import { formatDate } from '../../utils/formatDate';
 import type { BookmarkResponse } from '../../types';
 
@@ -133,9 +134,9 @@ export default function SavedScreen() {
       setBookmarks((current) => current.filter((b) => b.question.id !== questionId));
       try {
         await bookmarkService.remove(questionId);
-      } catch {
+      } catch (error: unknown) {
         setBookmarks(previous);
-        Alert.alert('Could not remove', 'Saved question was not removed. Please try again.');
+        Alert.alert('Could not remove', extractErrorMessage(error));
       }
     },
     [bookmarks]

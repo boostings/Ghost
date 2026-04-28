@@ -7,7 +7,6 @@ import com.ghost.dto.response.UserResponse;
 import com.ghost.dto.response.WhiteboardResponse;
 import com.ghost.exception.ForbiddenException;
 import com.ghost.exception.ResourceNotFoundException;
-import com.ghost.exception.UnauthorizedException;
 import com.ghost.model.Course;
 import com.ghost.model.JoinRequest;
 import com.ghost.model.Semester;
@@ -55,7 +54,7 @@ public class WhiteboardService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", facultyId));
 
         if (!faculty.isFaculty()) {
-            throw new UnauthorizedException("Only faculty members can create whiteboards");
+            throw new ForbiddenException("Only faculty members can create whiteboards");
         }
 
         String normalizedCourseCode = normalizeCourseCode(req.getCourseCode());
@@ -173,14 +172,14 @@ public class WhiteboardService {
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
 
         if (!whiteboard.getOwner().getId().equals(ownerId)) {
-            throw new UnauthorizedException("Only the owner can transfer ownership");
+            throw new ForbiddenException("Only the owner can transfer ownership");
         }
 
         User newOwner = userRepository.findByEmail(normalizeEmail(newOwnerEmail))
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", newOwnerEmail));
 
         if (!newOwner.isFaculty()) {
-            throw new UnauthorizedException("Ownership can only be transferred to a faculty member");
+            throw new ForbiddenException("Ownership can only be transferred to a faculty member");
         }
 
         whiteboard.setOwner(newOwner);

@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { questionService } from '../services/questionService';
 import { whiteboardService } from '../services/whiteboardService';
 import { bookmarkService } from '../services/bookmarkService';
+import { extractErrorMessage } from './useApi';
 import { useWhiteboardStore } from '../stores/whiteboardStore';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../types';
 
@@ -277,8 +278,8 @@ export function useQuestionSearchModel() {
               : item
           )
         );
-      } catch {
-        Alert.alert('Error', 'Failed to update bookmark.');
+      } catch (error: unknown) {
+        Alert.alert('Error', extractErrorMessage(error));
       }
     },
     [results]

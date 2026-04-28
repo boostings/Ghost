@@ -2,7 +2,7 @@ package com.ghost.service;
 
 import com.ghost.dto.response.TopicResponse;
 import com.ghost.exception.BadRequestException;
-import com.ghost.exception.UnauthorizedException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.mapper.TopicMapper;
 import com.ghost.model.Topic;
 import com.ghost.model.Whiteboard;
@@ -180,7 +180,7 @@ class TopicServiceTest {
         when(topicRepository.findById(customTopic.getId())).thenReturn(Optional.of(customTopic));
 
         assertThatThrownBy(() -> topicService.deleteTopic(userId, whiteboardId, customTopic.getId()))
-                .isInstanceOf(UnauthorizedException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Only faculty members");
     }
 

@@ -30,6 +30,7 @@ import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
+import { extractErrorMessage } from '../../hooks/useApi';
 import { parseInviteCode } from '../../utils/inviteCode';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
 import type { QuestionResponse, WhiteboardResponse } from '../../types';
@@ -169,8 +170,8 @@ export default function HomeScreen() {
       setShowJoinModal(false);
       setInviteCode('');
       await fetchWhiteboards({ page: 0, replace: true });
-    } catch {
-      Alert.alert('Join Failed', 'Unable to join with this invite code.');
+    } catch (error: unknown) {
+      Alert.alert('Join Failed', extractErrorMessage(error));
     } finally {
       setJoining(false);
     }

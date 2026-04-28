@@ -25,6 +25,7 @@ import { AnimatedIcon } from '../../components/AnimatedIcon';
 import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useQuestionDetailModel } from '../../hooks/useQuestionDetailModel';
+import { extractErrorMessage } from '../../hooks/useApi';
 import { formatFullDate } from '../../utils/formatDate';
 import type { CommentResponse, VoteType } from '../../types';
 
@@ -75,24 +76,24 @@ export default function QuestionDetailScreen() {
   const handleQuestionVote = async (voteType: VoteType) => {
     try {
       await voteOnQuestion(voteType);
-    } catch {
-      Alert.alert('Error', 'Could not record your vote. Please try again.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 
   const handleCommentVote = async (commentId: string, voteType: VoteType) => {
     try {
       await voteOnComment(commentId, voteType);
-    } catch {
-      Alert.alert('Error', 'Could not record your vote. Please try again.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 
   const handleToggleBookmark = async () => {
     try {
       await toggleBookmark();
-    } catch {
-      Alert.alert('Error', 'Failed to update bookmark.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 
@@ -117,8 +118,8 @@ export default function QuestionDetailScreen() {
         onPress: async () => {
           try {
             await deleteComment(comment.id);
-          } catch {
-            Alert.alert('Error', 'Failed to delete comment.');
+          } catch (error: unknown) {
+            Alert.alert('Error', extractErrorMessage(error));
           }
         },
       },
@@ -136,8 +137,8 @@ export default function QuestionDetailScreen() {
           onPress: async () => {
             try {
               await verifyAnswer(commentId);
-            } catch {
-              Alert.alert('Error', 'Failed to verify answer.');
+            } catch (error: unknown) {
+              Alert.alert('Error', extractErrorMessage(error));
             }
           },
         },
@@ -154,11 +155,8 @@ export default function QuestionDetailScreen() {
         onPress: async () => {
           try {
             await deleteQuestion();
-          } catch (error) {
-            Alert.alert(
-              'Error',
-              error instanceof Error ? error.message : 'Failed to delete question.'
-            );
+          } catch (error: unknown) {
+            Alert.alert('Error', extractErrorMessage(error));
           }
         },
       },
@@ -168,16 +166,16 @@ export default function QuestionDetailScreen() {
   const handleCloseQuestion = async () => {
     try {
       await closeQuestion();
-    } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to close question.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 
   const handleTogglePinnedState = async () => {
     try {
       await togglePinnedState();
-    } catch {
-      Alert.alert('Error', 'Max 3 pinned questions per whiteboard.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     }
   };
 

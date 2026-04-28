@@ -3,7 +3,7 @@ package com.ghost.service;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
-import com.ghost.exception.UnauthorizedException;
+import com.ghost.exception.ForbiddenException;
 import com.ghost.mapper.UserMapper;
 import com.ghost.model.Course;
 import com.ghost.model.FacultyUser;
@@ -313,7 +313,7 @@ class WhiteboardMembershipServiceTest {
                 .thenReturn(Optional.of(studentMembership));
 
         assertThatThrownBy(() -> whiteboardMembershipService.verifyFacultyRole(userId, whiteboardId))
-                .isInstanceOf(UnauthorizedException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Only faculty members");
     }
 }

@@ -12,6 +12,7 @@ import GlassModal from './ui/GlassModal';
 import { Colors, useThemeColors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { reportService } from '../services/reportService';
+import { extractErrorMessage } from '../hooks/useApi';
 import type { ReportReason } from '../types';
 
 interface ReportTarget {
@@ -75,8 +76,8 @@ const ReportModal: React.FC<ReportModalProps> = ({
       onClose();
       onSubmitted?.();
       Alert.alert('Reported', 'Thank you for your report. Faculty will review it.');
-    } catch {
-      Alert.alert('Error', 'Failed to submit report.');
+    } catch (error: unknown) {
+      Alert.alert('Error', extractErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
