@@ -549,7 +549,14 @@ function StatTile({
       style={[styles.statTile, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
     >
       <Ionicons name={icon} size={16} color={colors.textMuted} />
-      <Text style={[styles.statValue, { color: colors.text }, valueStyle]}>{value}</Text>
+      <Text
+        style={[styles.statValue, { color: colors.text }, valueStyle]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.6}
+      >
+        {value}
+      </Text>
       <Text style={[styles.statLabel, { color: colors.textMuted }]} numberOfLines={1}>
         {label}
       </Text>
