@@ -1,9 +1,11 @@
 package com.ghost.model.enums;
 
 public enum NotificationType {
+    QUESTION_CREATED,
     QUESTION_ANSWERED,
     COMMENT_ADDED,
     QUESTION_FORWARDED,
+    JOIN_REQUEST_SUBMITTED,
     JOIN_REQUEST_APPROVED,
     JOIN_REQUEST_REJECTED,
     REPORT_SUBMITTED,

@@ -25,9 +25,11 @@ const OUT_EASE = Easing.bezier(0.16, 1, 0.3, 1);
 type IconSpec = { name: keyof typeof Ionicons.glyphMap; tint: string };
 
 const ICONS: Record<NotificationType, IconSpec> = {
+  QUESTION_CREATED: { name: 'help-circle', tint: Colors.info },
   QUESTION_ANSWERED: { name: 'checkmark-circle', tint: Colors.success },
   COMMENT_ADDED: { name: 'chatbubble-ellipses', tint: Colors.primary },
   QUESTION_FORWARDED: { name: 'arrow-redo', tint: Colors.info },
+  JOIN_REQUEST_SUBMITTED: { name: 'person-add-outline', tint: Colors.info },
   JOIN_REQUEST_APPROVED: { name: 'person-add', tint: Colors.success },
   JOIN_REQUEST_REJECTED: { name: 'close-circle', tint: Colors.error },
   REPORT_SUBMITTED: { name: 'flag', tint: Colors.warning },

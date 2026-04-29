@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -34,6 +35,7 @@ public class WhiteboardJoinRequestService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final NotificationFactory notificationFactory;
     private final JoinRequestMapper joinRequestMapper;
     private final WhiteboardMembershipService whiteboardMembershipService;
 
@@ -74,7 +76,23 @@ public class WhiteboardJoinRequestService {
                 JoinRequestStatus.PENDING.name()
         );
 
+        notifyFacultyOfJoinRequest(user, whiteboard);
+
         return saved;
+    }
+
+    private void notifyFacultyOfJoinRequest(User requester, Whiteboard whiteboard) {
+        List<WhiteboardMembership> memberships =
+                whiteboardMembershipRepository.findByWhiteboardId(whiteboard.getId());
+        for (WhiteboardMembership membership : memberships) {
+            if (membership.getRole() == Role.FACULTY) {
+                notificationFactory.sendJoinRequestSubmittedNotification(
+                        requester,
+                        membership.getUser(),
+                        whiteboard
+                );
+            }
+        }
     }
 
     @Transactional

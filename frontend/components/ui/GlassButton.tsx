@@ -44,8 +44,11 @@ const GlassButton: React.FC<GlassButtonProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const colors = useThemeColors();
-  const variantStyles = getVariantStyles(variant, colors, solid);
+  const variantStyles = getVariantStyles(variant, colors, solid, disabled);
   const isSolid = solid && variant === 'primary';
+  const gradientColors = disabled
+    ? ([colors.backgroundLight, colors.surfaceLight, colors.backgroundLight] as const)
+    : ([colors.primaryLight, colors.primary, colors.primaryDark] as const);
 
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -75,9 +78,8 @@ const GlassButton: React.FC<GlassButtonProps> = ({
     <AnimatedPressable
       style={[
         styles.base,
-        { borderColor: colors.surfaceBorder, minHeight },
-        isSolid && Shadow.primaryGlow(colors.primary),
-        disabled && styles.disabled,
+        { borderColor: disabled ? colors.inputBorder : colors.surfaceBorder, minHeight },
+        isSolid && !disabled && Shadow.primaryGlow(colors.primary),
         animatedStyle,
       ]}
       onPress={onPress}
@@ -89,7 +91,7 @@ const GlassButton: React.FC<GlassButtonProps> = ({
     >
       {isSolid ? (
         <LinearGradient
-          colors={[colors.primaryLight, colors.primary, colors.primaryDark]}
+          colors={gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradientFill}
@@ -146,7 +148,20 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   );
 };
 
-function getVariantStyles(variant: ButtonVariant, colors: AppColors, solid: boolean) {
+function getVariantStyles(
+  variant: ButtonVariant,
+  colors: AppColors,
+  solid: boolean,
+  disabled: boolean
+) {
+  if (disabled) {
+    return {
+      overlayColor: colors.surfaceLight,
+      textColor: colors.textMuted,
+      indicatorColor: colors.textMuted,
+    };
+  }
+
   switch (variant) {
     case 'primary':
       return {
@@ -210,9 +225,6 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: Fonts.semiBold.fontWeight,
     letterSpacing: 0.2,
-  },
-  disabled: {
-    opacity: 0.45,
   },
 });
 

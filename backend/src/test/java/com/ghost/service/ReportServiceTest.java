@@ -1,5 +1,6 @@
 package com.ghost.service;
 
+import com.ghost.dto.request.ReportRequest;
 import com.ghost.dto.request.ReviewReportRequest;
 import com.ghost.dto.response.ReportResponse;
 import com.ghost.mapper.ReportMapper;
@@ -10,8 +11,12 @@ import com.ghost.model.Report;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
+import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
+import com.ghost.model.enums.NotificationType;
+import com.ghost.model.enums.ReportReason;
 import com.ghost.model.enums.ReportStatus;
+import com.ghost.model.enums.Role;
 import com.ghost.repository.CommentRepository;
 import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.ReportRepository;
@@ -24,12 +29,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,7 +96,61 @@ class ReportServiceTest {
 
         when(reportRepository.save(any(Report.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(reportMapper.toResponse(any(Report.class))).thenReturn(ReportResponse.builder().build());
-        when(userRepository.findById(facultyId)).thenReturn(Optional.of(faculty));
+        lenient().when(userRepository.findById(facultyId)).thenReturn(Optional.of(faculty));
+    }
+
+    @Test
+    void reportContentShouldNotifyFacultyAndReporter() {
+        UUID reporterId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        User reporter = User.builder().id(reporterId).build();
+        Question question = Question.builder()
+                .id(questionId)
+                .whiteboard(whiteboard)
+                .title("Need help")
+                .reportCount(0)
+                .isHidden(false)
+                .build();
+        WhiteboardMembership facultyMembership = WhiteboardMembership.builder()
+                .whiteboard(whiteboard)
+                .user(faculty)
+                .role(Role.FACULTY)
+                .build();
+
+        when(userRepository.findById(reporterId)).thenReturn(Optional.of(reporter));
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(reportRepository.existsByReporterIdAndQuestionId(reporterId, questionId)).thenReturn(false);
+        when(questionRepository.save(question)).thenReturn(question);
+        when(whiteboardService.getMembers(whiteboardId)).thenReturn(List.of(facultyMembership));
+
+        reportService.reportContent(
+                reporterId,
+                ReportRequest.builder()
+                        .questionId(questionId)
+                        .reason(ReportReason.SPAM)
+                        .build()
+        );
+
+        verify(notificationService).createAndSend(
+                reporterId,
+                facultyId,
+                NotificationType.REPORT_SUBMITTED,
+                "New Report Submitted",
+                "Question was reported for spam: Need help",
+                "Whiteboard",
+                whiteboardId,
+                whiteboardId
+        );
+        verify(notificationService).createAndSend(
+                reporterId,
+                reporterId,
+                NotificationType.REPORT_SUBMITTED,
+                "Report Submitted",
+                "Your report has been submitted for review",
+                "Question",
+                questionId,
+                whiteboardId
+        );
     }
 
     @Test

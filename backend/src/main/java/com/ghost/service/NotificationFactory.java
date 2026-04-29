@@ -15,6 +15,21 @@ public class NotificationFactory {
 
     private final NotificationService notificationService;
 
+    public void sendQuestionCreatedNotification(User author, User faculty, Question question) {
+        if (!faculty.getId().equals(author.getId())) {
+            notificationService.createAndSend(
+                    author.getId(),
+                    faculty.getId(),
+                    NotificationType.QUESTION_CREATED,
+                    "New Question",
+                    displayName(author) + " asked: " + question.getTitle(),
+                    "Question",
+                    question.getId(),
+                    question.getWhiteboard().getId()
+            );
+        }
+    }
+
     public void sendCommentAddedNotification(User commenter, Question question) {
         if (!question.getAuthor().getId().equals(commenter.getId())) {
             notificationService.createAndSend(
@@ -74,6 +89,21 @@ public class NotificationFactory {
         );
     }
 
+    public void sendJoinRequestSubmittedNotification(User requester, User faculty, Whiteboard whiteboard) {
+        if (!faculty.getId().equals(requester.getId())) {
+            notificationService.createAndSend(
+                    requester.getId(),
+                    faculty.getId(),
+                    NotificationType.JOIN_REQUEST_SUBMITTED,
+                    "New Join Request",
+                    displayName(requester) + " requested to join " + whiteboard.getCourse().getCourseCode(),
+                    "Whiteboard",
+                    whiteboard.getId(),
+                    whiteboard.getId()
+            );
+        }
+    }
+
     public void sendJoinRequestApprovedNotification(User approver, User requester, Whiteboard whiteboard) {
         notificationService.createAndSend(
                 approver.getId(),
@@ -116,7 +146,7 @@ public class NotificationFactory {
     public void sendReportSubmittedNotification(User reporter, String contentType, UUID contentId, Whiteboard whiteboard) {
         notificationService.createAndSend(
                 reporter.getId(),
-                null,
+                reporter.getId(),
                 NotificationType.REPORT_SUBMITTED,
                 "Report Submitted",
                 "Your report has been submitted for review",
@@ -137,5 +167,12 @@ public class NotificationFactory {
                 question.getId(),
                 question.getWhiteboard().getId()
         );
+    }
+
+    private String displayName(User user) {
+        String firstName = user.getFirstName() == null ? "" : user.getFirstName().trim();
+        String lastName = user.getLastName() == null ? "" : user.getLastName().trim();
+        String fullName = (firstName + " " + lastName).trim();
+        return fullName.isBlank() ? "Someone" : fullName;
     }
 }

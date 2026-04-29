@@ -53,7 +53,7 @@ export const commentService = {
   },
 
   /**
-   * Edit a comment (within 15-minute window, author only).
+   * Edit a comment (within one-hour window, author only).
    * PUT /whiteboards/{wbId}/questions/{qId}/comments/{id}
    */
   editComment: async (

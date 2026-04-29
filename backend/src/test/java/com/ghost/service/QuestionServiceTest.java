@@ -145,10 +145,20 @@ class QuestionServiceTest {
                 .firstName("Taylor")
                 .lastName("Student")
                 .build();
+        User facultyUser = User.builder()
+                .id(facultyId)
+                .firstName("Faculty")
+                .lastName("User")
+                .build();
         WhiteboardMembership membership = WhiteboardMembership.builder()
                 .whiteboard(whiteboard)
                 .user(memberUser)
                 .role(Role.STUDENT)
+                .build();
+        WhiteboardMembership facultyMembership = WhiteboardMembership.builder()
+                .whiteboard(whiteboard)
+                .user(facultyUser)
+                .role(Role.FACULTY)
                 .build();
         Topic topic = Topic.builder()
                 .id(topicId)
@@ -171,6 +181,8 @@ class QuestionServiceTest {
             saved.setId(questionId);
             return saved;
         });
+        when(whiteboardMembershipRepository.findByWhiteboardId(whiteboardId))
+                .thenReturn(List.of(membership, facultyMembership));
         when(questionResponseAssembler.toResponse(any(Question.class), eq(studentId), eq(false))).thenReturn(response);
 
         QuestionResponse result = questionService.createQuestion(
@@ -196,6 +208,11 @@ class QuestionServiceTest {
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/whiteboard/" + whiteboardId + "/questions"),
                 any(Map.class)
+        );
+        verify(notificationFactory).sendQuestionCreatedNotification(
+                eq(memberUser),
+                eq(facultyUser),
+                any(Question.class)
         );
     }
 

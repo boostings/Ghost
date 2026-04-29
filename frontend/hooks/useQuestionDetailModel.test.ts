@@ -182,7 +182,33 @@ describe('useQuestionDetailModel', () => {
     expect(result.current.isBookmarked).toBe(true);
     expect(result.current.isAuthor).toBe(true);
     expect(result.current.canEdit).toBe(true);
+    expect(result.current.canDeleteQuestion).toBe(true);
     expect(result.current.canReportQuestion).toBe(false);
+  });
+
+  it('hides author delete controls after a verified answer closes the question', async () => {
+    mockQuestionService.getById.mockResolvedValue(
+      makeQuestion({
+        authorId: 'u-1',
+        status: 'CLOSED',
+        verifiedAnswerId: 'c-1',
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useQuestionDetailModel({
+        questionId: 'q-1',
+        whiteboardId: 'wb-1',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.question?.status).toBe('CLOSED');
+    });
+
+    expect(result.current.isAuthor).toBe(true);
+    expect(result.current.canEdit).toBe(false);
+    expect(result.current.canDeleteQuestion).toBe(false);
   });
 
   it('creates and updates comments using sanitized text', async () => {
