@@ -45,8 +45,21 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
             "LEFT JOIN r.question q " +
             "LEFT JOIN r.comment c " +
             "LEFT JOIN c.question cq " +
-            "WHERE q.whiteboard.id = :whiteboardId " +
-            "OR cq.whiteboard.id = :whiteboardId " +
+            "WHERE (q.whiteboard.id = :whiteboardId " +
+            "OR cq.whiteboard.id = :whiteboardId) " +
             "ORDER BY r.createdAt DESC")
     Page<Report> findByWhiteboardIdPaged(@Param("whiteboardId") UUID whiteboardId, Pageable pageable);
+
+    @Query("SELECT r FROM Report r " +
+            "LEFT JOIN r.question q " +
+            "LEFT JOIN r.comment c " +
+            "LEFT JOIN c.question cq " +
+            "WHERE (q.whiteboard.id = :whiteboardId " +
+            "OR cq.whiteboard.id = :whiteboardId) " +
+            "AND r.status = :status " +
+            "ORDER BY r.createdAt DESC")
+    Page<Report> findByWhiteboardIdAndStatusPaged(
+            @Param("whiteboardId") UUID whiteboardId,
+            @Param("status") ReportStatus status,
+            Pageable pageable);
 }

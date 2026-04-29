@@ -159,7 +159,19 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public Page<ReportResponse> getReportsForWhiteboard(UUID whiteboardId, Pageable pageable) {
-        return reportRepository.findByWhiteboardIdPaged(whiteboardId, pageable)
+        return getReportsForWhiteboard(whiteboardId, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReportResponse> getReportsForWhiteboard(
+            UUID whiteboardId,
+            ReportStatus status,
+            Pageable pageable
+    ) {
+        Page<Report> reportPage = status == null
+                ? reportRepository.findByWhiteboardIdPaged(whiteboardId, pageable)
+                : reportRepository.findByWhiteboardIdAndStatusPaged(whiteboardId, status, pageable);
+        return reportPage
                 .map(reportMapper::toResponse);
     }
 

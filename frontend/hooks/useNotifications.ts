@@ -22,6 +22,8 @@ import type {
   NotificationResponse as ExpoNotificationResponse,
 } from 'expo-notifications';
 
+const HANDLED_RESPONSE_HISTORY_LIMIT = 50;
+
 /**
  * Hook for managing Expo push notifications.
  *
@@ -50,6 +52,7 @@ export function useNotifications() {
 
   const notificationListenerRef = useRef<EventSubscription | null>(null);
   const responseListenerRef = useRef<EventSubscription | null>(null);
+  const handledResponseIdsRef = useRef<Set<string>>(new Set());
 
   /**
    * Handle a notification received while the app is in the foreground.
@@ -76,6 +79,18 @@ export function useNotifications() {
    * the notification's reference type and ID.
    */
   const handleNotificationResponse = useCallback((response: ExpoNotificationResponse) => {
+    const responseId = response.notification.request.identifier;
+    if (handledResponseIdsRef.current.has(responseId)) {
+      return;
+    }
+    if (handledResponseIdsRef.current.size >= HANDLED_RESPONSE_HISTORY_LIMIT) {
+      const oldestId = handledResponseIdsRef.current.values().next().value;
+      if (oldestId !== undefined) {
+        handledResponseIdsRef.current.delete(oldestId);
+      }
+    }
+    handledResponseIdsRef.current.add(responseId);
+
     const data = response.notification.request.content.data as Record<string, unknown> | undefined;
 
     const route = resolveNotificationRoute(data);
@@ -143,6 +158,16 @@ export function useNotifications() {
     responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(
       handleNotificationResponse
     );
+
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          handleNotificationResponse(response);
+        }
+      })
+      .catch(() => {
+        console.warn('[Notifications] Failed to read launch notification response');
+      });
 
     return () => {
       if (notificationListenerRef.current) {

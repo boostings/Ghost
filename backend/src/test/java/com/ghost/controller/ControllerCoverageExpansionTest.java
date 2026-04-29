@@ -64,6 +64,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -578,7 +579,7 @@ class ControllerCoverageExpansionTest {
         when(userService.getUserById(userId)).thenReturn(userResponse);
         when(userService.updateUser(userId, updateUserRequest)).thenReturn(userResponse);
         when(reportService.reportContent(userId, reportRequest)).thenReturn(reportResponse);
-        when(reportService.getReportsForWhiteboard(eq(whiteboardId), any(Pageable.class))).thenReturn(pageOf(reportResponse));
+        when(reportService.getReportsForWhiteboard(eq(whiteboardId), isNull(), any(Pageable.class))).thenReturn(pageOf(reportResponse));
         when(reportService.reviewReport(userId, reportId, reviewReportRequest)).thenReturn(reportResponse);
         when(whiteboardService.requestToJoinResponse(userId, whiteboardId))
                 .thenReturn(JoinRequestResponse.builder().id(UUID.randomUUID()).build());
@@ -634,7 +635,7 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<Void> clearedPushToken = userController.clearPushToken(userId.toString());
 
         ResponseEntity<ReportResponse> createdReport = reportController.createReport(userId.toString(), reportRequest);
-        ResponseEntity<PageResponse<ReportResponse>> reports = reportController.getReportsByWhiteboard(userId.toString(), whiteboardId, 0, 200);
+        ResponseEntity<PageResponse<ReportResponse>> reports = reportController.getReportsByWhiteboard(userId.toString(), whiteboardId, null, 0, 200);
         ResponseEntity<ReportResponse> reviewedReport = reportController.reviewReport(userId.toString(), reportId, reviewReportRequest);
 
         ResponseEntity<Void> joinedByInvite = whiteboardMembershipController.joinByInviteCode(userId.toString(), joinWhiteboardRequest);
@@ -667,7 +668,7 @@ class ControllerCoverageExpansionTest {
         verify(userService).clearPushToken(userId);
         verify(reportService, times(2)).reportContent(userId, reportRequest);
         verify(whiteboardService).verifyFacultyRole(userId, whiteboardId);
-        verify(reportService).getReportsForWhiteboard(eq(whiteboardId), any(Pageable.class));
+        verify(reportService).getReportsForWhiteboard(eq(whiteboardId), isNull(), any(Pageable.class));
         verify(reportService).reviewReport(userId, reportId, reviewReportRequest);
         verify(whiteboardService).requestToJoinResponse(userId, whiteboardId);
         verify(whiteboardService).joinByInviteCode(userId, "JOIN326");
@@ -733,6 +734,34 @@ class ControllerCoverageExpansionTest {
         assertThat(members.getBody()).isNotNull();
         assertThat(members.getBody().getContent()).containsExactly(memberResponse);
         assertThat(inviteInfo.getBody()).isEqualTo(inviteInfoResponse);
+    }
+
+    @Test
+    void reportControllerForwardsStatusFilterToService() {
+        UUID userId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+        UUID reportId = UUID.randomUUID();
+        ReportResponse reportResponse = ReportResponse.builder()
+                .id(reportId)
+                .status(ReportStatus.PENDING)
+                .build();
+
+        when(reportService.getReportsForWhiteboard(eq(whiteboardId), eq(ReportStatus.PENDING), any(Pageable.class)))
+                .thenReturn(pageOf(reportResponse));
+
+        ResponseEntity<PageResponse<ReportResponse>> response = reportController.getReportsByWhiteboard(
+                userId.toString(),
+                whiteboardId,
+                ReportStatus.PENDING,
+                0,
+                20
+        );
+
+        verify(whiteboardService).verifyFacultyRole(userId, whiteboardId);
+        verify(reportService).getReportsForWhiteboard(eq(whiteboardId), eq(ReportStatus.PENDING), any(Pageable.class));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getContent()).containsExactly(reportResponse);
     }
 
     private static <T> Page<T> pageOf(T value) {

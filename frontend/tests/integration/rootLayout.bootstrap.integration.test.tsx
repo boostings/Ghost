@@ -69,6 +69,10 @@ jest.mock('../../hooks/useNotifications', () => ({
   useNotifications: jest.fn(),
 }));
 
+jest.mock('../../hooks/useInviteLinks', () => ({
+  useInviteLinks: jest.fn(),
+}));
+
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (selector: (state: typeof mockAuthStoreState) => unknown) =>
     selector(mockAuthStoreState),

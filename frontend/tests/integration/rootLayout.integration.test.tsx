@@ -52,6 +52,10 @@ jest.mock('../../hooks/useNotifications', () => ({
   useNotifications: jest.fn(),
 }));
 
+jest.mock('../../hooks/useInviteLinks', () => ({
+  useInviteLinks: jest.fn(),
+}));
+
 jest.mock('../../services/whiteboardService', () => ({
   whiteboardService: {
     hasAnyWhiteboard: (...args: unknown[]) => mockHasAnyWhiteboard(...args),

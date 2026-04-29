@@ -45,14 +45,15 @@ export function useModerationReportsModel(whiteboardId?: string) {
           setLoadingMore(true);
         }
 
-        const response = await reportService.list(whiteboardId, nextPage, PAGE_SIZE);
-        const filteredReports =
-          statusFilter === 'ALL'
-            ? response.content
-            : response.content.filter((report) => report.status === statusFilter);
+        const response = await reportService.list(
+          whiteboardId,
+          nextPage,
+          PAGE_SIZE,
+          statusFilter === 'ALL' ? undefined : statusFilter
+        );
 
         setReports((previousReports) =>
-          replace ? filteredReports : [...previousReports, ...filteredReports]
+          replace ? response.content : [...previousReports, ...response.content]
         );
         setPage(nextPage);
         setHasMore(nextPage + 1 < response.totalPages);

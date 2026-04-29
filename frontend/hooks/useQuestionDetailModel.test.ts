@@ -182,6 +182,7 @@ describe('useQuestionDetailModel', () => {
     expect(result.current.isBookmarked).toBe(true);
     expect(result.current.isAuthor).toBe(true);
     expect(result.current.canEdit).toBe(true);
+    expect(result.current.canReportQuestion).toBe(false);
   });
 
   it('creates and updates comments using sanitized text', async () => {

@@ -22,6 +22,7 @@ import { extractErrorMessage } from '../../hooks/useApi';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
 import { findMatchingWhiteboard } from '../../utils/whiteboardIdentity';
+import { getEmailFieldState, isValidEmail } from '../../utils/validators';
 
 interface FormErrors {
   courseCode?: string;
@@ -31,8 +32,6 @@ interface FormErrors {
 }
 
 type FacultySetupMode = 'primary' | 'helping';
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function CreateWhiteboardScreen() {
   const router = useRouter();
@@ -76,14 +75,25 @@ export default function CreateWhiteboardScreen() {
     if (facultySetupMode === 'helping') {
       if (!normalizedPrimaryInstructorEmail) {
         nextErrors.primaryInstructorEmail = 'Primary instructor email is required';
-      } else if (!EMAIL_PATTERN.test(normalizedPrimaryInstructorEmail)) {
-        nextErrors.primaryInstructorEmail = 'Enter a valid email address';
+      } else if (!isValidEmail(normalizedPrimaryInstructorEmail)) {
+        nextErrors.primaryInstructorEmail = 'Enter a valid @ilstu.edu email address';
       }
     }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
+
+  const {
+    normalized: normalizedPrimaryInstructorEmail,
+    valid: primaryInstructorEmailValid,
+    visibleError: primaryInstructorEmailLiveError,
+  } = getEmailFieldState({
+    value: sanitizeSingleLine(primaryInstructorEmail),
+    active: facultySetupMode === 'helping',
+  });
+  const createDisabled =
+    loading || (facultySetupMode === 'helping' && !primaryInstructorEmailValid);
 
   const handleCreate = async () => {
     if (!validate()) {
@@ -250,7 +260,7 @@ export default function CreateWhiteboardScreen() {
                   }}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  error={errors.primaryInstructorEmail}
+                  error={errors.primaryInstructorEmail ?? primaryInstructorEmailLiveError}
                 />
               ) : null}
 
@@ -259,7 +269,7 @@ export default function CreateWhiteboardScreen() {
                   title="Create Whiteboard"
                   onPress={handleCreate}
                   loading={loading}
-                  disabled={loading}
+                  disabled={createDisabled}
                 />
               </View>
             </GlassCard>

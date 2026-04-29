@@ -25,6 +25,7 @@ import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { extractErrorMessage } from '../../hooks/useApi';
+import { getEmailFieldState, isValidEmail } from '../../utils/validators';
 import type { WhiteboardResponse } from '../../types';
 
 type InviteInfo = {
@@ -44,6 +45,7 @@ export default function WhiteboardSettingsScreen() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [transferEmail, setTransferEmail] = useState('');
+  const [transferEmailError, setTransferEmailError] = useState<string | undefined>();
   const [transferring, setTransferring] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -84,12 +86,31 @@ export default function WhiteboardSettingsScreen() {
     }
   };
 
+  const {
+    normalized: normalizedTransferEmail,
+    valid: transferEmailValid,
+    visibleError: visibleTransferEmailError,
+  } = getEmailFieldState({
+    value: transferEmail,
+    manualError: transferEmailError,
+  });
+  const transferDisabled =
+    transferring || !normalizedTransferEmail || !transferEmailValid;
+
   const handleTransferOwnership = async () => {
-    if (!transferEmail.trim() || !whiteboardId) return;
+    if (!whiteboardId) return;
+    if (!normalizedTransferEmail) {
+      setTransferEmailError('Faculty email is required');
+      return;
+    }
+    if (!isValidEmail(normalizedTransferEmail)) {
+      setTransferEmailError('Enter a valid @ilstu.edu email address');
+      return;
+    }
 
     setTransferring(true);
     try {
-      await whiteboardService.transferOwnership(whiteboardId, transferEmail.trim());
+      await whiteboardService.transferOwnership(whiteboardId, normalizedTransferEmail);
       Alert.alert(
         'Success',
         'Ownership has been transferred. You have been removed from this whiteboard.'
@@ -382,9 +403,15 @@ export default function WhiteboardSettingsScreen() {
             label="Faculty Email"
             placeholder="faculty@ilstu.edu"
             value={transferEmail}
-            onChangeText={setTransferEmail}
+            onChangeText={(value) => {
+              setTransferEmail(value);
+              if (transferEmailError) {
+                setTransferEmailError(undefined);
+              }
+            }}
             keyboardType="email-address"
             autoCapitalize="none"
+            error={visibleTransferEmailError}
           />
 
           <GlassButton
@@ -392,7 +419,7 @@ export default function WhiteboardSettingsScreen() {
             onPress={handleTransferOwnership}
             variant="danger"
             loading={transferring}
-            disabled={transferring || !transferEmail.trim()}
+            disabled={transferDisabled}
           />
         </GlassModal>
 

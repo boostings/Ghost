@@ -4,6 +4,7 @@ import com.ghost.dto.request.ReportRequest;
 import com.ghost.dto.request.ReviewReportRequest;
 import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.ReportResponse;
+import com.ghost.model.enums.ReportStatus;
 import com.ghost.service.ReportService;
 import com.ghost.service.WhiteboardService;
 import jakarta.validation.Valid;
@@ -39,12 +40,17 @@ public class ReportController {
     public ResponseEntity<PageResponse<ReportResponse>> getReportsByWhiteboard(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID wbId,
+            @RequestParam(required = false) ReportStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         UUID userId = UUID.fromString(userIdStr);
         whiteboardService.verifyFacultyRole(userId, wbId);
         Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
-        Page<ReportResponse> reportPage = reportService.getReportsForWhiteboard(wbId, pageable);
+        Page<ReportResponse> reportPage = reportService.getReportsForWhiteboard(
+                wbId,
+                status,
+                pageable
+        );
         return ResponseEntity.ok(PageResponse.from(reportPage));
     }
 

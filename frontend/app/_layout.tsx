@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeColors } from '../constants/colors';
 import { ErrorBoundary, NetworkStatusBanner } from '../components';
+import { useInviteLinks } from '../hooks/useInviteLinks';
 import { useNotifications } from '../hooks/useNotifications';
 import { whiteboardService } from '../services/whiteboardService';
 import { getAuthRedirectTarget } from '../utils/authRedirect';
@@ -263,6 +264,7 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   useNotifications();
+  useInviteLinks();
 
   return (
     <SafeAreaProvider>

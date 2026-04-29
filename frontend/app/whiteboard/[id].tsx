@@ -66,6 +66,7 @@ export default function WhiteboardDetailScreen() {
     reportModalVisible,
     reportTarget,
     isFaculty,
+    currentUserId,
     handleRefresh,
     handleLoadMore,
     handleToggleBookmark,
@@ -183,22 +184,24 @@ export default function WhiteboardDetailScreen() {
                   motion="none"
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={(event) => {
-                  stopCardPress(event);
-                  openReportModal(item.id);
-                }}
-                style={styles.footerActionButton}
-                accessibilityRole="button"
-                accessibilityLabel="Report question"
-              >
-                <AnimatedIcon
-                  name="flag-outline"
-                  size={14}
-                  color={Colors.textMuted}
-                  motion="none"
-                />
-              </TouchableOpacity>
+              {item.authorId !== currentUserId && (
+                <TouchableOpacity
+                  onPress={(event) => {
+                    stopCardPress(event);
+                    openReportModal(item.id);
+                  }}
+                  style={styles.footerActionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report question"
+                >
+                  <AnimatedIcon
+                    name="flag-outline"
+                    size={14}
+                    color={Colors.textMuted}
+                    motion="none"
+                  />
+                </TouchableOpacity>
+              )}
               <View style={styles.metaItem}>
                 <AnimatedIcon
                   name="arrow-up"
@@ -236,7 +239,7 @@ export default function WhiteboardDetailScreen() {
         </GlassCard>
       );
     },
-    [handleToggleBookmark, id, openReportModal, reduceMotion, router]
+    [currentUserId, handleToggleBookmark, id, openReportModal, reduceMotion, router]
   );
 
   const renderSectionHeader = ({

@@ -374,6 +374,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     reportModalVisible,
     reportTarget,
     isFaculty,
+    currentUserId: user?.id,
     handleRefresh,
     handleLoadMore,
     handleToggleBookmark,

@@ -1,5 +1,11 @@
 import api from './api';
-import type { ReportRequest, ReportResponse, ReviewReportRequest, PageResponse } from '../types';
+import type {
+  ReportRequest,
+  ReportResponse,
+  ReviewReportRequest,
+  PageResponse,
+  ReportStatus,
+} from '../types';
 
 export const reportService = {
   create: async (data: ReportRequest): Promise<ReportResponse> => {
@@ -10,11 +16,17 @@ export const reportService = {
   list: async (
     whiteboardId: string,
     page = 0,
-    size = 20
+    size = 20,
+    status?: ReportStatus
   ): Promise<PageResponse<ReportResponse>> => {
+    const params: { page: number; size: number; status?: ReportStatus } = { page, size };
+    if (status) {
+      params.status = status;
+    }
+
     const response = await api.get<PageResponse<ReportResponse>>(
       `/reports/whiteboard/${whiteboardId}`,
-      { params: { page, size } }
+      { params }
     );
     return response.data;
   },

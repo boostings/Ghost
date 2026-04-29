@@ -479,6 +479,7 @@ export function useQuestionDetailModel({
   const isClosed = question?.status === 'CLOSED';
   const isAuthor = question?.authorId === user?.id;
   const canEdit = Boolean(isAuthor && !isClosed && !question?.verifiedAnswerId);
+  const canReportQuestion = Boolean(question && !isAuthor);
 
   return {
     commentInputRef,
@@ -496,6 +497,7 @@ export function useQuestionDetailModel({
     isClosed,
     isAuthor,
     canEdit,
+    canReportQuestion,
     isFaculty,
     user,
     setCommentText,

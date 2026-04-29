@@ -33,6 +33,7 @@ export default function CreateQuestionScreen() {
   const [topics, setTopics] = useState<TopicResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; body?: string }>({});
+  const canSubmit = Boolean(sanitizeSingleLine(title) && sanitizeText(body));
 
   const fetchTopics = useCallback(async () => {
     if (!whiteboardId) {
@@ -200,7 +201,7 @@ export default function CreateQuestionScreen() {
                 title="Post Question"
                 onPress={handleSubmit}
                 loading={loading}
-                disabled={loading}
+                disabled={loading || !canSubmit}
               />
             </GlassCard>
 

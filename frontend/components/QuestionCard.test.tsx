@@ -61,4 +61,19 @@ describe('QuestionCard', () => {
     expect(onBookmark).toHaveBeenCalledTimes(1);
     expect(onReport).toHaveBeenCalledTimes(1);
   });
+
+  it("hides reporting for the current user's own question", () => {
+    const { queryByLabelText } = render(
+      <QuestionCard
+        question={makeQuestion()}
+        onPress={jest.fn()}
+        onUpvote={jest.fn()}
+        onDownvote={jest.fn()}
+        onReport={jest.fn()}
+        currentUserId="u-1"
+      />
+    );
+
+    expect(queryByLabelText('Report question')).toBeNull();
+  });
 });

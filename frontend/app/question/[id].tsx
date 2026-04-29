@@ -48,6 +48,7 @@ export default function QuestionDetailScreen() {
     reportTarget,
     isClosed,
     canEdit,
+    canReportQuestion,
     isFaculty,
     user,
     setCommentText,
@@ -98,7 +99,7 @@ export default function QuestionDetailScreen() {
   };
 
   const handleReportQuestion = () => {
-    if (!id) {
+    if (!id || !canReportQuestion) {
       return;
     }
 
@@ -246,19 +247,21 @@ export default function QuestionDetailScreen() {
                   motion="none"
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleReportQuestion}
-                style={[styles.headerButton, { backgroundColor: themeColors.surfaceLight }]}
-                accessibilityRole="button"
-                accessibilityLabel="Report question"
-              >
-                <AnimatedIcon
-                  name="flag-outline"
-                  size={18}
-                  color={themeColors.textMuted}
-                  motion="none"
-                />
-              </TouchableOpacity>
+              {canReportQuestion && (
+                <TouchableOpacity
+                  onPress={handleReportQuestion}
+                  style={[styles.headerButton, { backgroundColor: themeColors.surfaceLight }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report question"
+                >
+                  <AnimatedIcon
+                    name="flag-outline"
+                    size={18}
+                    color={themeColors.textMuted}
+                    motion="none"
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 

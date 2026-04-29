@@ -35,6 +35,12 @@ describe('reportService', () => {
     expect(apiMock.get).toHaveBeenCalledWith('/reports/whiteboard/wb-1', {
       params: { page: 1, size: 10 },
     });
+
+    await reportService.list('wb-1', 0, 20, 'PENDING');
+
+    expect(apiMock.get).toHaveBeenLastCalledWith('/reports/whiteboard/wb-1', {
+      params: { page: 0, size: 20, status: 'PENDING' },
+    });
   });
 
   it('AC5 submits and reviews reports through the reports endpoints', async () => {

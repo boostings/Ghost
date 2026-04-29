@@ -27,6 +27,7 @@ import { Fonts } from '../../constants/fonts';
 import { Spacing } from '../../constants/spacing';
 import { useQuestionSearchModel, type FilterStatus } from '../../hooks/useQuestionSearchModel';
 import { formatDate } from '../../utils/formatDate';
+import { useAuthStore } from '../../stores/authStore';
 import type { QuestionResponse } from '../../types';
 
 const STATUS_FILTERS: { label: string; value: FilterStatus }[] = [
@@ -74,6 +75,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const cardEntry = useRef(new Animated.Value(0)).current;
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const {
     query,
     results,
@@ -255,30 +257,41 @@ export default function SearchScreen() {
                     color={item.isBookmarked ? colors.primary : colors.textSecondary}
                   />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={(event) => {
-                    stopCardPress(event);
-                    openReportModal({ questionId: item.id });
-                  }}
-                  style={[
-                    styles.footerActionButton,
-                    {
-                      backgroundColor: colors.surfaceLight,
-                      borderColor: colors.surfaceBorder,
-                    },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Report question"
-                >
-                  <Ionicons name="flag-outline" size={14} color={colors.textSecondary} />
-                </TouchableOpacity>
+                {item.authorId !== currentUserId && (
+                  <TouchableOpacity
+                    onPress={(event) => {
+                      stopCardPress(event);
+                      openReportModal({ questionId: item.id });
+                    }}
+                    style={[
+                      styles.footerActionButton,
+                      {
+                        backgroundColor: colors.surfaceLight,
+                        borderColor: colors.surfaceBorder,
+                      },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Report question"
+                  >
+                    <Ionicons name="flag-outline" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </GlassCard>
         </Animated.View>
       );
     },
-    [cardEntry, colors, openReportModal, query, router, toggleBookmark, whiteboardLookup]
+    [
+      cardEntry,
+      colors,
+      currentUserId,
+      openReportModal,
+      query,
+      router,
+      toggleBookmark,
+      whiteboardLookup,
+    ]
   );
 
   return (

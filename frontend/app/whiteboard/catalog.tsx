@@ -45,6 +45,7 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
 import { findMatchingWhiteboard } from '../../utils/whiteboardIdentity';
+import { getEmailFieldState, isValidEmail } from '../../utils/validators';
 import { extractErrorMessage } from '../../hooks/useApi';
 import type { CourseSectionResponse } from '../../types';
 
@@ -90,8 +91,6 @@ const BOOLEAN_FIRST_SORTS = new Set<CourseCatalogSortBy>([
 ]);
 
 type FacultySetupMode = 'primary' | 'helping';
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type CourseGroup = {
   key: string;
@@ -285,8 +284,8 @@ export default function CourseCatalogScreen() {
           setPrimaryInstructorEmailError('Primary instructor email is required');
           return;
         }
-        if (!EMAIL_PATTERN.test(normalizedPrimaryInstructorEmail)) {
-          setPrimaryInstructorEmailError('Enter a valid email address');
+        if (!isValidEmail(normalizedPrimaryInstructorEmail)) {
+          setPrimaryInstructorEmailError('Enter a valid @ilstu.edu email address');
           return;
         }
       }
@@ -993,6 +992,17 @@ function FacultySetupSheet({
   onCreate: () => void;
 }) {
   const colorScheme = useColorScheme();
+  const {
+    valid: primaryInstructorEmailValid,
+    visibleError: visiblePrimaryInstructorEmailError,
+  } = getEmailFieldState({
+    value: sanitizeSingleLine(primaryInstructorEmail),
+    active: mode === 'helping',
+    manualError: primaryInstructorEmailError,
+  });
+  const createDisabled =
+    loading || (mode === 'helping' && !primaryInstructorEmailValid);
+
   return (
     <Modal
       visible={visible}
@@ -1057,20 +1067,20 @@ function FacultySetupSheet({
                   keyboardType="email-address"
                   style={[
                     styles.emailInput,
-                    primaryInstructorEmailError ? styles.emailInputError : null,
+                    visiblePrimaryInstructorEmailError ? styles.emailInputError : null,
                   ]}
                   selectionColor={Colors.primary}
                 />
-                {primaryInstructorEmailError ? (
-                  <Text style={styles.emailError}>{primaryInstructorEmailError}</Text>
+                {visiblePrimaryInstructorEmailError ? (
+                  <Text style={styles.emailError}>{visiblePrimaryInstructorEmailError}</Text>
                 ) : null}
               </View>
             ) : null}
 
             <Pressable
-              style={[styles.sheetDone, loading && styles.sheetDoneDisabled]}
+              style={[styles.sheetDone, createDisabled && styles.sheetDoneDisabled]}
               onPress={onCreate}
-              disabled={loading}
+              disabled={createDisabled}
               accessibilityRole="button"
             >
               {loading ? (

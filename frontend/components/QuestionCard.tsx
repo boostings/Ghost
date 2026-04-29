@@ -21,6 +21,7 @@ interface QuestionCardProps {
   onDownvote: () => void;
   onBookmark?: () => void;
   onReport?: () => void;
+  currentUserId?: string;
   index?: number;
 }
 
@@ -57,10 +58,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   onDownvote,
   onBookmark,
   onReport,
+  currentUserId,
   index = 0,
 }) => {
   const colors = useThemeColors();
   const { firstName, lastName } = parseAuthorName(question.authorName);
+  const canReport = Boolean(onReport && question.authorId !== currentUserId);
 
   return (
     <Animated.View entering={enterList(index)} layout={LinearTransition.springify().damping(20)}>
@@ -171,11 +174,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               </Pressable>
             )}
 
-            {onReport && (
+            {canReport && (
               <Pressable
                 onPress={() => {
                   haptic.warning();
-                  onReport();
+                  onReport?.();
                 }}
                 hitSlop={8}
                 style={styles.iconAction}

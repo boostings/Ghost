@@ -132,3 +132,35 @@ export function getConfirmPasswordError(password: string, confirmPassword: strin
 
   return null;
 }
+
+export interface EmailFieldState {
+  normalized: string;
+  valid: boolean;
+  visibleError: string | undefined;
+}
+
+export interface EmailFieldOptions {
+  value: string;
+  active?: boolean;
+  manualError?: string | null;
+  invalidMessage?: string;
+}
+
+/**
+ * Derives the normalized value, validity, and effective error message for an
+ * @ilstu.edu email field. Manual errors take precedence; the live invalid
+ * message only appears when the field is active and the user has typed a
+ * non-empty value that fails validation.
+ */
+export function getEmailFieldState({
+  value,
+  active = true,
+  manualError,
+  invalidMessage = 'Enter a valid @ilstu.edu email address',
+}: EmailFieldOptions): EmailFieldState {
+  const normalized = value.trim().toLowerCase();
+  const valid = isValidEmail(normalized);
+  const visibleError =
+    manualError ?? (active && normalized && !valid ? invalidMessage : undefined);
+  return { normalized, valid, visibleError };
+}
