@@ -25,6 +25,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
 import { authService } from '../../services/authService';
 import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
+import { useAnonymousMode } from '../../hooks/useAnonymousMode';
 import type { QuestionResponse } from '../../types';
 
 const PAGE_SIZE = 10;
@@ -105,6 +106,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
   const { pushEnabled, emailEnabled, setPushEnabled, setEmailEnabled } =
     useNotificationPreferences();
+  const { anonymousModeEnabled, setAnonymousMode } = useAnonymousMode();
 
   const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [questionCount, setQuestionCount] = useState<number>(0);
@@ -489,6 +491,44 @@ export default function ProfileScreen() {
                   </View>
                 </View>
               </View>
+
+              {!isFaculty && (
+                <View style={styles.settingsBlock}>
+                  <Text style={[styles.blockEyebrow, { color: colors.text }]}>PRIVACY</Text>
+                  <View
+                    style={[
+                      styles.settingsCard,
+                      { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+                    ]}
+                  >
+                    <View style={[styles.settingRail, { backgroundColor: colors.primary }]} />
+                    <View style={styles.settingsCardBody}>
+                      <View style={styles.settingRow}>
+                        <View style={styles.settingInfo}>
+                          <Text style={[styles.settingLabel, { color: colors.text }]}>
+                            Anonymous mode
+                          </Text>
+                          <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
+                            Other students see "Ghost" instead of your name
+                          </Text>
+                        </View>
+                        <Switch
+                          value={anonymousModeEnabled}
+                          onValueChange={(v) => {
+                            haptic.selection();
+                            setAnonymousMode(v);
+                          }}
+                          trackColor={{
+                            false: 'rgba(255,255,255,0.12)',
+                            true: 'rgba(187,39,68,0.55)',
+                          }}
+                          thumbColor={anonymousModeEnabled ? colors.primary : colors.textMuted}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
 
               <View style={styles.settingsBlock}>
                 <Text style={[styles.blockEyebrow, { color: colors.text }]}>ACCOUNT</Text>
