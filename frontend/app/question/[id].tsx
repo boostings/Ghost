@@ -49,6 +49,7 @@ export default function QuestionDetailScreen() {
     reportTarget,
     isClosed,
     canEdit,
+    canDeleteQuestion,
     canReportQuestion,
     isFaculty,
     user,
@@ -184,6 +185,7 @@ export default function QuestionDetailScreen() {
 
   const renderComment = ({ item }: { item: CommentResponse }) => {
     const isCommentAuthor = item.authorId === user?.id;
+    const canDeleteComment = isFaculty || (isCommentAuthor && item.canEdit && !isClosed);
 
     return (
       <CommentCard
@@ -191,7 +193,7 @@ export default function QuestionDetailScreen() {
         onUpvote={() => handleCommentVote(item.id, 'UPVOTE')}
         onDownvote={() => handleCommentVote(item.id, 'DOWNVOTE')}
         onEdit={isCommentAuthor && item.canEdit ? () => startEditingComment(item) : undefined}
-        onDelete={isCommentAuthor || isFaculty ? () => handleDeleteComment(item) : undefined}
+        onDelete={canDeleteComment ? () => handleDeleteComment(item) : undefined}
         onReport={!isCommentAuthor ? () => handleReportComment(item.id) : undefined}
         onVerify={
           isFaculty && !isClosed && !item.isVerifiedAnswer
@@ -199,7 +201,7 @@ export default function QuestionDetailScreen() {
             : undefined
         }
         isCurrentUser={isCommentAuthor}
-        canDelete={isCommentAuthor || isFaculty}
+        canDelete={canDeleteComment}
       />
     );
   };
@@ -346,7 +348,7 @@ export default function QuestionDetailScreen() {
                             </Text>
                           </TouchableOpacity>
                         )}
-                        {(isAuthor || isFaculty) && (
+                        {canDeleteQuestion && (
                           <TouchableOpacity
                             onPress={handleDeleteQuestion}
                             style={[styles.questionAction, styles.questionActionDanger]}

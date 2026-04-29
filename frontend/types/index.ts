@@ -12,9 +12,11 @@ export type QuestionStatus = 'OPEN' | 'CLOSED';
 export type VoteType = 'UPVOTE' | 'DOWNVOTE';
 
 export type NotificationType =
+  | 'QUESTION_CREATED'
   | 'QUESTION_ANSWERED'
   | 'COMMENT_ADDED'
   | 'QUESTION_FORWARDED'
+  | 'JOIN_REQUEST_SUBMITTED'
   | 'JOIN_REQUEST_APPROVED'
   | 'JOIN_REQUEST_REJECTED'
   | 'REPORT_SUBMITTED'

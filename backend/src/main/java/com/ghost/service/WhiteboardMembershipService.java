@@ -271,19 +271,17 @@ public class WhiteboardMembershipService {
     private void joinWhiteboard(UUID userId, Whiteboard whiteboard) {
         UUID whiteboardId = whiteboard.getId();
 
-        User user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        if (whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, userId)) {
-            throw new BadRequestException("You are already a member of this whiteboard");
+        int inserted = whiteboardMembershipRepository.insertStudentMembershipIfAbsent(
+                UUID.randomUUID(),
+                whiteboardId,
+                userId
+        );
+        if (inserted == 0) {
+            return;
         }
-
-        WhiteboardMembership membership = WhiteboardMembership.builder()
-                .whiteboard(whiteboard)
-                .user(user)
-                .role(Role.STUDENT)
-                .build();
-        whiteboardMembershipRepository.save(membership);
 
         auditLogService.logAction(
                 whiteboardId,

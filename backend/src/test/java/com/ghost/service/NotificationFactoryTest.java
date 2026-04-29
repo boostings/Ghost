@@ -137,6 +137,7 @@ class NotificationFactoryTest {
 
         notificationFactory.sendJoinRequestApprovedNotification(actor, recipient, whiteboard);
         notificationFactory.sendJoinRequestRejectedNotification(actor, recipient, whiteboard);
+        notificationFactory.sendJoinRequestSubmittedNotification(actor, recipient, whiteboard);
         notificationFactory.sendContentHiddenNotification(actor, recipient, "Question", contentId, whiteboard);
         notificationFactory.sendReportSubmittedNotification(actor, "Comment", contentId, whiteboard);
         notificationFactory.sendPostTrendingNotification(actor, question);
@@ -164,6 +165,16 @@ class NotificationFactoryTest {
         verify(notificationService).createAndSend(
                 actorId,
                 recipientId,
+                NotificationType.JOIN_REQUEST_SUBMITTED,
+                "New Join Request",
+                "Someone requested to join IT326",
+                "Whiteboard",
+                whiteboardId,
+                whiteboardId
+        );
+        verify(notificationService).createAndSend(
+                actorId,
+                recipientId,
                 NotificationType.CONTENT_HIDDEN,
                 "Content Hidden",
                 "Your question has been hidden by a faculty member",
@@ -173,7 +184,7 @@ class NotificationFactoryTest {
         );
         verify(notificationService).createAndSend(
                 actorId,
-                null,
+                actorId,
                 NotificationType.REPORT_SUBMITTED,
                 "Report Submitted",
                 "Your report has been submitted for review",
@@ -187,6 +198,22 @@ class NotificationFactoryTest {
                 NotificationType.POST_TRENDING,
                 "Post Trending",
                 "Your question is getting popular!",
+                "Question",
+                questionId,
+                whiteboardId
+        );
+    }
+
+    @Test
+    void sendQuestionCreatedNotificationShouldNotifyFaculty() {
+        notificationFactory.sendQuestionCreatedNotification(author, recipient, question);
+
+        verify(notificationService).createAndSend(
+                authorId,
+                recipientId,
+                NotificationType.QUESTION_CREATED,
+                "New Question",
+                "Someone asked: " + question.getTitle(),
                 "Question",
                 questionId,
                 whiteboardId

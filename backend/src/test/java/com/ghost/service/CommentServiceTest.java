@@ -25,6 +25,7 @@ import com.ghost.repository.WhiteboardMembershipRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -40,6 +41,7 @@ import org.springframework.data.domain.PageRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -152,6 +154,7 @@ class CommentServiceTest {
 
     @Test
     void createCommentShouldPersistAuditNotifyAndPublish() {
+        LocalDateTime beforeCreate = LocalDateTime.now();
         UUID commenterId = UUID.randomUUID();
         User commenter = User.builder()
                 .id(commenterId)
@@ -178,7 +181,7 @@ class CommentServiceTest {
             saved.setId(commentId);
             return saved;
         });
-        when(commentResponseAssembler.toResponse(any(Comment.class), eq(commenterId))).thenReturn(response);
+        when(commentResponseAssembler.toResponse(any(Comment.class), eq(commenterId), anyBoolean())).thenReturn(response);
 
         CommentResponse result = commentService.createComment(
                 commenterId,
@@ -187,6 +190,10 @@ class CommentServiceTest {
         );
 
         assertThat(result).isEqualTo(response);
+        ArgumentCaptor<Comment> commentCaptor = ArgumentCaptor.forClass(Comment.class);
+        verify(commentRepository).save(commentCaptor.capture());
+        assertThat(commentCaptor.getValue().getEditDeadline())
+                .isBetween(beforeCreate.plusMinutes(59), LocalDateTime.now().plusMinutes(61));
         verify(auditLogService).logAction(
                 whiteboard.getId(),
                 commenterId,
@@ -221,7 +228,10 @@ class CommentServiceTest {
     void editCommentShouldUpdateAuditAndPublish() {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(commentResponseAssembler.toResponse(comment, authorId)).thenReturn(
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.STUDENT).build()
+        );
+        when(commentResponseAssembler.toResponse(eq(comment), eq(authorId), anyBoolean())).thenReturn(
                 CommentResponse.builder()
                         .id(commentId)
                         .questionId(questionId)
@@ -253,6 +263,36 @@ class CommentServiceTest {
                 eq("/topic/question/" + questionId + "/comments"),
                 any(java.util.Map.class)
         );
+    }
+
+    @Test
+    void editCommentShouldAllowAuthorWithinOneHourOfCreationWhenLegacyDeadlineExpired() {
+        comment.setCreatedAt(LocalDateTime.now().minusMinutes(59));
+        comment.setEditDeadline(LocalDateTime.now().minusMinutes(44));
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.STUDENT).build()
+        );
+        when(commentResponseAssembler.toResponse(comment, authorId, false)).thenReturn(
+                CommentResponse.builder()
+                        .id(commentId)
+                        .questionId(questionId)
+                        .authorId(authorId)
+                        .authorName("Question Author")
+                        .body("Edited before one hour")
+                        .build()
+        );
+
+        CommentResponse response = commentService.editComment(
+                authorId,
+                questionId,
+                commentId,
+                EditCommentRequest.builder().body("Edited before one hour").build()
+        );
+
+        assertThat(response.getBody()).isEqualTo("Edited before one hour");
+        assertThat(comment.getBody()).isEqualTo("Edited before one hour");
     }
 
     @Test
@@ -354,7 +394,7 @@ class CommentServiceTest {
     void AC3_markAsVerifiedAnswerShouldAttachVerifierAndReturnUpdatedComment() {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(commentResponseAssembler.toResponse(any(Comment.class), eq(facultyId))).thenReturn(
+        when(commentResponseAssembler.toResponse(any(Comment.class), eq(facultyId), eq(true))).thenReturn(
                 CommentResponse.builder()
                         .id(commentId)
                         .questionId(questionId)
@@ -434,6 +474,9 @@ class CommentServiceTest {
     void getCommentsByQuestionShouldRejectHiddenQuestion() {
         question.setHidden(true);
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.STUDENT).build()
+        );
 
         assertThatThrownBy(() -> commentService.getCommentsByQuestion(authorId, questionId, PageRequest.of(0, 20)))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -443,9 +486,12 @@ class CommentServiceTest {
     @Test
     void getCommentsByQuestionShouldMapVisibleComments() {
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.STUDENT).build()
+        );
         when(commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(eq(questionId), any()))
                 .thenReturn(new PageImpl<>(List.of(comment), PageRequest.of(0, 20), 1));
-        when(commentResponseAssembler.toResponse(comment, authorId)).thenReturn(
+        when(commentResponseAssembler.toResponse(eq(comment), eq(authorId), eq(false))).thenReturn(
                 CommentResponse.builder()
                         .id(commentId)
                         .questionId(questionId)

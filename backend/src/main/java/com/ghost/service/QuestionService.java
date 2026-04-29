@@ -26,6 +26,7 @@ import com.ghost.repository.QuestionRepository;
 import com.ghost.repository.TopicRepository;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
+import com.ghost.util.CommentEditPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -93,7 +94,22 @@ public class QuestionService {
                 membership.getRole() == Role.FACULTY
         );
         publishQuestionEvent(whiteboardId, "QUESTION_CREATED", response);
+        notifyFacultyOfNewQuestion(membership.getUser(), question);
         return response;
+    }
+
+    private void notifyFacultyOfNewQuestion(User author, Question question) {
+        List<WhiteboardMembership> memberships =
+                whiteboardMembershipRepository.findByWhiteboardId(question.getWhiteboard().getId());
+        for (WhiteboardMembership whiteboardMembership : memberships) {
+            if (whiteboardMembership.getRole() == Role.FACULTY) {
+                notificationFactory.sendQuestionCreatedNotification(
+                        author,
+                        whiteboardMembership.getUser(),
+                        question
+                );
+            }
+        }
     }
 
     @Transactional
@@ -463,7 +479,7 @@ public class QuestionService {
                 .question(question)
                 .author(membership.getUser())
                 .body(req.getBody())
-                .editDeadline(LocalDateTime.now().plusMinutes(15))
+                .editDeadline(LocalDateTime.now().plus(CommentEditPolicy.EDIT_WINDOW))
                 .build();
 
         comment = commentRepository.save(comment);
@@ -512,8 +528,8 @@ public class QuestionService {
             throw new ForbiddenException("Only the author can edit this comment");
         }
 
-        if (comment.getEditDeadline() == null || comment.getEditDeadline().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Edit deadline has passed. Comments can only be edited within 15 minutes.");
+        if (!CommentEditPolicy.isEditable(comment, LocalDateTime.now())) {
+            throw new BadRequestException("Edit deadline has passed. Comments can only be edited within 1 hour.");
         }
         if (comment.getQuestion().getStatus() == QuestionStatus.CLOSED) {
             throw new BadRequestException("Cannot edit a comment on a closed question");

@@ -3,6 +3,7 @@ package com.ghost.mapper;
 import com.ghost.dto.response.CommentResponse;
 import com.ghost.model.Comment;
 import com.ghost.model.enums.VoteType;
+import com.ghost.util.CommentEditPolicy;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -18,8 +19,7 @@ public class CommentMapper {
                 && !author.getId().equals(currentUserId);
 
         boolean canEdit = author.getId().equals(currentUserId)
-                && comment.getEditDeadline() != null
-                && comment.getEditDeadline().isAfter(LocalDateTime.now());
+                && CommentEditPolicy.isEditable(comment, LocalDateTime.now());
 
         return CommentResponse.builder()
                 .id(comment.getId())

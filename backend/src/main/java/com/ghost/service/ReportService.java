@@ -148,6 +148,16 @@ public class ReportService {
                 targetPreview,
                 req.getReason().name()
         );
+        notificationService.createAndSend(
+                userId,
+                reporter.getId(),
+                NotificationType.REPORT_SUBMITTED,
+                "Report Submitted",
+                "Your report has been submitted for review",
+                targetType,
+                targetId,
+                whiteboardId
+        );
 
         auditLogService.logAction(
                 whiteboardId, userId, AuditAction.REPORT_SUBMITTED,

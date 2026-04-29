@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  InteractionManager,
 } from 'react-native';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -64,7 +65,17 @@ export default function HomeScreen() {
   const [answeredQuestions, setAnsweredQuestions] = useState<QuestionResponse[]>([]);
   const lastFetchRef = useRef(0);
   const requestInFlightRef = useRef(false);
+  const scannerLockedRef = useRef(false);
+  const scannerUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    return () => {
+      if (scannerUnlockTimerRef.current) {
+        clearTimeout(scannerUnlockTimerRef.current);
+      }
+    };
+  }, []);
 
   const fetchWhiteboards = useCallback(
     async (options?: { page?: number; replace?: boolean }) => {
@@ -187,6 +198,16 @@ export default function HomeScreen() {
     setInviteCode('');
   };
 
+  const closeScanner = () => {
+    if (scannerUnlockTimerRef.current) {
+      clearTimeout(scannerUnlockTimerRef.current);
+      scannerUnlockTimerRef.current = null;
+    }
+    scannerLockedRef.current = false;
+    setScannerLocked(false);
+    setShowScannerModal(false);
+  };
+
   const openScanner = async () => {
     if (!cameraPermission?.granted) {
       const permissionResponse = await requestCameraPermission();
@@ -196,26 +217,44 @@ export default function HomeScreen() {
       }
     }
 
+    scannerLockedRef.current = false;
     setScannerLocked(false);
+    if (showJoinModal) {
+      setShowJoinModal(false);
+      InteractionManager.runAfterInteractions(() => {
+        setShowScannerModal(true);
+      });
+      return;
+    }
+
     setShowScannerModal(true);
   };
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
-    if (scannerLocked || joining) {
+    if (scannerLockedRef.current || scannerLocked || joining) {
       return;
     }
 
+    scannerLockedRef.current = true;
     setScannerLocked(true);
     const parsedCode = parseInviteCode(data);
     if (!parsedCode) {
       Alert.alert('Invalid QR Code', 'This QR code does not contain a valid invite code.');
-      setTimeout(() => setScannerLocked(false), 600);
+      if (scannerUnlockTimerRef.current) {
+        clearTimeout(scannerUnlockTimerRef.current);
+      }
+      scannerUnlockTimerRef.current = setTimeout(() => {
+        scannerUnlockTimerRef.current = null;
+        scannerLockedRef.current = false;
+        setScannerLocked(false);
+      }, 600);
       return;
     }
 
-    setShowScannerModal(false);
+    closeScanner();
     setInviteCode(parsedCode);
     await joinWithInviteCode(parsedCode);
+    scannerLockedRef.current = false;
     setScannerLocked(false);
   };
 
@@ -595,7 +634,7 @@ export default function HomeScreen() {
 
         <GlassModal
           visible={showScannerModal}
-          onClose={() => setShowScannerModal(false)}
+          onClose={closeScanner}
           title="Scan Class QR"
         >
           <View

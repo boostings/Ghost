@@ -29,6 +29,7 @@ type MembershipFlight = {
 
 let membershipCache: MembershipCacheEntry | null = null;
 let membershipFlight: MembershipFlight | null = null;
+const joinByInviteFlights = new Map<string, Promise<void>>();
 
 function resetMembershipCache(): void {
   membershipCache = null;
@@ -197,13 +198,29 @@ export const whiteboardService = {
    */
   joinByInviteCode: async (inviteCode: string, whiteboardId?: string): Promise<void> => {
     const trimmedCode = inviteCode.trim();
-    if (whiteboardId) {
-      await api.post(`/whiteboards/${whiteboardId}/join`, { inviteCode: trimmedCode });
-      resetMembershipCache();
-      return;
+    const flightKey = `${whiteboardId ?? 'global'}:${trimmedCode.toUpperCase()}`;
+    const existingFlight = joinByInviteFlights.get(flightKey);
+    if (existingFlight) {
+      return existingFlight;
     }
-    await api.post('/whiteboards/join-by-invite', { inviteCode: trimmedCode });
-    resetMembershipCache();
+
+    const request = (async () => {
+      if (whiteboardId) {
+        await api.post(`/whiteboards/${whiteboardId}/join`, { inviteCode: trimmedCode });
+      } else {
+        await api.post('/whiteboards/join-by-invite', { inviteCode: trimmedCode });
+      }
+      resetMembershipCache();
+    })();
+
+    joinByInviteFlights.set(flightKey, request);
+    void request
+      .finally(() => {
+        joinByInviteFlights.delete(flightKey);
+      })
+      .catch(() => undefined);
+
+    return request;
   },
 
   /**
