@@ -242,6 +242,7 @@ class QuestionServiceTest {
         assertThat(question.getTitle()).isEqualTo("Updated title");
         assertThat(question.getBody()).isEqualTo("Updated body");
         assertThat(question.getTopic()).isEqualTo(topic);
+        assertThat(question.getEditedAt()).isNotNull();
         verify(auditLogService).logAction(
                 whiteboardId,
                 studentId,

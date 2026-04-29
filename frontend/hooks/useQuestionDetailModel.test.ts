@@ -102,6 +102,7 @@ function makeQuestion(overrides: Partial<QuestionResponse> = {}): QuestionRespon
     isBookmarked: overrides.isBookmarked ?? false,
     createdAt: overrides.createdAt ?? '2026-03-25T10:00:00.000Z',
     updatedAt: overrides.updatedAt ?? '2026-03-25T10:00:00.000Z',
+    editedAt: overrides.editedAt ?? null,
   };
 }
 

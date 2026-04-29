@@ -53,6 +53,7 @@ public class QuestionMapper {
                 .isBookmarked(isBookmarked)
                 .createdAt(question.getCreatedAt())
                 .updatedAt(question.getUpdatedAt())
+                .editedAt(question.getEditedAt())
                 .build();
     }
 }

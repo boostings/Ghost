@@ -15,6 +15,7 @@ import com.ghost.repository.KarmaVoteRepository;
 import com.ghost.model.KarmaVote;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,6 +52,7 @@ class QuestionResponseAssemblerTest {
                 .status(QuestionStatus.OPEN)
                 .karmaScore(5)
                 .build();
+        question.setEditedAt(LocalDateTime.of(2026, 4, 28, 19, 0));
 
         when(commentRepository.countByQuestionId(questionId)).thenReturn(4L);
         when(bookmarkRepository.existsByUserIdAndQuestionId(userId, questionId)).thenReturn(true);
@@ -64,5 +66,6 @@ class QuestionResponseAssemblerTest {
         assertThat(response.getUserVote()).isEqualTo(VoteType.UPVOTE);
         assertThat(response.isBookmarked()).isTrue();
         assertThat(response.isHidden()).isFalse();
+        assertThat(response.getEditedAt()).isEqualTo(question.getEditedAt());
     }
 }

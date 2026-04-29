@@ -28,6 +28,7 @@ import { Spacing } from '../../constants/spacing';
 import { useQuestionSearchModel, type FilterStatus } from '../../hooks/useQuestionSearchModel';
 import { formatDate } from '../../utils/formatDate';
 import { useAuthStore } from '../../stores/authStore';
+import { isQuestionEdited } from '../../utils/questionMeta';
 import type { QuestionResponse } from '../../types';
 
 const STATUS_FILTERS: { label: string; value: FilterStatus }[] = [
@@ -128,6 +129,7 @@ export default function SearchScreen() {
 
   const renderQuestionItem = useCallback(
     ({ item, index }: { item: QuestionResponse; index: number }) => {
+      const wasEdited = isQuestionEdited(item);
       const classCode = whiteboardLookup.get(item.whiteboardId)?.courseCode ?? 'CLASS';
       const animationStart = Math.min(index * 0.08, 0.72);
       const animationEnd = Math.min(animationStart + 0.24, 1);
@@ -186,6 +188,10 @@ export default function SearchScreen() {
                 },
               ],
               2
+            )}
+
+            {wasEdited && (
+              <Text style={[styles.editedText, { color: colors.textMuted }]}>Edited</Text>
             )}
 
             {renderHighlightedText(
@@ -759,6 +765,11 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: Fonts.sizes.sm,
+  },
+  editedText: {
+    fontSize: Fonts.sizes.sm,
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
   questionFooter: {
     flexDirection: 'row',

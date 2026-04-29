@@ -20,6 +20,7 @@ import Avatar from '../../components/ui/Avatar';
 import { Ease } from '../../constants/motion';
 import { type AppColors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
+import { isQuestionEdited } from '../../utils/questionMeta';
 import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
 import { authService } from '../../services/authService';
@@ -591,6 +592,7 @@ function QuestionRow({
 }) {
   const isClosed = question.status === 'CLOSED';
   const statusColor = isClosed ? colors.primary : colors.openStatus;
+  const wasEdited = isQuestionEdited(question);
   return (
     <Animated.View
       entering={FadeInDown.duration(220)
@@ -632,13 +634,18 @@ function QuestionRow({
                 {question.topicName}
               </Text>
             ) : null}
-            <Text style={[styles.questionTime, { color: colors.textMuted }]}>
-              {relativeTime(question.createdAt)}
-            </Text>
+            <View style={styles.questionTimeRow}>
+              <Text style={[styles.questionTime, { color: colors.textMuted }]}>
+                {relativeTime(question.createdAt)}
+              </Text>
+            </View>
           </View>
           <Text style={[styles.questionTitle, { color: colors.text }]} numberOfLines={2}>
             {question.title}
           </Text>
+          {wasEdited && (
+            <Text style={[styles.questionEdited, { color: colors.textMuted }]}>Edited</Text>
+          )}
           <View style={styles.questionFooter}>
             <View style={styles.questionStat}>
               <Ionicons name="arrow-up" size={12} color={colors.textMuted} />
@@ -912,7 +919,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
+  questionTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   questionTime: { fontSize: 11, fontWeight: '700' },
+  questionEdited: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    marginBottom: 6,
+  },
   questionTitle: {
     fontSize: 14,
     fontWeight: '700',

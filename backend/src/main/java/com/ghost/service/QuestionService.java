@@ -119,19 +119,30 @@ public class QuestionService {
         // Save old values for audit
         String oldTitle = question.getTitle();
         String oldBody = question.getBody();
+        boolean changed = false;
 
         // Update fields
-        if (req.getTitle() != null && !req.getTitle().isBlank()) {
+        if (req.getTitle() != null && !req.getTitle().isBlank() && !req.getTitle().equals(question.getTitle())) {
             question.setTitle(req.getTitle());
+            changed = true;
         }
-        if (req.getBody() != null && !req.getBody().isBlank()) {
+        if (req.getBody() != null && !req.getBody().isBlank() && !req.getBody().equals(question.getBody())) {
             question.setBody(req.getBody());
+            changed = true;
         }
         if (req.getTopicId() != null) {
-            Topic topic = topicRepository.findByIdAndWhiteboardId(
-                            req.getTopicId(), question.getWhiteboard().getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", req.getTopicId()));
-            question.setTopic(topic);
+            UUID currentTopicId = question.getTopic() != null ? question.getTopic().getId() : null;
+            if (!req.getTopicId().equals(currentTopicId)) {
+                Topic topic = topicRepository.findByIdAndWhiteboardId(
+                                req.getTopicId(), question.getWhiteboard().getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", req.getTopicId()));
+                question.setTopic(topic);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            question.setEditedAt(LocalDateTime.now());
         }
 
         question = questionRepository.save(question);

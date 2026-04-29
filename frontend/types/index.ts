@@ -152,6 +152,7 @@ export interface QuestionResponse {
   isBookmarked: boolean;
   createdAt: string;
   updatedAt: string;
+  editedAt: string | null;
 }
 
 export interface CommentResponse {

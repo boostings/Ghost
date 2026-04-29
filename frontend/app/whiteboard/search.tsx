@@ -40,6 +40,7 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
 import { formatDate } from '../../utils/formatDate';
+import { isQuestionEdited } from '../../utils/questionMeta';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../../types';
 
 const PAGE_SIZE = 30;
@@ -580,6 +581,7 @@ function ResultCard({
   searchTerm: string;
   onPress: () => void;
 }) {
+  const wasEdited = isQuestionEdited(item);
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const enter = reduceMotion
@@ -624,6 +626,7 @@ function ResultCard({
             highlightStyle={styles.highlight}
             numberOfLines={2}
           />
+          {wasEdited ? <Text style={styles.editedText}>Edited</Text> : null}
           <HighlightedText
             text={item.isHidden ? '[hidden]' : item.body}
             term={searchTerm}
@@ -1005,6 +1008,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     letterSpacing: -0.2,
     marginBottom: 6,
+  },
+  editedText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
   cardBodyText: {
     color: Colors.textSecondary,
