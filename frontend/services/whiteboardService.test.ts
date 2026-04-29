@@ -185,6 +185,27 @@ describe('whiteboardService', () => {
     expect(apiMock.get).toHaveBeenCalledTimes(2);
   });
 
+  it('deduplicates in-flight invite joins for the same code', async () => {
+    const { module, apiMock } = await loadWhiteboardService();
+    let resolveJoin!: () => void;
+    apiMock.post.mockReturnValue(
+      new Promise((resolve) => {
+        resolveJoin = () => resolve({ data: undefined });
+      })
+    );
+
+    const firstJoin = module.whiteboardService.joinByInviteCode(' joinme ');
+    const secondJoin = module.whiteboardService.joinByInviteCode('JOINME');
+
+    expect(apiMock.post).toHaveBeenCalledTimes(1);
+    expect(apiMock.post).toHaveBeenCalledWith('/whiteboards/join-by-invite', {
+      inviteCode: 'joinme',
+    });
+
+    resolveJoin();
+    await expect(Promise.all([firstJoin, secondJoin])).resolves.toEqual([undefined, undefined]);
+  });
+
   it('deduplicates in-flight membership checks for the same token', async () => {
     const { module, apiMock } = await loadWhiteboardService();
     let resolveRequest!: (value: {

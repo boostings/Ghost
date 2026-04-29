@@ -65,6 +65,7 @@ export default function HomeScreen() {
   const [answeredQuestions, setAnsweredQuestions] = useState<QuestionResponse[]>([]);
   const lastFetchRef = useRef(0);
   const requestInFlightRef = useRef(false);
+  const scannerLockedRef = useRef(false);
   const scannerUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -202,6 +203,7 @@ export default function HomeScreen() {
       clearTimeout(scannerUnlockTimerRef.current);
       scannerUnlockTimerRef.current = null;
     }
+    scannerLockedRef.current = false;
     setScannerLocked(false);
     setShowScannerModal(false);
   };
@@ -215,6 +217,7 @@ export default function HomeScreen() {
       }
     }
 
+    scannerLockedRef.current = false;
     setScannerLocked(false);
     if (showJoinModal) {
       setShowJoinModal(false);
@@ -228,10 +231,11 @@ export default function HomeScreen() {
   };
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
-    if (scannerLocked || joining) {
+    if (scannerLockedRef.current || scannerLocked || joining) {
       return;
     }
 
+    scannerLockedRef.current = true;
     setScannerLocked(true);
     const parsedCode = parseInviteCode(data);
     if (!parsedCode) {
@@ -241,6 +245,7 @@ export default function HomeScreen() {
       }
       scannerUnlockTimerRef.current = setTimeout(() => {
         scannerUnlockTimerRef.current = null;
+        scannerLockedRef.current = false;
         setScannerLocked(false);
       }, 600);
       return;
@@ -249,6 +254,7 @@ export default function HomeScreen() {
     closeScanner();
     setInviteCode(parsedCode);
     await joinWithInviteCode(parsedCode);
+    scannerLockedRef.current = false;
     setScannerLocked(false);
   };
 

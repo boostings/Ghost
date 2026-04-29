@@ -3,6 +3,7 @@ package com.ghost.repository;
 import com.ghost.model.WhiteboardMembership;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,6 +27,18 @@ public interface WhiteboardMembershipRepository extends JpaRepository<Whiteboard
     Page<WhiteboardMembership> findByWhiteboardId(UUID whiteboardId, Pageable pageable);
 
     boolean existsByWhiteboardIdAndUserId(UUID whiteboardId, UUID userId);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO whiteboard_memberships (id, whiteboard_id, user_id, role, joined_at)
+            VALUES (:id, :whiteboardId, :userId, 'STUDENT', CURRENT_TIMESTAMP)
+            ON CONFLICT (whiteboard_id, user_id) DO NOTHING
+            """, nativeQuery = true)
+    int insertStudentMembershipIfAbsent(
+            @Param("id") UUID id,
+            @Param("whiteboardId") UUID whiteboardId,
+            @Param("userId") UUID userId
+    );
 
     long countByWhiteboardId(UUID whiteboardId);
 

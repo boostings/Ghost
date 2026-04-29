@@ -184,11 +184,19 @@ class WhiteboardMembershipServiceTest {
 
         when(whiteboardRepository.findByInviteCodeIgnoreCase("JOIN326")).thenReturn(Optional.of(whiteboard));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, userId)).thenReturn(false);
+        when(whiteboardMembershipRepository.insertStudentMembershipIfAbsent(
+                any(UUID.class),
+                eq(whiteboardId),
+                eq(userId)
+        )).thenReturn(1);
 
         whiteboardMembershipService.joinByInviteCode(userId, " JOIN326 ");
 
-        verify(whiteboardMembershipRepository).save(any(WhiteboardMembership.class));
+        verify(whiteboardMembershipRepository).insertStudentMembershipIfAbsent(
+                any(UUID.class),
+                eq(whiteboardId),
+                eq(userId)
+        );
         verify(auditLogService).logAction(
                 whiteboardId,
                 userId,
@@ -197,6 +205,37 @@ class WhiteboardMembershipServiceTest {
                 userId,
                 null,
                 "Joined via invite code"
+        );
+    }
+
+    @Test
+    void joinByInviteCodeShouldSucceedWithoutAuditWhenAlreadyMember() {
+        UUID userId = UUID.randomUUID();
+        UUID whiteboardId = UUID.randomUUID();
+        User user = User.builder().id(userId).build();
+        Whiteboard whiteboard = Whiteboard.builder()
+                .id(whiteboardId)
+                .inviteCode("JOIN326")
+                .build();
+
+        when(whiteboardRepository.findByInviteCodeIgnoreCase("JOIN326")).thenReturn(Optional.of(whiteboard));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(whiteboardMembershipRepository.insertStudentMembershipIfAbsent(
+                any(UUID.class),
+                eq(whiteboardId),
+                eq(userId)
+        )).thenReturn(0);
+
+        whiteboardMembershipService.joinByInviteCode(userId, " JOIN326 ");
+
+        verify(auditLogService, never()).logAction(
+                any(UUID.class),
+                any(UUID.class),
+                any(AuditAction.class),
+                any(String.class),
+                any(UUID.class),
+                any(),
+                any(String.class)
         );
     }
 

@@ -47,6 +47,7 @@ export default function OnboardingScreen() {
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [scannerLocked, setScannerLocked] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const scannerLockedRef = useRef(false);
   const scannerUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchClasses = async () => {
@@ -156,15 +157,17 @@ export default function OnboardingScreen() {
       }
     }
 
+    scannerLockedRef.current = false;
     setScannerLocked(false);
     setShowScannerModal(true);
   };
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
-    if (scannerLocked || joiningByCode || joiningDemo) {
+    if (scannerLockedRef.current || scannerLocked || joiningByCode || joiningDemo) {
       return;
     }
 
+    scannerLockedRef.current = true;
     setScannerLocked(true);
     const parsedCode = parseInviteCode(data);
     if (!parsedCode) {
@@ -172,7 +175,10 @@ export default function OnboardingScreen() {
       if (scannerUnlockTimerRef.current) {
         clearTimeout(scannerUnlockTimerRef.current);
       }
-      scannerUnlockTimerRef.current = setTimeout(() => setScannerLocked(false), 600);
+      scannerUnlockTimerRef.current = setTimeout(() => {
+        scannerLockedRef.current = false;
+        setScannerLocked(false);
+      }, 600);
       return;
     }
 
@@ -185,6 +191,7 @@ export default function OnboardingScreen() {
     } catch (error: unknown) {
       Alert.alert('Join Failed', extractErrorMessage(error));
     } finally {
+      scannerLockedRef.current = false;
       setScannerLocked(false);
     }
   };
