@@ -21,6 +21,7 @@ import { Fonts } from '../constants/fonts';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/authService';
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
+import { useAnonymousMode } from '../hooks/useAnonymousMode';
 import { extractErrorMessage } from '../hooks/useApi';
 
 export default function SettingsScreen() {
@@ -34,6 +35,8 @@ export default function SettingsScreen() {
     setPushEnabled,
     setEmailEnabled,
   } = useNotificationPreferences();
+  const { anonymousModeEnabled, setAnonymousMode } = useAnonymousMode();
+  const isStudent = user?.role === 'STUDENT';
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -227,7 +230,37 @@ export default function SettingsScreen() {
             </View>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.duration(360).delay(120)}>
+          {isStudent && (
+            <Animated.View entering={FadeInDown.duration(360).delay(120)}>
+              <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Privacy</Text>
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+                ]}
+              >
+                <View style={styles.row}>
+                  <View style={[styles.rowIcon, { backgroundColor: `${colors.primary}26` }]}>
+                    <Ionicons name="eye-off-outline" size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={[styles.rowLabel, { color: colors.text }]}>Anonymous mode</Text>
+                    <Text style={[styles.rowHint, { color: colors.textMuted }]}>
+                      Other students see "Ghost" instead of your name
+                    </Text>
+                  </View>
+                  <Switch
+                    value={anonymousModeEnabled}
+                    onValueChange={setAnonymousMode}
+                    trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
+                    thumbColor={anonymousModeEnabled ? colors.primary : colors.textMuted}
+                  />
+                </View>
+              </View>
+            </Animated.View>
+          )}
+
+          <Animated.View entering={FadeInDown.duration(360).delay(180)}>
             <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Account</Text>
             <View
               style={[

@@ -149,4 +149,13 @@ export const authService = {
     const response = await api.put<UserResponse>('/users/me', { settingsJson });
     return response.data;
   },
+
+  /**
+   * Save anonymous mode setting to backend.
+   * PUT /users/me
+   */
+  saveAnonymousMode: async (enabled: boolean): Promise<UserResponse> => {
+    const response = await api.put<UserResponse>('/users/me', { anonymousMode: enabled });
+    return response.data;
+  },
 };

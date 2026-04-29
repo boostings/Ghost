@@ -65,6 +65,7 @@ export interface UserResponse {
   emailVerified: boolean;
   pushNotificationsEnabled: boolean;
   emailNotificationsEnabled: boolean;
+  anonymousMode: boolean;
   createdAt: string;
 }
 
@@ -335,6 +336,7 @@ export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   settingsJson?: string;
+  anonymousMode?: boolean;
 }
 
 // ---- Query Parameter Types ----

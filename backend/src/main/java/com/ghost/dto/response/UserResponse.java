@@ -33,5 +33,7 @@ public class UserResponse {
 
     private boolean emailNotificationsEnabled;
 
+    private boolean anonymousMode;
+
     private LocalDateTime createdAt;
 }

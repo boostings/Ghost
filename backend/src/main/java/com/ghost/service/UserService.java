@@ -63,6 +63,10 @@ public class UserService {
             user.setSettingsJson(normalizeSettingsJson(req.getSettingsJson()));
         }
 
+        if (req.getAnonymousMode() != null) {
+            user.setAnonymousMode(req.getAnonymousMode());
+        }
+
         User savedUser = userRepository.save(user);
         String newValue = "firstName=" + savedUser.getFirstName()
                 + ";lastName=" + savedUser.getLastName()

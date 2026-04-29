@@ -19,11 +19,11 @@ public class CommentResponseAssembler {
     private final CommentMapper commentMapper;
 
     @Transactional(readOnly = true)
-    public CommentResponse toResponse(Comment comment, UUID currentUserId) {
+    public CommentResponse toResponse(Comment comment, UUID currentUserId, boolean viewerIsFaculty) {
         VoteType userVote = karmaVoteRepository.findByUserIdAndCommentId(currentUserId, comment.getId())
                 .map(vote -> vote.getVoteType())
                 .orElse(null);
 
-        return commentMapper.toResponse(comment, currentUserId, userVote);
+        return commentMapper.toResponse(comment, currentUserId, userVote, viewerIsFaculty);
     }
 }

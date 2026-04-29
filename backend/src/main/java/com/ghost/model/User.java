@@ -62,6 +62,10 @@ public class User {
     @Column(name = "expo_push_token")
     private String expoPushToken;
 
+    @Column(name = "anonymous_mode", nullable = false)
+    @Builder.Default
+    private boolean anonymousMode = false;
+
     @Column(name = "settings_json", columnDefinition = "jsonb", nullable = false)
     @ColumnTransformer(write = "?::jsonb")
     @Builder.Default
