@@ -85,7 +85,6 @@ export default function CreateWhiteboardScreen() {
   };
 
   const {
-    normalized: normalizedPrimaryInstructorEmail,
     valid: primaryInstructorEmailValid,
     visibleError: primaryInstructorEmailLiveError,
   } = getEmailFieldState({

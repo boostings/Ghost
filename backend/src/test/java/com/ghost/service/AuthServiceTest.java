@@ -7,7 +7,9 @@ import com.ghost.dto.request.VerifyEmailRequest;
 import com.ghost.dto.request.VerifyPasswordResetCodeRequest;
 import com.ghost.dto.response.AuthResponse;
 import com.ghost.dto.response.PasswordResetStartResponse;
+import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
+import com.ghost.mapper.UserMapper;
 import com.ghost.model.StudentUser;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
@@ -68,6 +70,9 @@ class AuthServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private UserMapper userMapper;
+
     @InjectMocks
     private AuthService authService;
 
@@ -76,6 +81,21 @@ class AuthServiceTest {
         lenient().when(whiteboardMembershipRepository.findByUserId(any(UUID.class))).thenReturn(List.of());
         lenient().when(whiteboardMembershipRepository.findWhiteboardIdsByUserId(any(UUID.class))).thenReturn(List.of());
         lenient().when(whiteboardRepository.findByOwnerId(any(UUID.class))).thenReturn(List.of());
+        lenient().when(userMapper.toResponse(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            return UserResponse.builder()
+                    .id(u.getId())
+                    .email(u.getEmail())
+                    .firstName(u.getFirstName())
+                    .lastName(u.getLastName())
+                    .role(u.getRole())
+                    .karmaScore(u.getKarmaScore())
+                    .emailVerified(u.isEmailVerified())
+                    .pushNotificationsEnabled(true)
+                    .emailNotificationsEnabled(true)
+                    .createdAt(u.getCreatedAt())
+                    .build();
+        });
     }
 
     @Test

@@ -42,7 +42,7 @@ jobs:
 
       - name: Unit tests with coverage gate
         working-directory: frontend
-        run: bun run test -- --runInBand --coverage
+        run: node ./node_modules/jest/bin/jest.js --runInBand --coverage
 
       - name: Frontend smoke build
         working-directory: frontend
