@@ -17,6 +17,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
 
 let preferences = DEFAULT_PREFERENCES;
 let hydrated = false;
+let lastHydratedUserId: string | null = null;
 let syncingWithBackend = false;
 const listeners = new Set<() => void>();
 
@@ -43,73 +44,104 @@ function normalizePreferences(value: unknown): NotificationPreferences {
 }
 
 function hydratePreferences() {
-  if (hydrated) {
+  // Re-hydrate when the active user changes (login/logout/account switch).
+  const currentUserId = useAuthStore.getState().user?.id ?? null;
+  if (hydrated && lastHydratedUserId === currentUserId) {
     return;
   }
   hydrated = true;
+  lastHydratedUserId = currentUserId;
 
-  const user = useAuthStore.getState().user;
-  if (user?.pushNotificationsEnabled !== undefined) {
-    preferences = {
-      pushEnabled: user.pushNotificationsEnabled,
-      emailEnabled: user.emailNotificationsEnabled,
-    };
-    emitChange();
-    return;
-  }
-
+  // Source-of-truth priority:
+  //   1. AsyncStorage — written synchronously on every toggle and most
+  //      reliable to flush before the app is killed.
+  //   2. The persisted auth-store user — used only as a fallback (e.g.
+  //      first-ever launch on this device, or AsyncStorage cleared).
+  // Reading user data first would let a stale SecureStore copy clobber a
+  // toggle the user already made and AsyncStorage already saved.
   AsyncStorage.getItem(STORAGE_KEY)
     .then((storedValue) => {
       if (storedValue) {
         preferences = normalizePreferences(JSON.parse(storedValue));
         emitChange();
+        return;
+      }
+
+      const user = useAuthStore.getState().user;
+      if (user && user.pushNotificationsEnabled !== undefined) {
+        preferences = {
+          pushEnabled: user.pushNotificationsEnabled,
+          emailEnabled: user.emailNotificationsEnabled,
+        };
+        // Seed AsyncStorage so future hydrations are local-first.
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences)).catch(() => {});
+        emitChange();
       }
     })
     .catch(() => {
-      preferences = DEFAULT_PREFERENCES;
-      emitChange();
+      const user = useAuthStore.getState().user;
+      if (user && user.pushNotificationsEnabled !== undefined) {
+        preferences = {
+          pushEnabled: user.pushNotificationsEnabled,
+          emailEnabled: user.emailNotificationsEnabled,
+        };
+        emitChange();
+      }
     });
 }
 
 function setPreferencesCore(nextPreferences: NotificationPreferences) {
   const previousPreferences = preferences;
-  let localWriteFailed = false;
 
   preferences = nextPreferences;
   emitChange();
 
-  try {
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextPreferences)).catch(() => {});
-  } catch {
-    localWriteFailed = true;
-  }
+  // Persist locally first. Do not await; AsyncStorage write is fast and
+  // reliable on iOS/Android even if the app is backgrounded shortly after.
+  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextPreferences)).catch(() => {});
 
-  if (!syncingWithBackend) {
-    syncingWithBackend = true;
-    authService.saveNotificationPreferences(
-      nextPreferences.pushEnabled,
-      nextPreferences.emailEnabled
-    )
-      .then(() => {
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser) {
-          useAuthStore.getState().updateUser({
-            ...currentUser,
-            pushNotificationsEnabled: nextPreferences.pushEnabled,
-            emailNotificationsEnabled: nextPreferences.emailEnabled,
-          });
-        }
-      })
-      .catch(() => {
-        if (!localWriteFailed) {
-          preferences = previousPreferences;
-          emitChange();
-        }
-      })
-      .finally(() => {
-        syncingWithBackend = false;
-      });
+  // Mirror into the auth-store user immediately (optimistic), so the
+  // zustand persist middleware writes the new value to SecureStore right
+  // away rather than waiting on a network round-trip. If the network call
+  // later fails we roll both copies back to `previousPreferences`.
+  applyPreferencesToAuthStore(nextPreferences);
+
+  if (syncingWithBackend) {
+    return;
   }
+  syncingWithBackend = true;
+
+  authService
+    .saveNotificationPreferences(nextPreferences.pushEnabled, nextPreferences.emailEnabled)
+    .catch(() => {
+      // Roll back in-memory + persisted copies so the UI doesn't claim a
+      // change that the backend rejected.
+      preferences = previousPreferences;
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(previousPreferences)).catch(() => {});
+      applyPreferencesToAuthStore(previousPreferences);
+      emitChange();
+    })
+    .finally(() => {
+      syncingWithBackend = false;
+    });
+}
+
+function applyPreferencesToAuthStore(next: NotificationPreferences) {
+  const currentUser = useAuthStore.getState().user;
+  if (!currentUser) {
+    return;
+  }
+  if (
+    currentUser.pushNotificationsEnabled === next.pushEnabled &&
+    currentUser.emailNotificationsEnabled === next.emailEnabled
+  ) {
+    return;
+  }
+  useAuthStore.getState().updateUser({
+    ...currentUser,
+    pushNotificationsEnabled: next.pushEnabled,
+    emailNotificationsEnabled: next.emailEnabled,
+  });
 }
 
 function subscribe(listener: () => void) {

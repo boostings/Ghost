@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import type { StateStorage } from 'zustand/middleware';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import type { UserResponse } from '../types';
+
+const NOTIFICATION_PREFERENCES_STORAGE_KEY = '@ghost/notification-preferences';
 
 // Use CommonJS middleware resolution to avoid importing zustand's ESM build on web.
 const { persist, createJSONStorage } = require('zustand/middleware') as Pick<
@@ -138,6 +141,10 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: false,
             isLoading: false,
           });
+          // Drop device-local preference cache so the next account that
+          // signs in on this device starts from its own backend defaults
+          // instead of inheriting the previous user's toggles.
+          AsyncStorage.removeItem(NOTIFICATION_PREFERENCES_STORAGE_KEY).catch(() => {});
         },
 
         setLoading: (isLoading: boolean) => {
