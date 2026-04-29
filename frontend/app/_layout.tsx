@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, useColorScheme } from 'react-native';
+import { ActivityIndicator, Platform, View, StyleSheet, useColorScheme } from 'react-native';
 import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeColors } from '../constants/colors';
@@ -133,6 +134,7 @@ function RootLayoutNav() {
   const PUSH_MS = 280;
   const SHEET_MS = 480;
   const FADE_MS = 200;
+  const isIPad = Platform.OS === 'ios' && Platform.isPad;
 
   return (
     <>
@@ -143,7 +145,7 @@ function RootLayoutNav() {
           animation: 'slide_from_right',
           animationDuration: PUSH_MS,
           gestureEnabled: true,
-          fullScreenGestureEnabled: true,
+          fullScreenGestureEnabled: !isIPad,
         }}
       >
         <Stack.Screen
@@ -266,7 +268,7 @@ export default function RootLayout() {
   useNotifications();
   useInviteLinks();
 
-  return (
+  const content = (
     <SafeAreaProvider>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <ErrorBoundary>
@@ -275,9 +277,18 @@ export default function RootLayout() {
       </ErrorBoundary>
     </SafeAreaProvider>
   );
+
+  if (Platform.OS === 'ios' && Platform.isPad) {
+    return <GestureHandlerRootView style={styles.root}>{content}</GestureHandlerRootView>;
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     flex: 1,
