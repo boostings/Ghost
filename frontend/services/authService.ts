@@ -133,4 +133,20 @@ export const authService = {
   clearPushToken: async (): Promise<void> => {
     await api.delete('/users/me/push-token');
   },
+
+  /**
+   * Save notification preferences to backend.
+   * PUT /users/me
+   */
+  saveNotificationPreferences: async (
+    pushEnabled: boolean,
+    emailEnabled: boolean
+  ): Promise<UserResponse> => {
+    const settingsJson = JSON.stringify({
+      pushNotificationsEnabled: pushEnabled,
+      emailNotificationsEnabled: emailEnabled,
+    });
+    const response = await api.put<UserResponse>('/users/me', { settingsJson });
+    return response.data;
+  },
 };

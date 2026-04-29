@@ -63,6 +63,8 @@ export interface UserResponse {
   role: Role;
   karmaScore: number;
   emailVerified: boolean;
+  pushNotificationsEnabled: boolean;
+  emailNotificationsEnabled: boolean;
   createdAt: string;
 }
 

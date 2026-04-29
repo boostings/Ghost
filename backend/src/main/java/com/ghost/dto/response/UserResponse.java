@@ -29,5 +29,9 @@ public class UserResponse {
 
     private boolean emailVerified;
 
+    private boolean pushNotificationsEnabled;
+
+    private boolean emailNotificationsEnabled;
+
     private LocalDateTime createdAt;
 }
