@@ -89,6 +89,7 @@ describe('useInviteLinks', () => {
         createdAt: '2026-04-28T00:00:00.000Z',
         pushNotificationsEnabled: true,
         emailNotificationsEnabled: true,
+        anonymousMode: false,
       },
       'access-token',
       'refresh-token'
@@ -121,6 +122,7 @@ describe('useInviteLinks', () => {
         createdAt: '2026-04-28T00:00:00.000Z',
         pushNotificationsEnabled: true,
         emailNotificationsEnabled: true,
+        anonymousMode: false,
       },
       'access-token',
       'refresh-token'
@@ -168,6 +170,7 @@ describe('useInviteLinks', () => {
         createdAt: '2026-04-28T00:00:00.000Z',
         pushNotificationsEnabled: true,
         emailNotificationsEnabled: true,
+        anonymousMode: false,
       },
       'access-token',
       'refresh-token'

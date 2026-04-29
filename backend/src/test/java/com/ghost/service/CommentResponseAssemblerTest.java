@@ -75,7 +75,7 @@ class CommentResponseAssemblerTest {
 
         when(karmaVoteRepository.findByUserIdAndCommentId(userId, commentId)).thenReturn(Optional.empty());
 
-        CommentResponse response = assembler.toResponse(comment, userId);
+        CommentResponse response = assembler.toResponse(comment, userId, false);
 
         assertThat(response.isCanEdit()).isTrue();
     }

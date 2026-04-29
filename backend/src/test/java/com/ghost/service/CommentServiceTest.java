@@ -271,7 +271,10 @@ class CommentServiceTest {
         comment.setEditDeadline(LocalDateTime.now().minusMinutes(44));
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(commentResponseAssembler.toResponse(comment, authorId)).thenReturn(
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.STUDENT).build()
+        );
+        when(commentResponseAssembler.toResponse(comment, authorId, false)).thenReturn(
                 CommentResponse.builder()
                         .id(commentId)
                         .questionId(questionId)
