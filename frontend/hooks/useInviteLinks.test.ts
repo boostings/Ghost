@@ -87,6 +87,8 @@ describe('useInviteLinks', () => {
         karmaScore: 0,
         emailVerified: true,
         createdAt: '2026-04-28T00:00:00.000Z',
+        pushNotificationsEnabled: true,
+        emailNotificationsEnabled: true,
       },
       'access-token',
       'refresh-token'
@@ -117,6 +119,8 @@ describe('useInviteLinks', () => {
         karmaScore: 0,
         emailVerified: true,
         createdAt: '2026-04-28T00:00:00.000Z',
+        pushNotificationsEnabled: true,
+        emailNotificationsEnabled: true,
       },
       'access-token',
       'refresh-token'
@@ -152,20 +156,22 @@ describe('useInviteLinks', () => {
     expect(mockWhiteboardService.joinByInviteCode).not.toHaveBeenCalled();
 
     await act(async () => {
-      useAuthStore.getState().setAuth(
-        {
-          id: 'student-1',
-          email: 'student@ilstu.edu',
-          firstName: 'Student',
-          lastName: 'User',
-          role: 'STUDENT',
-          karmaScore: 0,
-          emailVerified: true,
-          createdAt: '2026-04-28T00:00:00.000Z',
-        },
-        'access-token',
-        'refresh-token'
-      );
+    useAuthStore.getState().setAuth(
+      {
+        id: 'student-1',
+        email: 'student@ilstu.edu',
+        firstName: 'Student',
+        lastName: 'User',
+        role: 'STUDENT',
+        karmaScore: 0,
+        emailVerified: true,
+        createdAt: '2026-04-28T00:00:00.000Z',
+        pushNotificationsEnabled: true,
+        emailNotificationsEnabled: true,
+      },
+      'access-token',
+      'refresh-token'
+    );
       rerender({});
     });
 

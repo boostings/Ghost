@@ -99,6 +99,8 @@ describe('useNotifications', () => {
         karmaScore: 0,
         emailVerified: true,
         createdAt: '2026-04-28T00:00:00.000Z',
+        pushNotificationsEnabled: true,
+        emailNotificationsEnabled: true,
       },
       'access-token',
       'refresh-token'
