@@ -20,10 +20,12 @@ import Avatar from '../../components/ui/Avatar';
 import { Ease } from '../../constants/motion';
 import { type AppColors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
+import { isQuestionEdited } from '../../utils/questionMeta';
 import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
 import { authService } from '../../services/authService';
 import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
+import { useAnonymousMode } from '../../hooks/useAnonymousMode';
 import type { QuestionResponse } from '../../types';
 
 const PAGE_SIZE = 10;
@@ -104,6 +106,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
   const { pushEnabled, emailEnabled, setPushEnabled, setEmailEnabled } =
     useNotificationPreferences();
+  const { anonymousModeEnabled, setAnonymousMode } = useAnonymousMode();
 
   const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [questionCount, setQuestionCount] = useState<number>(0);
@@ -489,6 +492,44 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
+              {!isFaculty && (
+                <View style={styles.settingsBlock}>
+                  <Text style={[styles.blockEyebrow, { color: colors.text }]}>PRIVACY</Text>
+                  <View
+                    style={[
+                      styles.settingsCard,
+                      { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+                    ]}
+                  >
+                    <View style={[styles.settingRail, { backgroundColor: colors.primary }]} />
+                    <View style={styles.settingsCardBody}>
+                      <View style={styles.settingRow}>
+                        <View style={styles.settingInfo}>
+                          <Text style={[styles.settingLabel, { color: colors.text }]}>
+                            Anonymous mode
+                          </Text>
+                          <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
+                            Other students see "Ghost" instead of your name
+                          </Text>
+                        </View>
+                        <Switch
+                          value={anonymousModeEnabled}
+                          onValueChange={(v) => {
+                            haptic.selection();
+                            setAnonymousMode(v);
+                          }}
+                          trackColor={{
+                            false: 'rgba(255,255,255,0.12)',
+                            true: 'rgba(187,39,68,0.55)',
+                          }}
+                          thumbColor={anonymousModeEnabled ? colors.primary : colors.textMuted}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+
               <View style={styles.settingsBlock}>
                 <Text style={[styles.blockEyebrow, { color: colors.text }]}>ACCOUNT</Text>
                 <View style={styles.actionRow}>
@@ -591,6 +632,7 @@ function QuestionRow({
 }) {
   const isClosed = question.status === 'CLOSED';
   const statusColor = isClosed ? colors.primary : colors.openStatus;
+  const wasEdited = isQuestionEdited(question);
   return (
     <Animated.View
       entering={FadeInDown.duration(220)
@@ -632,13 +674,18 @@ function QuestionRow({
                 {question.topicName}
               </Text>
             ) : null}
-            <Text style={[styles.questionTime, { color: colors.textMuted }]}>
-              {relativeTime(question.createdAt)}
-            </Text>
+            <View style={styles.questionTimeRow}>
+              <Text style={[styles.questionTime, { color: colors.textMuted }]}>
+                {relativeTime(question.createdAt)}
+              </Text>
+            </View>
           </View>
           <Text style={[styles.questionTitle, { color: colors.text }]} numberOfLines={2}>
             {question.title}
           </Text>
+          {wasEdited && (
+            <Text style={[styles.questionEdited, { color: colors.textMuted }]}>Edited</Text>
+          )}
           <View style={styles.questionFooter}>
             <View style={styles.questionStat}>
               <Ionicons name="arrow-up" size={12} color={colors.textMuted} />
@@ -912,7 +959,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
+  questionTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   questionTime: { fontSize: 11, fontWeight: '700' },
+  questionEdited: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    marginBottom: 6,
+  },
   questionTitle: {
     fontSize: 14,
     fontWeight: '700',

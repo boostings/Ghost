@@ -33,6 +33,7 @@ public class UserMapper {
                 .emailVerified(user.isEmailVerified())
                 .pushNotificationsEnabled(pushEnabled)
                 .emailNotificationsEnabled(emailEnabled)
+                .anonymousMode(user.isAnonymousMode())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

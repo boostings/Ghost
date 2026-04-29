@@ -26,7 +26,7 @@ public class QuestionResponseAssembler {
     private static final int VERIFIED_ANSWER_PREVIEW_LENGTH = 160;
 
     @Transactional(readOnly = true)
-    public QuestionResponse toResponse(Question question, UUID currentUserId, boolean includeModerationData) {
+    public QuestionResponse toResponse(Question question, UUID currentUserId, boolean viewerIsFaculty) {
         VoteType userVote = karmaVoteRepository.findByUserIdAndQuestionId(currentUserId, question.getId())
                 .map(vote -> vote.getVoteType())
                 .orElse(null);
@@ -41,18 +41,24 @@ public class QuestionResponseAssembler {
             if (verified != null && !verified.isHidden()) {
                 verifiedAnswerPreview = truncatePreview(verified.getBody());
                 if (verified.getAuthor() != null) {
-                    verifiedAnswerAuthorName =
-                            verified.getAuthor().getFirstName() + " " + verified.getAuthor().getLastName();
+                    var verifiedAuthor = verified.getAuthor();
+                    boolean maskVerifiedAuthor = verifiedAuthor.isAnonymousMode()
+                            && !viewerIsFaculty
+                            && !verifiedAuthor.getId().equals(currentUserId);
+                    verifiedAnswerAuthorName = maskVerifiedAuthor ? "Ghost"
+                            : verifiedAuthor.getFirstName() + " " + verifiedAuthor.getLastName();
                 }
             }
         }
 
         return questionMapper.toResponse(
                 question,
+                currentUserId,
+                viewerIsFaculty,
                 userVote,
                 commentCount,
                 isBookmarked,
-                includeModerationData,
+                viewerIsFaculty,
                 verifiedAnswerPreview,
                 verifiedAnswerAuthorName
         );

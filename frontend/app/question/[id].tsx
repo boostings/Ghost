@@ -27,6 +27,7 @@ import { Fonts } from '../../constants/fonts';
 import { useQuestionDetailModel } from '../../hooks/useQuestionDetailModel';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { formatFullDate } from '../../utils/formatDate';
+import { isQuestionEdited } from '../../utils/questionMeta';
 import type { CommentResponse, VoteType } from '../../types';
 
 export default function QuestionDetailScreen() {
@@ -74,6 +75,7 @@ export default function QuestionDetailScreen() {
   });
 
   const isAuthor = question?.authorId === user?.id;
+  const questionWasEdited = isQuestionEdited(question);
 
   const handleQuestionVote = async (voteType: VoteType) => {
     try {
@@ -298,6 +300,8 @@ export default function QuestionDetailScreen() {
                     </View>
 
                     <Text style={styles.questionTitle}>{question.title}</Text>
+
+                    {questionWasEdited && <Text style={styles.editedText}>Edited</Text>}
 
                     <View style={styles.questionAuthorRow}>
                       <Text style={styles.authorName}>{question.authorName}</Text>
@@ -613,6 +617,12 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
+  },
+  editedText: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
+    marginBottom: 10,
   },
   questionBody: {
     fontSize: Fonts.sizes.lg,

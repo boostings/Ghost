@@ -7,6 +7,7 @@ import { Fonts } from '../constants/fonts';
 import { enterList } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 import { haptic } from '../utils/haptics';
+import { isQuestionEdited } from '../utils/questionMeta';
 import { QuestionResponse } from '../types';
 import GlassCard from './ui/GlassCard';
 import Avatar from './ui/Avatar';
@@ -64,6 +65,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const colors = useThemeColors();
   const { firstName, lastName } = parseAuthorName(question.authorName);
   const canReport = Boolean(onReport && question.authorId !== currentUserId);
+  const wasEdited = isQuestionEdited(question);
 
   return (
     <Animated.View entering={enterList(index)} layout={LinearTransition.springify().damping(20)}>
@@ -96,6 +98,10 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {question.title}
         </Text>
+
+        {wasEdited && (
+          <Text style={[styles.editedText, { color: colors.textMuted }]}>Edited</Text>
+        )}
 
         <Text style={[styles.body, { color: colors.textMuted }]} numberOfLines={3}>
           {question.isHidden ? '[hidden]' : question.body}
@@ -240,6 +246,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     lineHeight: 24,
     letterSpacing: -0.2,
+  },
+  editedText: {
+    fontSize: Fonts.sizes.xs,
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
   body: {
     fontSize: Fonts.sizes.md,

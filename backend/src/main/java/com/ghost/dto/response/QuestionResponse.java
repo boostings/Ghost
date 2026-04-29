@@ -66,4 +66,6 @@ public class QuestionResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    private LocalDateTime editedAt;
 }

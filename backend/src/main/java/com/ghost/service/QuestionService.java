@@ -135,19 +135,30 @@ public class QuestionService {
         // Save old values for audit
         String oldTitle = question.getTitle();
         String oldBody = question.getBody();
+        boolean changed = false;
 
         // Update fields
-        if (req.getTitle() != null && !req.getTitle().isBlank()) {
+        if (req.getTitle() != null && !req.getTitle().isBlank() && !req.getTitle().equals(question.getTitle())) {
             question.setTitle(req.getTitle());
+            changed = true;
         }
-        if (req.getBody() != null && !req.getBody().isBlank()) {
+        if (req.getBody() != null && !req.getBody().isBlank() && !req.getBody().equals(question.getBody())) {
             question.setBody(req.getBody());
+            changed = true;
         }
         if (req.getTopicId() != null) {
-            Topic topic = topicRepository.findByIdAndWhiteboardId(
-                            req.getTopicId(), question.getWhiteboard().getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", req.getTopicId()));
-            question.setTopic(topic);
+            UUID currentTopicId = question.getTopic() != null ? question.getTopic().getId() : null;
+            if (!req.getTopicId().equals(currentTopicId)) {
+                Topic topic = topicRepository.findByIdAndWhiteboardId(
+                                req.getTopicId(), question.getWhiteboard().getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Topic", "id", req.getTopicId()));
+                question.setTopic(topic);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            question.setEditedAt(LocalDateTime.now());
         }
 
         question = questionRepository.save(question);
@@ -480,7 +491,8 @@ public class QuestionService {
 
         notificationFactory.sendCommentAddedNotification(membership.getUser(), question);
 
-        CommentResponse response = commentResponseAssembler.toResponse(comment, userId);
+        CommentResponse response = commentResponseAssembler.toResponse(
+                comment, userId, membership.getRole() == Role.FACULTY);
         publishCommentEvent(question.getId(), "COMMENT_CREATED", response);
         return response;
     }
@@ -510,7 +522,7 @@ public class QuestionService {
             EditCommentRequest req,
             Comment comment
     ) {
-        whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
+        var editMembership = whiteboardService.verifyMembership(userId, comment.getQuestion().getWhiteboard().getId());
 
         if (!comment.getAuthor().getId().equals(userId)) {
             throw new ForbiddenException("Only the author can edit this comment");
@@ -533,7 +545,8 @@ public class QuestionService {
                 "Comment", commentId, oldBody, comment.getBody()
         );
 
-        CommentResponse response = commentResponseAssembler.toResponse(comment, userId);
+        CommentResponse response = commentResponseAssembler.toResponse(
+                comment, userId, editMembership.getRole() == Role.FACULTY);
         publishCommentEvent(questionId, "COMMENT_EDITED", response);
         return response;
     }
@@ -621,7 +634,7 @@ public class QuestionService {
 
         comment.setVerifiedBy(facultyMembership.getUser());
         commentRepository.save(comment);
-        CommentResponse updatedComment = commentResponseAssembler.toResponse(comment, facultyId);
+        CommentResponse updatedComment = commentResponseAssembler.toResponse(comment, facultyId, true);
         publishCommentEvent(questionId, "COMMENT_UPDATED", updatedComment);
 
         markVerifiedAnswerAndClose(facultyId, question.getId(), commentId);
@@ -678,12 +691,13 @@ public class QuestionService {
             Pageable pageable,
             Question question
     ) {
-        whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
+        var viewerMembership = whiteboardService.verifyMembership(userId, question.getWhiteboard().getId());
+        boolean viewerIsFaculty = viewerMembership.getRole() == Role.FACULTY;
         if (question.isHidden()) {
             throw new ResourceNotFoundException("Question", "id", questionId);
         }
         return commentRepository.findByQuestionIdAndIsHiddenFalseOrderByCreatedAtAsc(questionId, pageable)
-                .map(comment -> commentResponseAssembler.toResponse(comment, userId));
+                .map(comment -> commentResponseAssembler.toResponse(comment, userId, viewerIsFaculty));
     }
 
     private void publishCommentEvent(UUID questionId, String type, Object payload) {

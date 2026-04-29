@@ -8,6 +8,7 @@ import { Fonts } from '../constants/fonts';
 import { PRESSED_SCALE, Spring } from '../constants/motion';
 import { Radius, Spacing } from '../constants/spacing';
 import { haptic } from '../utils/haptics';
+import { isQuestionEdited } from '../utils/questionMeta';
 import { AnimatedIcon } from './AnimatedIcon';
 import type { QuestionResponse } from '../types';
 
@@ -36,6 +37,7 @@ export const MyQuestionCard: React.FC<MyQuestionCardProps> = ({ question, varian
   };
 
   const isAnswered = variant === 'answered';
+  const wasEdited = isQuestionEdited(question);
   const stripeColor = isAnswered ? colors.verifiedAnswer : colors.warning;
   const stripeBg = `${stripeColor}26`;
   const stripeBorder = `${stripeColor}40`;
@@ -79,6 +81,10 @@ export const MyQuestionCard: React.FC<MyQuestionCardProps> = ({ question, varian
         <Text style={[styles.title, { color: colors.text }]} numberOfLines={3}>
           {question.title}
         </Text>
+
+        {wasEdited ? (
+          <Text style={[styles.editedText, { color: colors.textMuted }]}>Edited</Text>
+        ) : null}
 
         <View style={[styles.stripe, { backgroundColor: stripeBg, borderColor: stripeBorder }]}>
           <AnimatedIcon name={stripeIcon} size={14} color={stripeColor} motion="none" />
@@ -154,6 +160,12 @@ const styles = StyleSheet.create({
   commentCount: {
     fontSize: Fonts.sizes.xs,
     fontWeight: '500',
+  },
+  editedText: {
+    fontSize: Fonts.sizes.xs,
+    fontStyle: 'italic',
+    fontWeight: '500',
+    marginBottom: 10,
   },
 });
 

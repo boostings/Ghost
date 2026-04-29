@@ -25,4 +25,6 @@ public class UpdateUserRequest {
 
     @Size(max = 5000, message = "Settings payload is too large")
     private String settingsJson;
+
+    private Boolean anonymousMode;
 }

@@ -42,6 +42,7 @@ import {
   type SortMode,
 } from '../../hooks/useWhiteboardDetailModel';
 import { formatDate } from '../../utils/formatDate';
+import { isQuestionEdited } from '../../utils/questionMeta';
 import type { QuestionResponse } from '../../types';
 
 export default function WhiteboardDetailScreen() {
@@ -106,6 +107,7 @@ export default function WhiteboardDetailScreen() {
   const renderQuestionCard = useCallback(
     ({ item, index }: { item: QuestionResponse; index: number }) => {
       const cardEntering = reduceMotion ? FadeIn.duration(Duration.fast) : enterList(index);
+      const wasEdited = isQuestionEdited(item);
       return (
         <GlassCard
           style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
@@ -136,6 +138,8 @@ export default function WhiteboardDetailScreen() {
           <Text style={styles.questionTitle} numberOfLines={2}>
             {item.title}
           </Text>
+
+          {wasEdited && <Text style={styles.editedText}>Edited</Text>}
 
           <Text style={styles.questionBody} numberOfLines={3}>
             {item.isHidden ? '[hidden]' : item.body}
@@ -1014,6 +1018,12 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
+  },
+  editedText: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
   footerRight: {
     flex: 1,

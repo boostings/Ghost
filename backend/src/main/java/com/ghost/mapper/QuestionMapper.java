@@ -5,6 +5,8 @@ import com.ghost.model.Question;
 import com.ghost.model.enums.VoteType;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 import static java.lang.Math.toIntExact;
 
 @Component
@@ -12,6 +14,8 @@ public class QuestionMapper {
 
     public QuestionResponse toResponse(
             Question question,
+            UUID viewerId,
+            boolean viewerIsFaculty,
             VoteType userVote,
             long commentCount,
             boolean isBookmarked,
@@ -19,6 +23,11 @@ public class QuestionMapper {
             String verifiedAnswerPreview,
             String verifiedAnswerAuthorName
     ) {
+        var author = question.getAuthor();
+        boolean maskAuthor = author.isAnonymousMode()
+                && !viewerIsFaculty
+                && !author.getId().equals(viewerId);
+
         var whiteboard = question.getWhiteboard();
         var course = whiteboard != null ? whiteboard.getCourse() : null;
         return QuestionResponse.builder()
@@ -26,8 +35,8 @@ public class QuestionMapper {
                 .whiteboardId(whiteboard != null ? whiteboard.getId() : null)
                 .whiteboardCourseCode(course != null ? course.getCourseCode() : null)
                 .whiteboardCourseName(course != null ? course.getCourseName() : null)
-                .authorId(question.getAuthor().getId())
-                .authorName(question.getAuthor().getFirstName() + " " + question.getAuthor().getLastName())
+                .authorId(maskAuthor ? null : author.getId())
+                .authorName(maskAuthor ? "Ghost" : author.getFirstName() + " " + author.getLastName())
                 .topicId(question.getTopic() != null ? question.getTopic().getId() : null)
                 .topicName(question.getTopic() != null ? question.getTopic().getName() : null)
                 .title(question.getTitle())
@@ -44,6 +53,7 @@ public class QuestionMapper {
                 .isBookmarked(isBookmarked)
                 .createdAt(question.getCreatedAt())
                 .updatedAt(question.getUpdatedAt())
+                .editedAt(question.getEditedAt())
                 .build();
     }
 }

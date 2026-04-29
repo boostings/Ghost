@@ -67,6 +67,7 @@ export interface UserResponse {
   emailVerified: boolean;
   pushNotificationsEnabled: boolean;
   emailNotificationsEnabled: boolean;
+  anonymousMode: boolean;
   createdAt: string;
 }
 
@@ -153,6 +154,7 @@ export interface QuestionResponse {
   isBookmarked: boolean;
   createdAt: string;
   updatedAt: string;
+  editedAt: string | null;
 }
 
 export interface CommentResponse {
@@ -337,6 +339,7 @@ export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   settingsJson?: string;
+  anonymousMode?: boolean;
 }
 
 // ---- Query Parameter Types ----

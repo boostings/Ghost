@@ -86,4 +86,7 @@ public class Question {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
 }

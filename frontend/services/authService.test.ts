@@ -186,4 +186,28 @@ describe('authService', () => {
 
     expect(apiMock.delete).toHaveBeenCalledWith('/users/me/push-token');
   });
+
+  it('saves anonymous mode setting through the users endpoint', async () => {
+    const response = {
+      data: {
+        id: 'u-1',
+        email: 'student@ilstu.edu',
+        firstName: 'Taylor',
+        lastName: 'Student',
+        role: 'STUDENT',
+        karmaScore: 0,
+        emailVerified: true,
+        pushNotificationsEnabled: false,
+        emailNotificationsEnabled: true,
+        anonymousMode: true,
+        createdAt: '2026-03-25T12:00:00.000Z',
+      },
+    };
+    apiMock.put.mockResolvedValue(response);
+
+    const result = await authService.saveAnonymousMode(true);
+
+    expect(result).toEqual(response.data);
+    expect(apiMock.put).toHaveBeenCalledWith('/users/me', { anonymousMode: true });
+  });
 });

@@ -27,6 +27,7 @@ function makeQuestion(): QuestionResponse {
     isBookmarked: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    editedAt: null,
   };
 }
 

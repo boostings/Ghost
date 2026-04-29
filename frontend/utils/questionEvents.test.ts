@@ -30,6 +30,7 @@ function makeQuestion(overrides: Partial<QuestionResponse> = {}): QuestionRespon
     isBookmarked: overrides.isBookmarked ?? false,
     createdAt: overrides.createdAt ?? '2026-01-01T00:00:00.000Z',
     updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00.000Z',
+    editedAt: overrides.editedAt ?? null,
   };
 }
 
