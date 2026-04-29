@@ -12,9 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
+import GlassButton from '../../components/ui/GlassButton';
 import Avatar from '../../components/ui/Avatar';
 import EmptyState from '../../components/ui/EmptyState';
 import SettingsHeader from '../../components/whiteboard/SettingsHeader';
@@ -27,6 +28,7 @@ import { formatDate } from '../../utils/formatDate';
 import type { MemberResponse, JoinRequestResponse, WhiteboardResponse } from '../../types';
 
 export default function MembersScreen() {
+  const router = useRouter();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
   const user = useAuthStore((state) => state.user);
 
@@ -35,6 +37,7 @@ export default function MembersScreen() {
   const [whiteboard, setWhiteboard] = useState<WhiteboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const isOwner = whiteboard != null && user != null && whiteboard.ownerId === user.id;
@@ -42,6 +45,7 @@ export default function MembersScreen() {
     whiteboard?.myRole === 'FACULTY' ||
     isOwner ||
     (whiteboard != null && whiteboard.myRole === undefined && user?.role === 'FACULTY');
+  const canLeaveWhiteboard = Boolean(whiteboardId && whiteboard && user && !isOwner);
 
   const fetchData = useCallback(async () => {
     if (!whiteboardId) return;
@@ -129,6 +133,35 @@ export default function MembersScreen() {
     } catch (error: unknown) {
       Alert.alert('Error', extractErrorMessage(error));
     }
+  };
+
+  const handleLeaveWhiteboard = () => {
+    if (!whiteboardId || !canLeaveWhiteboard) {
+      return;
+    }
+
+    Alert.alert(
+      'Leave Whiteboard',
+      'You will lose access to this class until you join again. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            setLeaving(true);
+            try {
+              await whiteboardService.leaveWhiteboard(whiteboardId);
+              router.replace('/(tabs)/home');
+            } catch (error: unknown) {
+              Alert.alert('Error', extractErrorMessage(error));
+            } finally {
+              setLeaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const facultyMembers = members.filter((m) => m.role === 'FACULTY');
@@ -285,6 +318,23 @@ export default function MembersScreen() {
                   />
                 )}
               </View>
+
+              {canLeaveWhiteboard && (
+                <GlassCard style={styles.leaveCard}>
+                  <Text style={styles.leaveTitle}>Leave this whiteboard</Text>
+                  <Text style={styles.leaveDescription}>
+                    Leave the class and remove it from your home screen. You can join again later
+                    with an invite code or faculty approval.
+                  </Text>
+                  <GlassButton
+                    title="Leave Whiteboard"
+                    onPress={handleLeaveWhiteboard}
+                    variant="danger"
+                    loading={leaving}
+                    disabled={leaving}
+                  />
+                </GlassCard>
+              )}
             </>
           }
         />
@@ -358,6 +408,21 @@ const styles = StyleSheet.create({
   },
   card: {
     // default padding from GlassCard
+  },
+  leaveCard: {
+    marginTop: 4,
+  },
+  leaveTitle: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  leaveDescription: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textMuted,
+    lineHeight: 20,
+    marginBottom: 14,
   },
   memberRow: {
     flexDirection: 'row',
