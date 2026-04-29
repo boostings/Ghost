@@ -1,5 +1,7 @@
 package com.ghost.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RefreshTokenRequest;
 import com.ghost.dto.request.RegisterRequest;
@@ -12,6 +14,7 @@ import com.ghost.dto.response.UserResponse;
 import com.ghost.exception.BadRequestException;
 import com.ghost.exception.ResourceNotFoundException;
 import com.ghost.exception.UnauthorizedException;
+import com.ghost.mapper.UserMapper;
 import com.ghost.model.StudentUser;
 import com.ghost.model.User;
 import com.ghost.model.enums.AuditAction;
@@ -28,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -44,6 +48,7 @@ public class AuthService {
     private final WhiteboardMembershipService whiteboardMembershipService;
     private final AuditLogService auditLogService;
     private final EmailService emailService;
+    private final UserMapper userMapper;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -322,15 +327,7 @@ public class AuthService {
     }
 
     private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .role(user.getRole())
-                .karmaScore(user.getKarmaScore())
-                .emailVerified(user.isEmailVerified())
-                .build();
+        return userMapper.toResponse(user);
     }
 
     private void logUserAction(UUID actorId, AuditAction action, UUID targetId, String oldValue, String newValue) {
