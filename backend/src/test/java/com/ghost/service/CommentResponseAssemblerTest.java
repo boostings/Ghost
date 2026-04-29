@@ -45,7 +45,7 @@ class CommentResponseAssemblerTest {
                 Optional.of(KarmaVote.builder().voteType(VoteType.DOWNVOTE).build())
         );
 
-        CommentResponse response = assembler.toResponse(comment, userId);
+        CommentResponse response = assembler.toResponse(comment, userId, false);
 
         assertThat(response.isVerifiedAnswer()).isTrue();
         assertThat(response.getVerifiedByName()).isEqualTo("Pat Faculty");
