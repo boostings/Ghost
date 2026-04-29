@@ -42,84 +42,73 @@ function normalizePreferences(value: unknown): NotificationPreferences {
   };
 }
 
-async function loadFromBackend(): Promise<NotificationPreferences> {
-  const user = useAuthStore.getState().user;
-  if (!user) {
-    return DEFAULT_PREFERENCES;
-  }
-
-  if (user.pushNotificationsEnabled !== undefined) {
-    return {
-      pushEnabled: user.pushNotificationsEnabled,
-      emailEnabled: user.emailNotificationsEnabled,
-    };
-  }
-
-  return DEFAULT_PREFERENCES;
-}
-
-async function hydratePreferences() {
+function hydratePreferences() {
   if (hydrated) {
     return;
   }
   hydrated = true;
 
-  try {
-    const user = useAuthStore.getState().user;
-    if (user?.pushNotificationsEnabled !== undefined) {
-      preferences = {
-        pushEnabled: user.pushNotificationsEnabled,
-        emailEnabled: user.emailNotificationsEnabled,
-      };
-      emitChange();
-      return;
-    }
-
-    const storedValue = await AsyncStorage.getItem(STORAGE_KEY);
-    if (storedValue) {
-      preferences = normalizePreferences(JSON.parse(storedValue));
-      emitChange();
-    }
-  } catch {
-    preferences = DEFAULT_PREFERENCES;
+  const user = useAuthStore.getState().user;
+  if (user?.pushNotificationsEnabled !== undefined) {
+    preferences = {
+      pushEnabled: user.pushNotificationsEnabled,
+      emailEnabled: user.emailNotificationsEnabled,
+    };
     emitChange();
+    return;
   }
+
+  AsyncStorage.getItem(STORAGE_KEY)
+    .then((storedValue) => {
+      if (storedValue) {
+        preferences = normalizePreferences(JSON.parse(storedValue));
+        emitChange();
+      }
+    })
+    .catch(() => {
+      preferences = DEFAULT_PREFERENCES;
+      emitChange();
+    });
 }
 
-async function setPreferences(nextPreferences: NotificationPreferences) {
+function setPreferencesCore(nextPreferences: NotificationPreferences) {
   const previousPreferences = preferences;
+  let localWriteFailed = false;
+
   preferences = nextPreferences;
   emitChange();
 
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextPreferences));
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextPreferences)).catch(() => {});
   } catch {
-    // fallback to local storage only
+    localWriteFailed = true;
   }
 
   if (!syncingWithBackend) {
     syncingWithBackend = true;
-    try {
-      await authService.saveNotificationPreferences(
-        nextPreferences.pushEnabled,
-        nextPreferences.emailEnabled
-      );
-
-      const currentUser = useAuthStore.getState().user;
-      if (currentUser) {
-        useAuthStore.getState().updateUser({
-          ...currentUser,
-          pushNotificationsEnabled: nextPreferences.pushEnabled,
-          emailNotificationsEnabled: nextPreferences.emailEnabled,
-        });
-      }
-    } catch {
-      preferences = previousPreferences;
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(previousPreferences));
-      emitChange();
-    } finally {
-      syncingWithBackend = false;
-    }
+    authService.saveNotificationPreferences(
+      nextPreferences.pushEnabled,
+      nextPreferences.emailEnabled
+    )
+      .then(() => {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser) {
+          useAuthStore.getState().updateUser({
+            ...currentUser,
+            pushNotificationsEnabled: nextPreferences.pushEnabled,
+            emailNotificationsEnabled: nextPreferences.emailEnabled,
+          });
+        }
+      })
+      .catch(() => {
+        if (!localWriteFailed) {
+          preferences = previousPreferences;
+          emitChange();
+        }
+      })
+      .finally(() => {
+        syncingWithBackend = false;
+      });
   }
 }
 
@@ -142,10 +131,10 @@ export function useNotificationPreferences() {
   return {
     ...currentPreferences,
     setPushEnabled: (pushEnabled: boolean) => {
-      setPreferences({ ...preferences, pushEnabled });
+      setPreferencesCore({ ...preferences, pushEnabled });
     },
     setEmailEnabled: (emailEnabled: boolean) => {
-      setPreferences({ ...preferences, emailEnabled });
+      setPreferencesCore({ ...preferences, emailEnabled });
     },
   };
 }

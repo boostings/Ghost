@@ -17,10 +17,10 @@ public class UserMapper {
         Map<String, Object> settings = parseSettings(user.getSettingsJson());
 
         boolean pushEnabled = settings.containsKey("pushNotificationsEnabled")
-            ? (Boolean) settings.getOrDefault("pushNotificationsEnabled", true)
+            ? Boolean.TRUE.equals(settings.get("pushNotificationsEnabled"))
             : true;
         boolean emailEnabled = settings.containsKey("emailNotificationsEnabled")
-            ? (Boolean) settings.getOrDefault("emailNotificationsEnabled", true)
+            ? Boolean.TRUE.equals(settings.get("emailNotificationsEnabled"))
             : true;
 
         return UserResponse.builder()

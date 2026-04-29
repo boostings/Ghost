@@ -1,7 +1,5 @@
 package com.ghost.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ghost.dto.request.LoginRequest;
 import com.ghost.dto.request.RefreshTokenRequest;
 import com.ghost.dto.request.RegisterRequest;
@@ -31,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 
