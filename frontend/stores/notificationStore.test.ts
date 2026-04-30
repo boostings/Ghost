@@ -41,5 +41,10 @@ describe('notificationStore', () => {
     const next = useNotificationStore.getState();
     expect(next.unreadCount).toBe(0);
     expect(next.notifications.every((notification) => notification.isRead)).toBe(true);
+
+    store.clearAll();
+    const cleared = useNotificationStore.getState();
+    expect(cleared.unreadCount).toBe(0);
+    expect(cleared.notifications).toEqual([]);
   });
 });

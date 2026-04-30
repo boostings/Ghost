@@ -28,7 +28,7 @@ import { useNotificationPreferences } from '../../hooks/useNotificationPreferenc
 import { useAnonymousMode } from '../../hooks/useAnonymousMode';
 import type { QuestionResponse } from '../../types';
 
-const PAGE_SIZE = 10;
+const SUMMARY_LIMIT = 3;
 
 type Standing = {
   label: string;
@@ -110,10 +110,7 @@ export default function ProfileScreen() {
 
   const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [questionCount, setQuestionCount] = useState<number>(0);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -179,40 +176,28 @@ export default function ProfileScreen() {
   const karmaScore = user?.karmaScore ?? 0;
   const standing = getStanding(karmaScore, colors);
 
-  const loadQuestions = useCallback(
-    async (mode: 'replace' | 'append', requestedPage: number) => {
-      if (mode === 'replace') setLoading(true);
-      else setLoadingMore(true);
-      try {
-        const response = await questionService.getMyQuestions({
-          role: isFaculty ? 'TEACHING' : 'AUTHOR',
-          status: isFaculty ? 'ANSWERED' : undefined,
-          page: requestedPage,
-          size: PAGE_SIZE,
-        });
-        setQuestions((current) =>
-          mode === 'replace' ? response.content : [...current, ...response.content]
-        );
-        setPage(requestedPage);
-        setQuestionCount(response.totalElements);
-        setHasMore(requestedPage + 1 < response.totalPages);
-        setError(null);
-      } catch {
-        if (mode === 'replace') setQuestions([]);
-        setHasMore(false);
-        setError(
-          isFaculty ? 'Could not load class activity.' : 'Could not load your questions.'
-        );
-      } finally {
-        if (mode === 'replace') setLoading(false);
-        else setLoadingMore(false);
-      }
-    },
-    [isFaculty]
-  );
+  const loadQuestions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await questionService.getMyQuestions({
+        role: isFaculty ? 'TEACHING' : 'AUTHOR',
+        status: isFaculty ? 'ANSWERED' : undefined,
+        page: 0,
+        size: SUMMARY_LIMIT,
+      });
+      setQuestions(response.content.slice(0, SUMMARY_LIMIT));
+      setQuestionCount(response.totalElements);
+      setError(null);
+    } catch {
+      setQuestions([]);
+      setError(isFaculty ? 'Could not load class activity.' : 'Could not load your questions.');
+    } finally {
+      setLoading(false);
+    }
+  }, [isFaculty]);
 
   useEffect(() => {
-    void loadQuestions('replace', 0);
+    void loadQuestions();
   }, [loadQuestions]);
 
   // Refresh karma + question list whenever the screen regains focus.
@@ -227,7 +212,7 @@ export default function ProfileScreen() {
           // non-fatal, keep cached user
         }
       })();
-      void loadQuestions('replace', 0);
+      void loadQuestions();
       return () => {
         cancelled = true;
       };
@@ -242,14 +227,9 @@ export default function ProfileScreen() {
     } catch {
       // ignore
     }
-    await loadQuestions('replace', 0);
+    await loadQuestions();
     setRefreshing(false);
   }, [loadQuestions, updateUser]);
-
-  const handleLoadMore = useCallback(() => {
-    if (loading || loadingMore || !hasMore) return;
-    void loadQuestions('append', page + 1);
-  }, [hasMore, loading, loadingMore, loadQuestions, page]);
 
   const renderQuestion = useCallback(
     ({ item, index }: { item: QuestionResponse; index: number }) => (
@@ -262,6 +242,11 @@ export default function ProfileScreen() {
     ),
     [colors, router]
   );
+
+  const handleViewAllQuestions = useCallback(() => {
+    haptic.light();
+    router.push('/settings/questions');
+  }, [router]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -387,9 +372,26 @@ export default function ProfileScreen() {
                 <Text style={[styles.sectionEyebrow, { color: colors.text }]}>
                   {isFaculty ? 'ANSWERED IN YOUR CLASSES' : 'YOUR QUESTIONS'}
                 </Text>
-                <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
-                  {loading ? 'Loading…' : `${questionCount.toLocaleString()} total`}
-                </Text>
+                <Pressable
+                  onPress={handleViewAllQuestions}
+                  disabled={loading || questionCount === 0}
+                  style={({ pressed }) => [
+                    styles.viewAllButton,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      borderColor: colors.primaryFaint,
+                      opacity: loading || questionCount === 0 ? 0.55 : 1,
+                    },
+                    pressed && { backgroundColor: `${colors.primary}26` },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isFaculty ? 'View all answered questions' : 'View all your questions'
+                  }
+                >
+                  <Text style={[styles.viewAllText, { color: colors.primary }]}>View all</Text>
+                  <Ionicons name="arrow-forward" size={12} color={colors.primary} />
+                </Pressable>
               </View>
             </Animated.View>
           }
@@ -425,12 +427,6 @@ export default function ProfileScreen() {
           }
           ListFooterComponent={
             <>
-              {loadingMore ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              ) : null}
-
               <View style={styles.settingsBlock}>
                 <Text style={[styles.blockEyebrow, { color: colors.text }]}>NOTIFICATIONS</Text>
                 <View
@@ -578,8 +574,6 @@ export default function ProfileScreen() {
               </View>
             </>
           }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.4}
         />
       </SafeAreaView>
     </View>
@@ -923,9 +917,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.6,
   },
-  sectionCount: {
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 30,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  viewAllText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 0.6,
   },
 

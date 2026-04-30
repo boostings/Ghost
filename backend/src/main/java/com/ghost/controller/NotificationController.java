@@ -56,4 +56,12 @@ public class NotificationController {
         notificationService.markAllAsRead(userId);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping
+    public ResponseEntity<Void> clearAll(
+            @AuthenticationPrincipal String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
+        notificationService.clearAll(userId);
+        return ResponseEntity.noContent().build();
+    }
 }

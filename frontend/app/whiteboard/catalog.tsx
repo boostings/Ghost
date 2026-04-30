@@ -59,36 +59,12 @@ type SortOption = { key: CourseCatalogSortBy; label: string };
 
 const PRIMARY_SORTS: SortOption[] = [
   { key: 'courseCode', label: 'Course code' },
-  { key: 'courseName', label: 'Title' },
   { key: 'teacher', label: 'Instructor' },
-  { key: 'classNumber', label: 'Class number' },
-  { key: 'section', label: 'Section' },
-  { key: 'credit', label: 'Credits' },
-  { key: 'openSection', label: 'Open seats first' },
-];
-
-const SECONDARY_SORTS: SortOption[] = [
-  { key: 'subject', label: 'Subject' },
-  { key: 'catalogNumber', label: 'Catalog #' },
-  { key: 'instructionMode', label: 'Mode' },
-  { key: 'session', label: 'Session' },
-  { key: 'meetingTimes', label: 'Meeting time' },
-  { key: 'weeks', label: 'Weeks' },
-  { key: 'lowCostMaterials', label: 'Low-cost materials' },
-  { key: 'noCostMaterials', label: 'No-cost materials' },
-  { key: 'department', label: 'Department' },
-  { key: 'semester', label: 'Semester' },
 ];
 
 const SORT_LABELS: Record<CourseCatalogSortBy, string> = Object.fromEntries(
-  [...PRIMARY_SORTS, ...SECONDARY_SORTS].map((opt) => [opt.key, opt.label])
+  PRIMARY_SORTS.map((opt) => [opt.key, opt.label])
 ) as Record<CourseCatalogSortBy, string>;
-
-const BOOLEAN_FIRST_SORTS = new Set<CourseCatalogSortBy>([
-  'openSection',
-  'lowCostMaterials',
-  'noCostMaterials',
-]);
 
 type FacultySetupMode = 'primary' | 'helping';
 
@@ -100,10 +76,6 @@ type CourseGroup = {
   sections: CourseSectionResponse[];
 };
 
-function getDefaultSortDirection(sortKey: CourseCatalogSortBy): CourseCatalogSortDirection {
-  return BOOLEAN_FIRST_SORTS.has(sortKey) ? 'DESC' : 'ASC';
-}
-
 export default function CourseCatalogScreen() {
   const router = useRouter();
   const addWhiteboard = useWhiteboardStore((state) => state.addWhiteboard);
@@ -112,7 +84,6 @@ export default function CourseCatalogScreen() {
 
   const [search, setSearch] = useState('');
   const [semester, setSemester] = useState<(typeof COURSE_CATALOG_TERMS)[number]>('Fall 2026');
-  const [subjectInput, setSubjectInput] = useState('');
   const [sortBy, setSortBy] = useState<CourseCatalogSortBy>('courseCode');
   const [sortDirection, setSortDirection] = useState<CourseCatalogSortDirection>('ASC');
   const [sections, setSections] = useState<CourseSectionResponse[]>([]);
@@ -143,11 +114,6 @@ export default function CourseCatalogScreen() {
   stateRef.current = { hasMore, loadingMore, loading, page };
 
   const searchQuery = useMemo(() => sanitizeSingleLine(search), [search]);
-  const subjectFilter = useMemo(() => {
-    const normalized = sanitizeSingleLine(subjectInput).toUpperCase();
-    return normalized || undefined;
-  }, [subjectInput]);
-
   const courseGroups = useMemo<CourseGroup[]>(() => {
     const groups = new Map<string, CourseGroup>();
     sections.forEach((section) => {
@@ -185,7 +151,6 @@ export default function CourseCatalogScreen() {
         const response = await courseCatalogService.getSections({
           semester,
           query: searchQuery,
-          subject: subjectFilter,
           sortBy,
           sortDirection,
           page: requestedPage,
@@ -217,7 +182,7 @@ export default function CourseCatalogScreen() {
         else setLoadingMore(false);
       }
     },
-    [searchQuery, subjectFilter, semester, sortBy, sortDirection]
+    [searchQuery, semester, sortBy, sortDirection]
   );
 
   useEffect(() => {
@@ -327,7 +292,7 @@ export default function CourseCatalogScreen() {
         setSortDirection((d) => (d === 'ASC' ? 'DESC' : 'ASC'));
       } else {
         setSortBy(key);
-        setSortDirection(getDefaultSortDirection(key));
+        setSortDirection('ASC');
       }
     },
     [sortBy]
@@ -429,7 +394,6 @@ export default function CourseCatalogScreen() {
             reduceMotion={reduceMotion}
           />
           <View style={styles.filterRow}>
-            <SubjectField value={subjectInput} onChangeText={setSubjectInput} />
             <SortPill
               label={SORT_LABELS[sortBy]}
               direction={sortDirection}
@@ -473,7 +437,7 @@ export default function CourseCatalogScreen() {
                   {loadError ?? 'No classes match those filters.'}
                 </Text>
                 <Text style={styles.emptyHint}>
-                  Try a different term, drop the subject filter, or clear search.
+                  Try a different term or search by course code or instructor.
                 </Text>
               </View>
             )
@@ -550,7 +514,7 @@ function SearchField({ value, onChangeText }: SearchFieldProps) {
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Search course, title, instructor, or class #"
+        placeholder="Search course code or instructor"
         placeholderTextColor={Colors.textMuted}
         style={styles.searchInput}
         returnKeyType="search"
@@ -577,33 +541,6 @@ function SearchField({ value, onChangeText }: SearchFieldProps) {
         </Pressable>
       ) : null}
     </Animated.View>
-  );
-}
-
-// ---------- Subject text field ----------
-
-function SubjectField({
-  value,
-  onChangeText,
-}: {
-  value: string;
-  onChangeText: (v: string) => void;
-}) {
-  return (
-    <View style={styles.subjectField}>
-      <Text style={styles.subjectPrefix}>SUBJ</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder="ANY"
-        placeholderTextColor={Colors.textMuted}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        maxLength={6}
-        style={styles.subjectInput}
-        selectionColor={Colors.primary}
-      />
-    </View>
   );
 }
 
@@ -750,7 +687,6 @@ function CourseGroupCard({
   const instructorCount = new Set(
     group.sections.map((section) => section.instructor).filter(Boolean)
   ).size;
-  const openCount = group.sections.filter((section) => section.openSection).length;
   const enter = reduceMotion
     ? FadeIn.duration(180)
     : FadeInDown.duration(360)
@@ -794,11 +730,6 @@ function CourseGroupCard({
             {group.courseName}
           </Text>
           <View style={styles.metaChips}>
-            <View style={styles.metaChip}>
-              <Text style={styles.metaChipText}>
-                {openCount} open {openCount === 1 ? 'section' : 'sections'}
-              </Text>
-            </View>
             <View style={styles.metaChip}>
               <Text style={styles.metaChipText}>
                 {instructorCount || 0} {instructorCount === 1 ? 'instructor' : 'instructors'}
@@ -896,7 +827,6 @@ function SectionCard({
                 <Text style={styles.sectionPillLabel}>SEC</Text>
                 <Text style={styles.sectionPillValue}>{section.section}</Text>
               </View>
-              <StatusDot open={section.openSection} />
             </View>
           </View>
 
@@ -912,7 +842,7 @@ function SectionCard({
             <Text style={styles.classNumber}>· #{section.classNumber}</Text>
           </View>
 
-          {meta.length > 0 || section.noCostMaterialsSection || section.lowCostMaterialsSection ? (
+          {meta.length > 0 ? (
             <View style={styles.metaChips}>
               {meta.map((m, i) => (
                 <View key={`${section.id}-meta-${i}`} style={styles.metaChip}>
@@ -921,15 +851,6 @@ function SectionCard({
                   </Text>
                 </View>
               ))}
-              {section.noCostMaterialsSection ? (
-                <View style={[styles.metaChip, styles.freeChip]}>
-                  <Text style={[styles.metaChipText, styles.freeChipText]}>FREE MATERIALS</Text>
-                </View>
-              ) : section.lowCostMaterialsSection ? (
-                <View style={[styles.metaChip, styles.lowChip]}>
-                  <Text style={[styles.metaChipText, styles.lowChipText]}>LOW-COST</Text>
-                </View>
-              ) : null}
             </View>
           ) : null}
         </View>
@@ -941,22 +862,6 @@ function SectionCard({
         ) : null}
       </Pressable>
     </Animated.View>
-  );
-}
-
-function StatusDot({ open }: { open: boolean }) {
-  return (
-    <View style={styles.statusGroup}>
-      <View
-        style={[
-          styles.statusDot,
-          { backgroundColor: open ? Colors.openStatus : Colors.closedStatus },
-        ]}
-      />
-      <Text style={[styles.statusLabel, { color: open ? Colors.openStatus : Colors.closedStatus }]}>
-        {open ? 'OPEN' : 'CLOSED'}
-      </Text>
-    </View>
   );
 }
 
@@ -1197,15 +1102,8 @@ function SortSheet({
             </View>
 
             <SortGroup
-              title="Common"
+              title="Sort by"
               options={PRIMARY_SORTS}
-              sortBy={sortBy}
-              direction={direction}
-              onChoose={onChoose}
-            />
-            <SortGroup
-              title="More"
-              options={SECONDARY_SORTS}
               sortBy={sortBy}
               direction={direction}
               onChoose={onChoose}
@@ -1327,31 +1225,6 @@ const styles = StyleSheet.create({
   segmentedTextActive: { color: '#FFFFFF' },
 
   filterRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
-  subjectField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 40,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-  subjectPrefix: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.4,
-    color: Colors.textMuted,
-    marginRight: 8,
-  },
-  subjectInput: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    minWidth: 60,
-    paddingVertical: 0,
-  },
   sortPillWrapper: { flex: 1 },
   sortPill: {
     height: 40,
@@ -1491,10 +1364,6 @@ const styles = StyleSheet.create({
   sectionPillLabel: { fontSize: 9, fontWeight: '900', color: Colors.textMuted, letterSpacing: 1 },
   sectionPillValue: { fontSize: 12, fontWeight: '900', color: Colors.text, letterSpacing: 0.4 },
 
-  statusGroup: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statusDot: { width: 7, height: 7, borderRadius: 4 },
-  statusLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-
   cardTitle: {
     color: Colors.text,
     fontSize: 15,
@@ -1517,11 +1386,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   metaChipText: { color: Colors.textSecondary, fontSize: 11, fontWeight: '700' },
-  freeChip: { backgroundColor: 'rgba(34,197,94,0.16)', borderColor: 'rgba(34,197,94,0.40)' },
-  freeChipText: { color: Colors.success, letterSpacing: 0.6 },
-  lowChip: { backgroundColor: 'rgba(245,158,11,0.16)', borderColor: 'rgba(245,158,11,0.40)' },
-  lowChipText: { color: Colors.warning, letterSpacing: 0.6 },
-
   cardSpinner: { position: 'absolute', right: 14, top: 14 },
 
   bottomBar: { position: 'absolute', left: 20, right: 20, bottom: 18 },

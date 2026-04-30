@@ -144,6 +144,22 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public void clearAll(UUID userId) {
+        long notificationsBefore = notificationRepository.countByRecipientId(userId);
+        notificationRepository.deleteAllByRecipientId(userId);
+        if (notificationsBefore > 0) {
+            logNotificationAction(
+                    null,
+                    userId,
+                    null,
+                    AuditAction.NOTIFICATIONS_CLEARED,
+                    String.valueOf(notificationsBefore),
+                    "0"
+            );
+        }
+    }
+
     @Transactional(readOnly = true)
     public long getUnreadCount(UUID userId) {
         return notificationRepository.countByRecipientIdAndIsReadFalse(userId);

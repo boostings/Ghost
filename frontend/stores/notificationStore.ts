@@ -16,6 +16,7 @@ interface NotificationActions {
   appendNotifications: (notifications: NotificationResponse[]) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  clearAll: () => void;
   setLoading: (isLoading: boolean) => void;
   reset: () => void;
 }
@@ -80,6 +81,10 @@ export const useNotificationStore = create<NotificationStore>()((set) => ({
       notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
       unreadCount: 0,
     }));
+  },
+
+  clearAll: () => {
+    set({ notifications: [], unreadCount: 0 });
   },
 
   setLoading: (isLoading: boolean) => {

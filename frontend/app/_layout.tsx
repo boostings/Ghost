@@ -252,6 +252,14 @@ function RootLayoutNav() {
             animationDuration: PUSH_MS,
           }}
         />
+        <Stack.Screen
+          name="settings/questions"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+            animationDuration: PUSH_MS,
+          }}
+        />
       </Stack>
 
       {showBlockingLoader ? (

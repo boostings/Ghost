@@ -124,6 +124,15 @@ export const notificationService = {
   },
 
   /**
+   * Clear all notifications for the current user.
+   * DELETE /notifications
+   */
+  clearAll: async (): Promise<void> => {
+    await api.delete('/notifications');
+    resetUnreadCountCache();
+  },
+
+  /**
    * Legacy alias kept for backward compatibility while screens migrate.
    */
   list: async (

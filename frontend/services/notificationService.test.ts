@@ -5,6 +5,7 @@ async function loadNotificationService(accessToken = 'token-1'): Promise<{
   apiMock: {
     get: jest.Mock;
     put: jest.Mock;
+    delete: jest.Mock;
   };
   authState: {
     accessToken: string | null;
@@ -15,6 +16,7 @@ async function loadNotificationService(accessToken = 'token-1'): Promise<{
   const apiMock = {
     get: jest.fn(),
     put: jest.fn(),
+    delete: jest.fn(),
   };
   const authState = { accessToken };
 
@@ -101,9 +103,11 @@ describe('notificationService', () => {
     await module.notificationService.markAsRead('n-1');
     await expect(module.notificationService.getUnreadCount()).resolves.toBe(2);
     await module.notificationService.markAllAsRead();
+    await module.notificationService.clearAll();
 
     expect(apiMock.put).toHaveBeenNthCalledWith(1, '/notifications/n-1/read');
     expect(apiMock.put).toHaveBeenNthCalledWith(2, '/notifications/read-all');
+    expect(apiMock.delete).toHaveBeenCalledWith('/notifications');
     expect(apiMock.get).toHaveBeenCalledTimes(2);
   });
 });

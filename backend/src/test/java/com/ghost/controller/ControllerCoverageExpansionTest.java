@@ -596,6 +596,7 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<UnreadCountResponse> unreadCount = notificationController.getUnreadCount(userId.toString());
         ResponseEntity<Void> markedRead = notificationController.markAsRead(userId.toString(), notificationId);
         ResponseEntity<Void> markedAllRead = notificationController.markAllAsRead(userId.toString());
+        ResponseEntity<Void> clearedAll = notificationController.clearAll(userId.toString());
 
         ResponseEntity<PageResponse<BookmarkResponse>> bookmarks = bookmarkController.getBookmarks(userId.toString(), 0, 20);
         ResponseEntity<Void> createdBookmark = bookmarkController.bookmarkQuestion(userId.toString(), questionId);
@@ -654,6 +655,7 @@ class ControllerCoverageExpansionTest {
         verify(notificationService).getUnreadCount(userId);
         verify(notificationService).markAsRead(userId, notificationId);
         verify(notificationService).markAllAsRead(userId);
+        verify(notificationService).clearAll(userId);
         verify(bookmarkService).getBookmarks(eq(userId), any(Pageable.class));
         verify(bookmarkService, times(2)).bookmark(userId, questionId);
         verify(bookmarkService, times(2)).removeBookmark(userId, questionId);
@@ -693,6 +695,7 @@ class ControllerCoverageExpansionTest {
         assertThat(unreadCount.getBody().getCount()).isEqualTo(3L);
         assertThat(markedRead.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(markedAllRead.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(clearedAll.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(bookmarks.getBody()).isNotNull();
         assertThat(bookmarks.getBody().getContent()).containsExactly(bookmarkResponse);
         assertThat(createdBookmark.getStatusCode()).isEqualTo(HttpStatus.CREATED);

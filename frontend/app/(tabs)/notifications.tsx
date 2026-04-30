@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -97,6 +98,8 @@ export default function AlertsScreen() {
   const setNotifications = useNotificationStore((state) => state.setNotifications);
   const markAsRead = useNotificationStore((state) => state.markAsRead);
   const storeMarkAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+  const clearAll = useNotificationStore((state) => state.clearAll);
+  const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
   const setLoading = useNotificationStore((state) => state.setLoading);
   const isLoading = useNotificationStore((state) => state.isLoading);
 
@@ -144,10 +147,10 @@ export default function AlertsScreen() {
     useCallback(() => {
       const now = Date.now();
       const isStale = now - lastFetchRef.current > 30000;
-      if (notifications.length === 0 || isStale) {
+      if (lastFetchRef.current === 0 || isStale) {
         void fetchNotifications({ page: 0, replace: true });
       }
-    }, [fetchNotifications, notifications.length])
+    }, [fetchNotifications])
   );
 
   const handleRefresh = useCallback(async () => {
@@ -185,6 +188,39 @@ export default function AlertsScreen() {
     storeMarkAllAsRead();
     notificationService.markAllAsRead().catch(() => undefined);
   }, [notifications, storeMarkAllAsRead]);
+
+  const handleClearAll = useCallback(() => {
+    if (notifications.length === 0) return;
+
+    Alert.alert('Clear all alerts?', 'This removes every alert from this list.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear all',
+        style: 'destructive',
+        onPress: () => {
+          const previousState = useNotificationStore.getState();
+          const previousNotifications = previousState.notifications;
+          const previousUnreadCount = previousState.unreadCount;
+          const previousPage = page;
+          const previousHasMore = hasMore;
+          const previousLastFetch = lastFetchRef.current;
+          haptic.warning();
+          clearAll();
+          setPage(0);
+          setHasMore(false);
+          lastFetchRef.current = Date.now();
+          notificationService.clearAll().catch(() => {
+            setNotifications(previousNotifications);
+            setUnreadCount(previousUnreadCount);
+            setPage(previousPage);
+            setHasMore(previousHasMore);
+            lastFetchRef.current = previousLastFetch;
+            setLoadError("Couldn't clear alerts. Please try again.");
+          });
+        },
+      },
+    ]);
+  }, [clearAll, hasMore, notifications.length, page, setNotifications, setUnreadCount]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
   const sections = useMemo(() => bucketize(notifications), [notifications]);
@@ -234,24 +270,46 @@ export default function AlertsScreen() {
                   : `${unreadCount} unread · ${notifications.length} total`}
             </Text>
           </View>
-          {unreadCount > 0 ? (
-            <Pressable
-              onPress={handleMarkAll}
-              style={({ pressed }) => [
-                styles.markAllButton,
-                {
-                  backgroundColor: `${colors.primary}1F`,
-                  borderColor: `${colors.primary}40`,
-                },
-                pressed && { backgroundColor: `${colors.primary}33` },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Mark all as read"
-            >
-              <Ionicons name="checkmark-done" size={14} color={colors.primary} />
-              <Text style={[styles.markAllText, { color: colors.primary }]}>Mark all read</Text>
-            </Pressable>
-          ) : null}
+          <View style={styles.headerActions}>
+            {notifications.length > 0 ? (
+              <Pressable
+                onPress={handleClearAll}
+                style={({ pressed }) => [
+                  styles.headerActionButton,
+                  {
+                    backgroundColor: `${colors.error}1F`,
+                    borderColor: `${colors.error}40`,
+                  },
+                  pressed && { backgroundColor: `${colors.error}33` },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Clear all alerts"
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.error} />
+                <Text style={[styles.headerActionText, { color: colors.error }]}>Clear all</Text>
+              </Pressable>
+            ) : null}
+            {unreadCount > 0 ? (
+              <Pressable
+                onPress={handleMarkAll}
+                style={({ pressed }) => [
+                  styles.headerActionButton,
+                  {
+                    backgroundColor: `${colors.primary}1F`,
+                    borderColor: `${colors.primary}40`,
+                  },
+                  pressed && { backgroundColor: `${colors.primary}33` },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Mark all as read"
+              >
+                <Ionicons name="checkmark-done" size={14} color={colors.primary} />
+                <Text style={[styles.headerActionText, { color: colors.primary }]}>
+                  Mark all read
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         <FlatList
@@ -396,7 +454,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  markAllButton: {
+  headerActions: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  headerActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -407,8 +469,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(187,39,68,0.40)',
   },
-  markAllButtonPressed: { backgroundColor: 'rgba(187,39,68,0.26)' },
-  markAllText: {
+  headerActionText: {
     fontSize: 12,
     fontWeight: '900',
     color: Colors.primary,
