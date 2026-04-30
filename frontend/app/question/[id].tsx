@@ -184,7 +184,7 @@ export default function QuestionDetailScreen() {
 
   const renderComment = ({ item }: { item: CommentResponse }) => {
     const isCommentAuthor = item.authorId === user?.id;
-    const canDeleteComment = isFaculty || (isCommentAuthor && item.canEdit && !isClosed);
+    const canDeleteComment = isFaculty || (isCommentAuthor && !isClosed && !item.isVerifiedAnswer);
 
     return (
       <CommentCard

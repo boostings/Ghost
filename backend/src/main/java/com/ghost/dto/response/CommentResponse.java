@@ -40,6 +40,7 @@ public class CommentResponse {
 
     private VoteType userVote;
 
+    @JsonProperty("canEdit")
     private boolean canEdit;
 
     private LocalDateTime createdAt;
