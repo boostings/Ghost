@@ -8,10 +8,10 @@ import com.ghost.model.JoinRequest;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
-import com.ghost.model.WhiteboardMembership;
 import com.ghost.model.enums.AuditAction;
 import com.ghost.model.enums.JoinRequestStatus;
 import com.ghost.model.enums.NotificationType;
+import com.ghost.model.enums.Role;
 import com.ghost.repository.JoinRequestRepository;
 import com.ghost.repository.UserRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
@@ -29,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -139,8 +140,6 @@ class WhiteboardServiceTest {
     @Test
     void handleJoinRequestShouldApproveAndEnrollStudent() {
         UUID studentId = joinRequest.getUser().getId();
-        when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, studentId))
-                .thenReturn(false);
 
         whiteboardJoinRequestService.handleJoinRequest(
                 facultyId,
@@ -153,7 +152,12 @@ class WhiteboardServiceTest {
         assertThat(joinRequest.getReviewedByUser()).isEqualTo(reviewer);
 
         verify(whiteboardMembershipService).verifyFacultyRole(facultyId, whiteboardId);
-        verify(whiteboardMembershipRepository).save(any(WhiteboardMembership.class));
+        verify(whiteboardMembershipRepository).insertMembershipIfAbsent(
+                any(UUID.class),
+                eq(whiteboardId),
+                eq(studentId),
+                eq(Role.STUDENT.name())
+        );
         verify(joinRequestRepository).save(joinRequest);
         verify(auditLogService).logAction(
                 whiteboardId,

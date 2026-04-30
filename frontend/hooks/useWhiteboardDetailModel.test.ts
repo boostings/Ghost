@@ -59,6 +59,7 @@ jest.mock('../services/bookmarkService', () => ({
 
 import { questionService } from '../services/questionService';
 import { whiteboardService } from '../services/whiteboardService';
+import { notifyQuestionDeleted } from '../utils/questionDeletionEvents';
 import { useWhiteboardDetailModel } from './useWhiteboardDetailModel';
 
 const mockQuestionService = questionService as jest.Mocked<typeof questionService>;
@@ -163,5 +164,67 @@ describe('useWhiteboardDetailModel', () => {
       answered: 1,
       total: 1,
     });
+  });
+
+  it('removes locally deleted questions from the mounted whiteboard feed', async () => {
+    mockQuestionService.list.mockResolvedValue({
+      content: [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],
+      page: 0,
+      size: 20,
+      totalElements: 2,
+      totalPages: 1,
+    });
+
+    const { result } = renderHook(() => useWhiteboardDetailModel('wb-1'));
+
+    await waitFor(() =>
+      expect(result.current.questions.map((question) => question.id)).toEqual(['q-1', 'q-2'])
+    );
+
+    act(() => {
+      notifyQuestionDeleted({ whiteboardId: 'wb-1', questionId: 'q-1' });
+    });
+
+    expect(result.current.questions.map((question) => question.id)).toEqual(['q-2']);
+
+    act(() => {
+      notifyQuestionDeleted({ whiteboardId: 'other-whiteboard', questionId: 'q-2' });
+    });
+
+    expect(result.current.questions.map((question) => question.id)).toEqual(['q-2']);
+  });
+
+  it('keeps locally deleted questions out of later stale feed responses', async () => {
+    mockQuestionService.list
+      .mockResolvedValueOnce({
+        content: [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],
+        page: 0,
+        size: 20,
+        totalElements: 2,
+        totalPages: 1,
+      })
+      .mockResolvedValueOnce({
+        content: [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],
+        page: 0,
+        size: 20,
+        totalElements: 2,
+        totalPages: 1,
+      });
+
+    const { result } = renderHook(() => useWhiteboardDetailModel('wb-1'));
+
+    await waitFor(() =>
+      expect(result.current.questions.map((question) => question.id)).toEqual(['q-1', 'q-2'])
+    );
+
+    act(() => {
+      notifyQuestionDeleted({ whiteboardId: 'wb-1', questionId: 'q-1' });
+    });
+
+    await act(async () => {
+      await result.current.handleRefresh();
+    });
+
+    expect(result.current.questions.map((question) => question.id)).toEqual(['q-2']);
   });
 });

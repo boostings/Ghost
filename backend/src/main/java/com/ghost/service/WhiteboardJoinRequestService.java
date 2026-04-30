@@ -127,14 +127,12 @@ public class WhiteboardJoinRequestService {
             UUID requestWhiteboardId = joinRequest.getWhiteboard().getId();
             UUID targetUserId = joinRequest.getUser().getId();
 
-            if (!whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(requestWhiteboardId, targetUserId)) {
-                WhiteboardMembership membership = WhiteboardMembership.builder()
-                        .whiteboard(joinRequest.getWhiteboard())
-                        .user(joinRequest.getUser())
-                        .role(Role.STUDENT)
-                        .build();
-                whiteboardMembershipRepository.save(membership);
-            }
+            whiteboardMembershipRepository.insertMembershipIfAbsent(
+                    UUID.randomUUID(),
+                    requestWhiteboardId,
+                    targetUserId,
+                    Role.STUDENT.name()
+            );
         }
 
         joinRequest.setStatus(status);

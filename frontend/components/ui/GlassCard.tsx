@@ -76,19 +76,23 @@ const GlassCard: React.FC<GlassCardProps> = ({
     };
 
     return (
-      <AnimatedPressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
+      <Animated.View
         entering={entering}
         exiting={exiting}
         layout={layout}
-        style={[styles.container, { borderColor: colors.cardBorder }, style, pressStyle]}
+        style={[styles.container, { borderColor: colors.cardBorder }, style]}
       >
-        {inner}
-      </AnimatedPressable>
+        <AnimatedPressable
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+          style={[styles.pressable, pressStyle]}
+        >
+          {inner}
+        </AnimatedPressable>
+      </Animated.View>
     );
   }
 
@@ -112,6 +116,9 @@ const styles = StyleSheet.create({
   },
   blur: {
     overflow: 'hidden',
+  },
+  pressable: {
+    flex: 1,
   },
   inner: {
     padding: 16,

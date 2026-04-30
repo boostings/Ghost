@@ -11,6 +11,7 @@ import { whiteboardService } from '../services/whiteboardService';
 import { sanitizeText } from '../utils/sanitize';
 import { extractErrorMessage } from './useApi';
 import { reconcileCommentEvent, sortCommentsByCreatedAt } from '../utils/questionCommentEvents';
+import { notifyQuestionDeleted } from '../utils/questionDeletionEvents';
 import { isQuestionDeleteEvent, parseQuestionMessage } from '../utils/questionEvents';
 import type { CommentResponse, QuestionResponse, VoteType } from '../types';
 
@@ -440,6 +441,7 @@ export function useQuestionDetailModel({
     }
 
     await questionService.delete(resolvedWhiteboardId, questionId);
+    notifyQuestionDeleted({ whiteboardId: resolvedWhiteboardId, questionId });
     onQuestionDeleted?.();
   }, [onQuestionDeleted, question?.whiteboardId, questionId, whiteboardId]);
 

@@ -73,14 +73,13 @@ public class WhiteboardService {
 
         if (existing.isPresent()) {
             Whiteboard existingWhiteboard = existing.get();
-            if (!whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(existingWhiteboard.getId(), facultyId)) {
-                WhiteboardMembership facultyMembership = WhiteboardMembership.builder()
-                        .whiteboard(existingWhiteboard)
-                        .user(faculty)
-                        .role(Role.FACULTY)
-                        .build();
-                whiteboardMembershipRepository.save(facultyMembership);
-
+            int inserted = whiteboardMembershipRepository.insertMembershipIfAbsent(
+                    UUID.randomUUID(),
+                    existingWhiteboard.getId(),
+                    facultyId,
+                    Role.FACULTY.name()
+            );
+            if (inserted == 1) {
                 auditLogService.logAction(
                         existingWhiteboard.getId(),
                         facultyId,
@@ -105,12 +104,12 @@ public class WhiteboardService {
 
         whiteboard = whiteboardRepository.save(whiteboard);
 
-        WhiteboardMembership membership = WhiteboardMembership.builder()
-                .whiteboard(whiteboard)
-                .user(faculty)
-                .role(Role.FACULTY)
-                .build();
-        whiteboardMembershipRepository.save(membership);
+        whiteboardMembershipRepository.insertMembershipIfAbsent(
+                UUID.randomUUID(),
+                whiteboard.getId(),
+                facultyId,
+                Role.FACULTY.name()
+        );
 
         topicService.createDefaultTopics(whiteboard.getId(), facultyId);
 
@@ -186,14 +185,12 @@ public class WhiteboardService {
         whiteboard.setOwner(newOwner);
         whiteboardRepository.save(whiteboard);
 
-        if (!whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, newOwner.getId())) {
-            WhiteboardMembership newMembership = WhiteboardMembership.builder()
-                    .whiteboard(whiteboard)
-                    .user(newOwner)
-                    .role(Role.FACULTY)
-                    .build();
-            whiteboardMembershipRepository.save(newMembership);
-        }
+        whiteboardMembershipRepository.insertMembershipIfAbsent(
+                UUID.randomUUID(),
+                whiteboardId,
+                newOwner.getId(),
+                Role.FACULTY.name()
+        );
 
         whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, ownerId)
                 .ifPresent(whiteboardMembershipRepository::delete);

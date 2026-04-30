@@ -57,12 +57,15 @@ public class WhiteboardMembershipService {
                         return false;
                     }
 
-                    WhiteboardMembership membership = WhiteboardMembership.builder()
-                            .whiteboard(demoWhiteboard)
-                            .user(user)
-                            .role(Role.STUDENT)
-                            .build();
-                    whiteboardMembershipRepository.save(membership);
+                    int inserted = whiteboardMembershipRepository.insertMembershipIfAbsent(
+                            UUID.randomUUID(),
+                            demoWhiteboard.getId(),
+                            userId,
+                            Role.STUDENT.name()
+                    );
+                    if (inserted == 0) {
+                        return false;
+                    }
 
                     auditLogService.logAction(
                             demoWhiteboard.getId(),
@@ -92,12 +95,15 @@ public class WhiteboardMembershipService {
             throw new BadRequestException("User is already a member of this whiteboard");
         }
 
-        WhiteboardMembership membership = WhiteboardMembership.builder()
-                .whiteboard(whiteboard)
-                .user(user)
-                .role(Role.STUDENT)
-                .build();
-        whiteboardMembershipRepository.save(membership);
+        int inserted = whiteboardMembershipRepository.insertMembershipIfAbsent(
+                UUID.randomUUID(),
+                whiteboardId,
+                user.getId(),
+                Role.STUDENT.name()
+        );
+        if (inserted == 0) {
+            throw new BadRequestException("User is already a member of this whiteboard");
+        }
 
         auditLogService.logAction(
                 whiteboardId,
@@ -174,12 +180,15 @@ public class WhiteboardMembershipService {
             return;
         }
 
-        WhiteboardMembership membership = WhiteboardMembership.builder()
-                .whiteboard(whiteboard)
-                .user(faculty)
-                .role(Role.FACULTY)
-                .build();
-        whiteboardMembershipRepository.save(membership);
+        int inserted = whiteboardMembershipRepository.insertMembershipIfAbsent(
+                UUID.randomUUID(),
+                whiteboardId,
+                faculty.getId(),
+                Role.FACULTY.name()
+        );
+        if (inserted == 0) {
+            throw new BadRequestException("Faculty member is already in this whiteboard");
+        }
 
         auditLogService.logAction(
                 whiteboardId,
@@ -274,10 +283,11 @@ public class WhiteboardMembershipService {
         userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        int inserted = whiteboardMembershipRepository.insertStudentMembershipIfAbsent(
+        int inserted = whiteboardMembershipRepository.insertMembershipIfAbsent(
                 UUID.randomUUID(),
                 whiteboardId,
-                userId
+                userId,
+                Role.STUDENT.name()
         );
         if (inserted == 0) {
             return;

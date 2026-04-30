@@ -28,16 +28,17 @@ public interface WhiteboardMembershipRepository extends JpaRepository<Whiteboard
 
     boolean existsByWhiteboardIdAndUserId(UUID whiteboardId, UUID userId);
 
-    @Modifying
+    @Modifying(flushAutomatically = true)
     @Query(value = """
             INSERT INTO whiteboard_memberships (id, whiteboard_id, user_id, role, joined_at)
-            VALUES (:id, :whiteboardId, :userId, 'STUDENT', CURRENT_TIMESTAMP)
-            ON CONFLICT (whiteboard_id, user_id) DO NOTHING
+            VALUES (:id, :whiteboardId, :userId, :role, CURRENT_TIMESTAMP)
+            ON CONFLICT ON CONSTRAINT uq_membership_whiteboard_user DO NOTHING
             """, nativeQuery = true)
-    int insertStudentMembershipIfAbsent(
+    int insertMembershipIfAbsent(
             @Param("id") UUID id,
             @Param("whiteboardId") UUID whiteboardId,
-            @Param("userId") UUID userId
+            @Param("userId") UUID userId,
+            @Param("role") String role
     );
 
     long countByWhiteboardId(UUID whiteboardId);

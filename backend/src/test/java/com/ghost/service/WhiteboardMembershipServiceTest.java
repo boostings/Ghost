@@ -76,11 +76,22 @@ class WhiteboardMembershipServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(whiteboardRepository.findFirstByIsDemoTrueOrderByCreatedAtAsc()).thenReturn(Optional.of(demoWhiteboard));
         when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(demoWhiteboardId, userId)).thenReturn(false);
+        when(whiteboardMembershipRepository.insertMembershipIfAbsent(
+                any(UUID.class),
+                eq(demoWhiteboardId),
+                eq(userId),
+                eq(Role.STUDENT.name())
+        )).thenReturn(1);
 
         boolean joined = whiteboardMembershipService.joinDemoWhiteboardIfAvailable(userId);
 
         assertThat(joined).isTrue();
-        verify(whiteboardMembershipRepository).save(any(WhiteboardMembership.class));
+        verify(whiteboardMembershipRepository).insertMembershipIfAbsent(
+                any(UUID.class),
+                eq(demoWhiteboardId),
+                eq(userId),
+                eq(Role.STUDENT.name())
+        );
         verify(auditLogService).logAction(
                 demoWhiteboardId,
                 userId,
@@ -89,6 +100,50 @@ class WhiteboardMembershipServiceTest {
                 userId,
                 null,
                 "Auto-joined demo class"
+        );
+    }
+
+    @Test
+    void joinDemoWhiteboardIfAvailableShouldReturnFalseWhenInsertFindsExistingMember() {
+        UUID userId = UUID.randomUUID();
+        UUID demoWhiteboardId = UUID.randomUUID();
+
+        User user = User.builder()
+                .id(userId)
+                .build();
+        Whiteboard demoWhiteboard = Whiteboard.builder()
+                .id(demoWhiteboardId)
+                .isDemo(true)
+                .course(Course.builder()
+                        .courseCode("DEMO101")
+                        .courseName("Demo Course")
+                        .build())
+                .semester(Semester.builder()
+                        .name("Spring 2026")
+                        .build())
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(whiteboardRepository.findFirstByIsDemoTrueOrderByCreatedAtAsc()).thenReturn(Optional.of(demoWhiteboard));
+        when(whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(demoWhiteboardId, userId)).thenReturn(false);
+        when(whiteboardMembershipRepository.insertMembershipIfAbsent(
+                any(UUID.class),
+                eq(demoWhiteboardId),
+                eq(userId),
+                eq(Role.STUDENT.name())
+        )).thenReturn(0);
+
+        boolean joined = whiteboardMembershipService.joinDemoWhiteboardIfAvailable(userId);
+
+        assertThat(joined).isFalse();
+        verify(auditLogService, never()).logAction(
+                any(UUID.class),
+                any(UUID.class),
+                any(AuditAction.class),
+                any(String.class),
+                any(UUID.class),
+                any(),
+                any(String.class)
         );
     }
 
@@ -184,18 +239,20 @@ class WhiteboardMembershipServiceTest {
 
         when(whiteboardRepository.findByInviteCodeIgnoreCase("JOIN326")).thenReturn(Optional.of(whiteboard));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(whiteboardMembershipRepository.insertStudentMembershipIfAbsent(
+        when(whiteboardMembershipRepository.insertMembershipIfAbsent(
                 any(UUID.class),
                 eq(whiteboardId),
-                eq(userId)
+                eq(userId),
+                eq(Role.STUDENT.name())
         )).thenReturn(1);
 
         whiteboardMembershipService.joinByInviteCode(userId, " JOIN326 ");
 
-        verify(whiteboardMembershipRepository).insertStudentMembershipIfAbsent(
+        verify(whiteboardMembershipRepository).insertMembershipIfAbsent(
                 any(UUID.class),
                 eq(whiteboardId),
-                eq(userId)
+                eq(userId),
+                eq(Role.STUDENT.name())
         );
         verify(auditLogService).logAction(
                 whiteboardId,
@@ -220,10 +277,11 @@ class WhiteboardMembershipServiceTest {
 
         when(whiteboardRepository.findByInviteCodeIgnoreCase("JOIN326")).thenReturn(Optional.of(whiteboard));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(whiteboardMembershipRepository.insertStudentMembershipIfAbsent(
+        when(whiteboardMembershipRepository.insertMembershipIfAbsent(
                 any(UUID.class),
                 eq(whiteboardId),
-                eq(userId)
+                eq(userId),
+                eq(Role.STUDENT.name())
         )).thenReturn(0);
 
         whiteboardMembershipService.joinByInviteCode(userId, " JOIN326 ");
@@ -267,11 +325,22 @@ class WhiteboardMembershipServiceTest {
         when(whiteboardMembershipRepository.findByWhiteboardIdAndUserId(whiteboardId, facultyId))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(membership));
+        when(whiteboardMembershipRepository.insertMembershipIfAbsent(
+                any(UUID.class),
+                eq(whiteboardId),
+                eq(facultyId),
+                eq(Role.FACULTY.name())
+        )).thenReturn(1);
 
         whiteboardMembershipService.inviteFaculty(ownerId, whiteboardId, " Faculty@ilstu.edu ");
         whiteboardMembershipService.leaveWhiteboard(facultyId, whiteboardId);
 
-        verify(whiteboardMembershipRepository).save(any(WhiteboardMembership.class));
+        verify(whiteboardMembershipRepository).insertMembershipIfAbsent(
+                any(UUID.class),
+                eq(whiteboardId),
+                eq(facultyId),
+                eq(Role.FACULTY.name())
+        );
         verify(auditLogService).logAction(
                 whiteboardId,
                 ownerId,

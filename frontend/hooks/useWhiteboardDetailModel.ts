@@ -8,6 +8,7 @@ import { extractErrorMessage } from './useApi';
 import { useWebSocket } from './useWebSocket';
 import { useAuthStore } from '../stores/authStore';
 import { useWhiteboardStore } from '../stores/whiteboardStore';
+import { subscribeToQuestionDeleted } from '../utils/questionDeletionEvents';
 import { reconcileQuestionEvent } from '../utils/questionEvents';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../types';
 
@@ -83,6 +84,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
   const lastFetchRef = useRef(0);
   const loadedWhiteboardIdRef = useRef<string | null>(null);
   const requestInFlightRef = useRef(false);
+  const locallyDeletedQuestionIdsRef = useRef(new Set<string>());
 
   // Per-whiteboard faculty check (see useQuestionDetailModel for rationale).
   // A globally-FACULTY user may be enrolled here as STUDENT (observer mode); we
@@ -101,6 +103,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
   useEffect(() => {
     loadedWhiteboardIdRef.current = null;
     lastFetchRef.current = 0;
+    locallyDeletedQuestionIdsRef.current = new Set();
     setWhiteboard(null);
     setQuestions([]);
     setPage(0);
@@ -159,8 +162,11 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
           setCurrentWhiteboard(nextWhiteboard);
         }
 
+        const visibleQuestions = questionPage.content.filter(
+          (question) => !locallyDeletedQuestionIdsRef.current.has(question.id)
+        );
         setQuestions((previousQuestions) =>
-          replace ? questionPage.content : [...previousQuestions, ...questionPage.content]
+          replace ? visibleQuestions : [...previousQuestions, ...visibleQuestions]
         );
         setPage(nextPage);
         setHasMore(nextPage + 1 < questionPage.totalPages);
@@ -348,11 +354,23 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
       return;
     }
 
+    const unsubscribeLocalDelete = subscribeToQuestionDeleted((event) => {
+      if (event.whiteboardId !== whiteboardId) {
+        return;
+      }
+
+      locallyDeletedQuestionIdsRef.current.add(event.questionId);
+      setQuestions((previousQuestions) =>
+        previousQuestions.filter((question) => question.id !== event.questionId)
+      );
+    });
+
     const subscription = subscribe(`/topic/whiteboard/${whiteboardId}/questions`, (frame) => {
       setQuestions((previousQuestions) => reconcileQuestionEvent(previousQuestions, frame.body));
     });
 
     return () => {
+      unsubscribeLocalDelete();
       subscription?.unsubscribe();
     };
   }, [subscribe, whiteboardId]);
