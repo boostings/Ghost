@@ -18,8 +18,9 @@ public class CommentMapper {
                 && !viewerIsFaculty
                 && !author.getId().equals(currentUserId);
 
+        boolean isAuthorFaculty = viewerIsFaculty && author.getId().equals(currentUserId);
         boolean canEdit = author.getId().equals(currentUserId)
-                && CommentEditPolicy.isEditable(comment, LocalDateTime.now());
+                && (isAuthorFaculty || CommentEditPolicy.isEditable(comment, LocalDateTime.now()));
 
         return CommentResponse.builder()
                 .id(comment.getId())

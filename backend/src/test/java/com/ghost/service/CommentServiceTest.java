@@ -296,9 +296,12 @@ class CommentServiceTest {
     }
 
     @Test
-    void editCommentShouldRejectExpiredDeadline() {
+    void editCommentShouldRejectExpiredDeadlineForStudents() {
         comment.setEditDeadline(LocalDateTime.now().minusMinutes(1));
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.STUDENT).build()
+        );
 
         assertThatThrownBy(() -> commentService.editComment(
                 authorId,
@@ -308,6 +311,34 @@ class CommentServiceTest {
         ))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Edit deadline has passed");
+    }
+
+    @Test
+    void editCommentShouldAllowFacultyAfterEditWindowExpired() {
+        comment.setEditDeadline(LocalDateTime.now().minusMinutes(30));
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(whiteboardService.verifyMembership(authorId, whiteboard.getId())).thenReturn(
+                WhiteboardMembership.builder().whiteboard(whiteboard).user(authorUser).role(Role.FACULTY).build()
+        );
+        when(commentResponseAssembler.toResponse(eq(comment), eq(authorId), eq(true))).thenReturn(
+                CommentResponse.builder()
+                        .id(commentId)
+                        .questionId(questionId)
+                        .authorId(authorId)
+                        .authorName("Question Author")
+                        .body("Faculty late edit")
+                        .build()
+        );
+
+        CommentResponse response = commentService.editComment(
+                authorId,
+                questionId,
+                commentId,
+                EditCommentRequest.builder().body("Faculty late edit").build()
+        );
+
+        assertThat(response.getBody()).isEqualTo("Faculty late edit");
     }
 
     @Test

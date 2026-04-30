@@ -21,7 +21,7 @@ Install these first:
 If you have not cloned the repo yet:
 
 ```bash
-git clone <REPO_URL>
+git clone <REPO_URL> (git clone https://github.com/boostings/Ghost.git)
 cd Ghost
 ```
 

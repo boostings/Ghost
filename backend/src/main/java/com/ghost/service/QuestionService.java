@@ -528,7 +528,8 @@ public class QuestionService {
             throw new ForbiddenException("Only the author can edit this comment");
         }
 
-        if (!CommentEditPolicy.isEditable(comment, LocalDateTime.now())) {
+        boolean editorIsFaculty = editMembership.getRole() == Role.FACULTY;
+        if (!editorIsFaculty && !CommentEditPolicy.isEditable(comment, LocalDateTime.now())) {
             throw new BadRequestException("Edit deadline has passed. Comments can only be edited within 1 hour.");
         }
         if (comment.getQuestion().getStatus() == QuestionStatus.CLOSED) {
