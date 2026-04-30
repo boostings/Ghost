@@ -18,6 +18,7 @@ import { Colors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { notificationService } from '../../services/notificationService';
+import { resolveStoredNotificationRoute } from '../../utils/notificationPayloads';
 import type { NotificationResponse, NotificationType } from '../../types';
 
 const PAGE_SIZE = 20;
@@ -171,12 +172,9 @@ export default function AlertsScreen() {
         markAsRead(n.id);
         notificationService.markAsRead(n.id).catch(() => undefined);
       }
-      if (n.type === 'REPORT_SUBMITTED' && n.referenceId) {
-        router.push({ pathname: '/moderation/reports', params: { whiteboardId: n.referenceId } });
-      } else if (n.referenceType === 'QUESTION' && n.referenceId) {
-        router.push({ pathname: '/question/[id]', params: { id: n.referenceId } });
-      } else if (n.referenceType === 'WHITEBOARD' && n.referenceId) {
-        router.push({ pathname: '/whiteboard/[id]', params: { id: n.referenceId } });
+      const route = resolveStoredNotificationRoute(n);
+      if (route) {
+        router.push(route);
       }
     },
     [markAsRead, router]

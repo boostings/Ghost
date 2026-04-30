@@ -74,7 +74,6 @@ export default function QuestionDetailScreen() {
     onQuestionDeleted: () => router.back(),
   });
 
-  const isAuthor = question?.authorId === user?.id;
   const questionWasEdited = isQuestionEdited(question);
 
   const handleQuestionVote = async (voteType: VoteType) => {

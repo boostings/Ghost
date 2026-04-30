@@ -97,6 +97,34 @@ class UserServiceTest {
     }
 
     @Test
+    void updateUserShouldSaveAnonymousModePreference() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .firstName("Taylor")
+                .lastName("Student")
+                .settingsJson("{}")
+                .anonymousMode(false)
+                .build();
+        UpdateUserRequest request = UpdateUserRequest.builder()
+                .anonymousMode(true)
+                .build();
+        UserResponse response = UserResponse.builder()
+                .id(userId)
+                .anonymousMode(true)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toResponse(user)).thenReturn(response);
+
+        UserResponse result = userService.updateUser(userId, request);
+
+        assertThat(user.isAnonymousMode()).isTrue();
+        assertThat(result.isAnonymousMode()).isTrue();
+    }
+
+    @Test
     void updatePushTokenShouldWriteGlobalAuditLog() {
         UUID userId = UUID.randomUUID();
         User user = User.builder()

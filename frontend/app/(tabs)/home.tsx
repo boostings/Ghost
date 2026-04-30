@@ -29,6 +29,7 @@ import { Spacing, Shadow } from '../../constants/spacing';
 import { haptic } from '../../utils/haptics';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useNotificationStore } from '../../stores/notificationStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
 import { extractErrorMessage } from '../../hooks/useApi';
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   const setLoading = useWhiteboardStore((state) => state.setLoading);
   const isLoading = useWhiteboardStore((state) => state.isLoading);
   const user = useAuthStore((state) => state.user);
+  const latestNotification = useNotificationStore((state) => state.notifications[0]);
   const isFaculty = user?.role === 'FACULTY';
 
   const [refreshing, setRefreshing] = useState(false);
@@ -160,6 +162,15 @@ export default function HomeScreen() {
       fetchMyQuestions();
     }, [fetchMyQuestions, fetchWhiteboards, whiteboards.length])
   );
+
+  useEffect(() => {
+    if (
+      latestNotification?.type === 'QUESTION_ANSWERED' ||
+      latestNotification?.type === 'COMMENT_ADDED'
+    ) {
+      void fetchMyQuestions();
+    }
+  }, [fetchMyQuestions, latestNotification?.id, latestNotification?.type]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

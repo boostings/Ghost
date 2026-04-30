@@ -88,6 +88,37 @@ export function resolveNotificationRoute(
   }
 }
 
+export function resolveStoredNotificationRoute(
+  notification: NotificationResponse
+): NotificationRoute | null {
+  if (notification.type === 'REPORT_SUBMITTED') {
+    if (notification.referenceType === 'WHITEBOARD' && notification.referenceId) {
+      return {
+        pathname: '/moderation/reports',
+        params: { whiteboardId: notification.referenceId },
+      };
+    }
+
+    if (notification.referenceType === 'QUESTION' && notification.referenceId) {
+      return {
+        pathname: '/question/[id]',
+        params: { id: notification.referenceId },
+      };
+    }
+
+    return null;
+  }
+
+  if (!notification.referenceType || !notification.referenceId) {
+    return null;
+  }
+
+  return resolveNotificationRoute({
+    referenceType: notification.referenceType,
+    referenceId: notification.referenceId,
+  });
+}
+
 export function parseRealtimeNotificationMessage(body: string): NotificationResponse | null {
   try {
     const parsed = JSON.parse(body) as Record<string, unknown>;

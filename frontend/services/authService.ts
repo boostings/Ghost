@@ -158,4 +158,5 @@ export const authService = {
     const response = await api.put<UserResponse>('/users/me', { anonymousMode: enabled });
     return response.data;
   },
+
 };

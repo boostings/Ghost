@@ -246,7 +246,7 @@ export default function SettingsScreen() {
                   <View style={styles.rowText}>
                     <Text style={[styles.rowLabel, { color: colors.text }]}>Anonymous mode</Text>
                     <Text style={[styles.rowHint, { color: colors.textMuted }]}>
-                      Other students see "Ghost" instead of your name
+                      Students see "Ghost"; faculty still see your name
                     </Text>
                   </View>
                   <Switch

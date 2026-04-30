@@ -9,21 +9,5 @@ export function isQuestionEdited(question?: QuestionEditMeta | null): boolean {
     return false;
   }
 
-  if (question.editedAt) {
-    return true;
-  }
-
-  if (!question.createdAt || !question.updatedAt) {
-    return false;
-  }
-
-  const createdAt = new Date(question.createdAt).getTime();
-  const updatedAt = new Date(question.updatedAt).getTime();
-
-  if (Number.isNaN(createdAt) || Number.isNaN(updatedAt)) {
-    return false;
-  }
-
-  // Compatibility fallback while some environments still return no editedAt.
-  return updatedAt - createdAt > 1000;
+  return Boolean(question.editedAt);
 }

@@ -2,6 +2,7 @@ import {
   getNotificationReadId,
   parseRealtimeNotificationMessage,
   resolveNotificationRoute,
+  resolveStoredNotificationRoute,
   toForegroundNotification,
 } from './notificationPayloads';
 
@@ -98,6 +99,44 @@ describe('notificationPayloads', () => {
       pathname: '/whiteboard/[id]',
       params: {
         id: 'wb-9',
+      },
+    });
+  });
+
+  it('routes stored report notifications only to moderation when they reference a whiteboard', () => {
+    expect(
+      resolveStoredNotificationRoute({
+        id: 'n-report',
+        type: 'REPORT_SUBMITTED',
+        title: 'New Report Submitted',
+        body: null,
+        referenceType: 'WHITEBOARD',
+        referenceId: 'wb-9',
+        isRead: false,
+        createdAt: '2026-01-04T00:00:00.000Z',
+      })
+    ).toEqual({
+      pathname: '/moderation/reports',
+      params: {
+        whiteboardId: 'wb-9',
+      },
+    });
+
+    expect(
+      resolveStoredNotificationRoute({
+        id: 'n-report-old',
+        type: 'REPORT_SUBMITTED',
+        title: 'New Report Submitted',
+        body: null,
+        referenceType: 'QUESTION',
+        referenceId: 'q-9',
+        isRead: false,
+        createdAt: '2026-01-04T00:00:00.000Z',
+      })
+    ).toEqual({
+      pathname: '/question/[id]',
+      params: {
+        id: 'q-9',
       },
     });
   });

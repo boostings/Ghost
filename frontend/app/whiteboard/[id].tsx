@@ -323,17 +323,19 @@ export default function WhiteboardDetailScreen() {
         <Animated.View entering={heroEntering} style={styles.topRow}>
           <BackButton onPress={() => router.back()} />
           <View style={styles.topActions}>
-            <IconAction
-              icon="add-circle-outline"
-              onPress={() => {
-                haptic.medium();
-                router.push({
-                  pathname: '/question/create',
-                  params: { whiteboardId: id },
-                });
-              }}
-              accessibilityLabel="Ask a question"
-            />
+            {!whiteboard?.isDemo ? (
+              <IconAction
+                icon="add-circle-outline"
+                onPress={() => {
+                  haptic.medium();
+                  router.push({
+                    pathname: '/question/create',
+                    params: { whiteboardId: id },
+                  });
+                }}
+                accessibilityLabel="Ask a question"
+              />
+            ) : null}
             <IconAction
               icon="mail-outline"
               onPress={() => {
@@ -554,13 +556,21 @@ export default function WhiteboardDetailScreen() {
               <EmptyState
                 ionIcon="help-circle-outline"
                 title="No questions yet"
-                subtitle={loadError || 'Be the first to ask a question in this class!'}
-                actionLabel="Ask a question"
-                onAction={() =>
-                  router.push({
-                    pathname: '/question/create',
-                    params: { whiteboardId: id },
-                  })
+                subtitle={
+                  loadError ||
+                  (whiteboard?.isDemo
+                    ? 'This demo class is read-only.'
+                    : 'Be the first to ask a question in this class!')
+                }
+                actionLabel={whiteboard?.isDemo ? undefined : 'Ask a question'}
+                onAction={
+                  whiteboard?.isDemo
+                    ? undefined
+                    : () =>
+                        router.push({
+                          pathname: '/question/create',
+                          params: { whiteboardId: id },
+                        })
                 }
               />
             )

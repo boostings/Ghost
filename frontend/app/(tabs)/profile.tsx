@@ -505,7 +505,7 @@ export default function ProfileScreen() {
                             Anonymous mode
                           </Text>
                           <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
-                            Other students see "Ghost" instead of your name
+                            Students see "Ghost"; faculty still see your name
                           </Text>
                         </View>
                         <Switch

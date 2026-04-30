@@ -68,4 +68,88 @@ class QuestionResponseAssemblerTest {
         assertThat(response.isHidden()).isFalse();
         assertThat(response.getEditedAt()).isEqualTo(question.getEditedAt());
     }
+
+    @Test
+    void toResponseShouldHideAnonymousAuthorFromOtherStudents() {
+        CommentRepository commentRepository = mock(CommentRepository.class);
+        KarmaVoteRepository karmaVoteRepository = mock(KarmaVoteRepository.class);
+        BookmarkRepository bookmarkRepository = mock(BookmarkRepository.class);
+        QuestionResponseAssembler assembler = new QuestionResponseAssembler(
+                commentRepository,
+                karmaVoteRepository,
+                bookmarkRepository,
+                new QuestionMapper()
+        );
+
+        UUID viewerId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        User author = User.builder()
+                .id(UUID.randomUUID())
+                .firstName("Taylor")
+                .lastName("Student")
+                .anonymousMode(true)
+                .build();
+        Question question = Question.builder()
+                .id(questionId)
+                .whiteboard(Whiteboard.builder()
+                        .id(UUID.randomUUID())
+                        .course(Course.builder().courseCode("IT326").courseName("Software Engineering").build())
+                        .build())
+                .author(author)
+                .title("Question title")
+                .body("Question body")
+                .status(QuestionStatus.OPEN)
+                .build();
+
+        when(commentRepository.countByQuestionId(questionId)).thenReturn(0L);
+        when(bookmarkRepository.existsByUserIdAndQuestionId(viewerId, questionId)).thenReturn(false);
+        when(karmaVoteRepository.findByUserIdAndQuestionId(viewerId, questionId)).thenReturn(Optional.empty());
+
+        QuestionResponse response = assembler.toResponse(question, viewerId, false);
+
+        assertThat(response.getAuthorId()).isNull();
+        assertThat(response.getAuthorName()).isEqualTo("Ghost");
+    }
+
+    @Test
+    void toResponseShouldShowAnonymousAuthorToFaculty() {
+        CommentRepository commentRepository = mock(CommentRepository.class);
+        KarmaVoteRepository karmaVoteRepository = mock(KarmaVoteRepository.class);
+        BookmarkRepository bookmarkRepository = mock(BookmarkRepository.class);
+        QuestionResponseAssembler assembler = new QuestionResponseAssembler(
+                commentRepository,
+                karmaVoteRepository,
+                bookmarkRepository,
+                new QuestionMapper()
+        );
+
+        UUID facultyId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        User author = User.builder()
+                .id(UUID.randomUUID())
+                .firstName("Taylor")
+                .lastName("Student")
+                .anonymousMode(true)
+                .build();
+        Question question = Question.builder()
+                .id(questionId)
+                .whiteboard(Whiteboard.builder()
+                        .id(UUID.randomUUID())
+                        .course(Course.builder().courseCode("IT326").courseName("Software Engineering").build())
+                        .build())
+                .author(author)
+                .title("Question title")
+                .body("Question body")
+                .status(QuestionStatus.OPEN)
+                .build();
+
+        when(commentRepository.countByQuestionId(questionId)).thenReturn(0L);
+        when(bookmarkRepository.existsByUserIdAndQuestionId(facultyId, questionId)).thenReturn(false);
+        when(karmaVoteRepository.findByUserIdAndQuestionId(facultyId, questionId)).thenReturn(Optional.empty());
+
+        QuestionResponse response = assembler.toResponse(question, facultyId, true);
+
+        assertThat(response.getAuthorId()).isEqualTo(author.getId());
+        assertThat(response.getAuthorName()).isEqualTo("Taylor Student");
+    }
 }

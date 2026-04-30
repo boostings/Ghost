@@ -210,4 +210,5 @@ describe('authService', () => {
     expect(result).toEqual(response.data);
     expect(apiMock.put).toHaveBeenCalledWith('/users/me', { anonymousMode: true });
   });
+
 });

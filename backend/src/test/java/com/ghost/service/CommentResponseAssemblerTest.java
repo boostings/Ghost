@@ -79,4 +79,70 @@ class CommentResponseAssemblerTest {
 
         assertThat(response.isCanEdit()).isTrue();
     }
+
+    @Test
+    void toResponseShouldHideAnonymousAuthorFromOtherStudents() {
+        KarmaVoteRepository karmaVoteRepository = mock(KarmaVoteRepository.class);
+        CommentResponseAssembler assembler = new CommentResponseAssembler(
+                karmaVoteRepository,
+                new CommentMapper()
+        );
+
+        UUID viewerId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        User author = User.builder()
+                .id(UUID.randomUUID())
+                .firstName("Alex")
+                .lastName("Author")
+                .anonymousMode(true)
+                .build();
+        Comment comment = Comment.builder()
+                .id(commentId)
+                .question(Question.builder().id(UUID.randomUUID()).build())
+                .author(author)
+                .body("Comment body")
+                .createdAt(LocalDateTime.now())
+                .editDeadline(LocalDateTime.now().plusMinutes(5))
+                .build();
+
+        when(karmaVoteRepository.findByUserIdAndCommentId(viewerId, commentId)).thenReturn(Optional.empty());
+
+        CommentResponse response = assembler.toResponse(comment, viewerId, false);
+
+        assertThat(response.getAuthorId()).isNull();
+        assertThat(response.getAuthorName()).isEqualTo("Ghost");
+    }
+
+    @Test
+    void toResponseShouldShowAnonymousAuthorToFaculty() {
+        KarmaVoteRepository karmaVoteRepository = mock(KarmaVoteRepository.class);
+        CommentResponseAssembler assembler = new CommentResponseAssembler(
+                karmaVoteRepository,
+                new CommentMapper()
+        );
+
+        UUID facultyId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        User author = User.builder()
+                .id(UUID.randomUUID())
+                .firstName("Alex")
+                .lastName("Author")
+                .anonymousMode(true)
+                .build();
+        Comment comment = Comment.builder()
+                .id(commentId)
+                .question(Question.builder().id(UUID.randomUUID()).build())
+                .author(author)
+                .body("Comment body")
+                .createdAt(LocalDateTime.now())
+                .editDeadline(LocalDateTime.now().plusMinutes(5))
+                .build();
+
+        when(karmaVoteRepository.findByUserIdAndCommentId(facultyId, commentId)).thenReturn(Optional.empty());
+
+        CommentResponse response = assembler.toResponse(comment, facultyId, true);
+
+        assertThat(response.getAuthorId()).isEqualTo(author.getId());
+        assertThat(response.getAuthorName()).isEqualTo("Alex Author");
+    }
 }
