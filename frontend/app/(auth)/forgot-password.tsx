@@ -134,9 +134,7 @@ export default function ForgotPasswordScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.normal)
-                .delay(Stagger.card)
-                .easing(Ease.out)}
+              entering={FadeInDown.duration(Duration.normal).delay(Stagger.card).easing(Ease.out)}
             >
               <GlassInput
                 label="Email"
@@ -168,6 +166,8 @@ export default function ForgotPasswordScreen() {
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.replace('/(auth)/login')}
+                accessibilityRole="button"
+                accessibilityLabel="Back to login"
               >
                 <Text style={[styles.backText, { color: colors.textMuted }]}>Back to Login</Text>
               </TouchableOpacity>

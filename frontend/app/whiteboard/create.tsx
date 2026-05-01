@@ -52,7 +52,8 @@ export default function CreateWhiteboardScreen() {
     const normalizedCourseCode = sanitizeSingleLine(courseCode).toUpperCase();
     const normalizedCourseName = sanitizeSingleLine(courseName);
     const normalizedSemester = sanitizeSingleLine(semester);
-    const normalizedPrimaryInstructorEmail = sanitizeSingleLine(primaryInstructorEmail).toLowerCase();
+    const normalizedPrimaryInstructorEmail =
+      sanitizeSingleLine(primaryInstructorEmail).toLowerCase();
 
     if (!normalizedCourseCode) {
       nextErrors.courseCode = 'Course code is required';
@@ -84,13 +85,11 @@ export default function CreateWhiteboardScreen() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const {
-    valid: primaryInstructorEmailValid,
-    visibleError: primaryInstructorEmailLiveError,
-  } = getEmailFieldState({
-    value: sanitizeSingleLine(primaryInstructorEmail),
-    active: facultySetupMode === 'helping',
-  });
+  const { valid: primaryInstructorEmailValid, visibleError: primaryInstructorEmailLiveError } =
+    getEmailFieldState({
+      value: sanitizeSingleLine(primaryInstructorEmail),
+      active: facultySetupMode === 'helping',
+    });
   const createDisabled =
     loading || (facultySetupMode === 'helping' && !primaryInstructorEmailValid);
 

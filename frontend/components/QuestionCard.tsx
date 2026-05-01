@@ -66,10 +66,21 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const { firstName, lastName } = parseAuthorName(question.authorName);
   const canReport = Boolean(onReport && question.authorId !== currentUserId);
   const wasEdited = isQuestionEdited(question);
+  const questionAccessibilityLabel = [
+    `Open question: ${question.title}`,
+    `By ${question.authorName}`,
+    question.status === 'CLOSED' ? 'Closed' : 'Open',
+    `${question.karmaScore} karma`,
+    `${question.commentCount} ${question.commentCount === 1 ? 'comment' : 'comments'}`,
+  ].join('. ');
 
   return (
     <Animated.View entering={enterList(index)} layout={LinearTransition.springify().damping(20)}>
-      <GlassCard onPress={onPress} style={styles.card}>
+      <GlassCard
+        onPress={onPress}
+        style={styles.card}
+        accessibilityLabel={questionAccessibilityLabel}
+      >
         {question.isHidden && (
           <View style={[styles.hiddenOverlay, { backgroundColor: colors.overlay }]}>
             <Text style={[styles.hiddenText, { color: colors.textMuted }]}>HIDDEN</Text>
@@ -99,9 +110,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           {question.title}
         </Text>
 
-        {wasEdited && (
-          <Text style={[styles.editedText, { color: colors.textMuted }]}>Edited</Text>
-        )}
+        {wasEdited && <Text style={[styles.editedText, { color: colors.textMuted }]}>Edited</Text>}
 
         <Text style={[styles.body, { color: colors.textMuted }]} numberOfLines={3}>
           {question.isHidden ? '[hidden]' : question.body}

@@ -48,7 +48,7 @@ public class WhiteboardMembershipService {
 
     @Transactional
     public boolean joinDemoWhiteboardIfAvailable(UUID userId) {
-        User user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         return whiteboardRepository.findFirstByIsDemoTrueOrderByCreatedAtAsc()
@@ -85,6 +85,7 @@ public class WhiteboardMembershipService {
     public void enlistUser(UUID facultyId, UUID whiteboardId, String userEmail) {
         verifyFacultyRole(facultyId, whiteboardId);
 
+        @SuppressWarnings("unused")
         Whiteboard whiteboard = getWhiteboardById(whiteboardId);
         String normalizedEmail = normalizeEmail(userEmail);
 

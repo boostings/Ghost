@@ -22,6 +22,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final String TOKEN_PRESENT = "[PUSH_TOKEN_PRESENT]";
+    private static final String TOKEN_CLEARED = "[PUSH_TOKEN_CLEARED]";
+
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final UserMapper userMapper;
@@ -78,23 +81,27 @@ public class UserService {
     @Transactional
     public void updatePushToken(UUID userId, String token) {
         User user = getUserEntityById(userId);
-        String oldToken = user.getExpoPushToken();
+        String oldTokenState = pushTokenAuditState(user.getExpoPushToken());
 
         user.setExpoPushToken(token);
         userRepository.save(user);
-        logUserAction(userId, AuditAction.USER_PUSH_TOKEN_UPDATED, userId, oldToken, token);
+        logUserAction(userId, AuditAction.USER_PUSH_TOKEN_UPDATED, userId, oldTokenState, pushTokenAuditState(token));
         log.debug("Push token updated for user: {}", userId);
     }
 
     @Transactional
     public void clearPushToken(UUID userId) {
         User user = getUserEntityById(userId);
-        String oldToken = user.getExpoPushToken();
+        String oldTokenState = pushTokenAuditState(user.getExpoPushToken());
 
         user.setExpoPushToken(null);
         userRepository.save(user);
-        logUserAction(userId, AuditAction.USER_PUSH_TOKEN_UPDATED, userId, oldToken, null);
+        logUserAction(userId, AuditAction.USER_PUSH_TOKEN_UPDATED, userId, oldTokenState, TOKEN_CLEARED);
         log.debug("Push token cleared for user: {}", userId);
+    }
+
+    private String pushTokenAuditState(String token) {
+        return token == null || token.isBlank() ? TOKEN_CLEARED : TOKEN_PRESENT;
     }
 
     private void logUserAction(UUID actorId, AuditAction action, UUID targetId, String oldValue, String newValue) {

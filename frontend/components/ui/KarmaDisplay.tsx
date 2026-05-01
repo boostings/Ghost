@@ -77,6 +77,7 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         isSmall && styles.containerSmall,
         isHorizontal && styles.containerHorizontal,
       ]}
+      accessibilityLabel={`Karma score ${score}`}
     >
       <AnimatedPressable
         onPress={handleUp}
@@ -84,8 +85,16 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         style={[styles.arrowButton, upStyle]}
         accessibilityRole="button"
         accessibilityLabel="Upvote"
+        accessibilityHint={`Current score ${score}`}
+        accessibilityState={{ selected: userVote === 'UPVOTE' }}
       >
-        <Ionicons name="chevron-up" size={arrowSize} color={upvoteColor} />
+        <Ionicons
+          name="chevron-up"
+          size={arrowSize}
+          color={upvoteColor}
+          accessible={false}
+          importantForAccessibility="no"
+        />
       </AnimatedPressable>
 
       <Animated.Text
@@ -95,6 +104,7 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
           isHorizontal && styles.scoreHorizontal,
           scoreStyle,
         ]}
+        accessibilityLabel={`Score ${score}`}
       >
         {score}
       </Animated.Text>
@@ -105,8 +115,16 @@ const KarmaDisplay: React.FC<KarmaDisplayProps> = ({
         style={[styles.arrowButton, downStyle]}
         accessibilityRole="button"
         accessibilityLabel="Downvote"
+        accessibilityHint={`Current score ${score}`}
+        accessibilityState={{ selected: userVote === 'DOWNVOTE' }}
       >
-        <Ionicons name="chevron-down" size={arrowSize} color={downvoteColor} />
+        <Ionicons
+          name="chevron-down"
+          size={arrowSize}
+          color={downvoteColor}
+          accessible={false}
+          importantForAccessibility="no"
+        />
       </AnimatedPressable>
     </View>
   );

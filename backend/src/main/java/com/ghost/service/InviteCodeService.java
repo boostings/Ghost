@@ -10,7 +10,8 @@ import java.security.SecureRandom;
 @RequiredArgsConstructor
 public class InviteCodeService {
 
-    private static final String INVITE_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    // Exclude visually ambiguous characters: I, L, O, 0, and 1.
+    static final String INVITE_CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final int INVITE_CODE_LENGTH = 8;
     private static final int INVITE_CODE_MAX_ATTEMPTS = 10;
 

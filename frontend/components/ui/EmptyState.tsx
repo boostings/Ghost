@@ -38,12 +38,26 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             styles.iconCircle,
             { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
           ]}
+          accessible={false}
+          importantForAccessibility="no"
         >
-          <Ionicons name={ionIcon} size={36} color={colors.primary} />
+          <Ionicons
+            name={ionIcon}
+            size={36}
+            color={colors.primary}
+            accessible={false}
+            importantForAccessibility="no"
+          />
         </View>
       )}
-      {!ionIcon && icon && <Text style={styles.emoji}>{icon}</Text>}
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      {!ionIcon && icon && (
+        <Text style={styles.emoji} accessible={false} importantForAccessibility="no">
+          {icon}
+        </Text>
+      )}
+      <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
+        {title}
+      </Text>
       {subtitle && <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>}
       {actionLabel && onAction && (
         <View style={styles.actionContainer}>
@@ -90,8 +104,9 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
   actionContainer: {
+    alignSelf: 'center',
+    width: 240,
     marginTop: Spacing.xxl,
-    minWidth: 200,
   },
 });
 

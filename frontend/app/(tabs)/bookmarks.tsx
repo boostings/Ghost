@@ -212,9 +212,16 @@ export default function SavedScreen() {
             <View style={styles.heroRow}>
               <Text style={[styles.headerTitle, { color: colors.text }]}>Saved</Text>
               {bookmarks.length > 0 ? (
-                <Text style={[styles.heroCount, { color: colors.primary }]}>
-                  {bookmarks.length}
-                </Text>
+                <View
+                  style={[
+                    styles.heroCountPill,
+                    { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+                  ]}
+                >
+                  <Text style={[styles.heroCount, { color: colors.primary }]}>
+                    {bookmarks.length}
+                  </Text>
+                </View>
               ) : null}
             </View>
             {empty ? (
@@ -272,6 +279,7 @@ export default function SavedScreen() {
         ) : null}
 
         <FlatList
+          style={styles.list}
           data={rows}
           renderItem={renderRow}
           keyExtractor={(row) => row.key}
@@ -411,6 +419,7 @@ function SavedRow({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   safe: { flex: 1 },
+  list: { flex: 1, marginBottom: 96 },
 
   header: {
     paddingHorizontal: 24,
@@ -425,7 +434,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginBottom: 2,
   },
-  heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerTitle: {
     fontSize: 36,
     lineHeight: 38,
@@ -433,12 +442,19 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.8,
   },
+  heroCountPill: {
+    minWidth: 34,
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroCount: {
-    fontSize: 36,
-    lineHeight: 38,
+    fontSize: 18,
+    lineHeight: 20,
     fontWeight: '900',
-    color: Colors.primary,
-    letterSpacing: -0.8,
     fontVariant: ['tabular-nums'],
   },
   headerMeta: {
@@ -474,7 +490,7 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: { color: Colors.text },
 
-  listContent: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 110 },
+  listContent: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 150 },
   emptyContent: { flexGrow: 1, justifyContent: 'center' },
 
   groupHeader: {
@@ -565,13 +581,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   rowFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 8,
   },
   metaText: { color: Colors.textMuted, fontSize: 12, fontWeight: '600', flex: 1 },
-  statsRow: { flexDirection: 'row', gap: 12 },
+  statsRow: { flexDirection: 'row', gap: 12, alignSelf: 'flex-start' },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
 

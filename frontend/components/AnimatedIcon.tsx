@@ -1,6 +1,12 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  Easing,
+  type AccessibilityRole,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -11,6 +17,8 @@ type BaseProps = {
   size: number;
   motion?: IconMotion;
   style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
 };
 
 type IonProps = BaseProps & {
@@ -47,7 +55,17 @@ export function AnimatedIcon(props: AnimatedIconProps) {
   const { transform, opacity } = motionOutputs(motion, progress);
   const animatedStyle = opacity !== undefined ? { opacity, transform } : { transform };
 
-  return <Animated.View style={[animatedStyle, props.style]}>{renderIcon(props)}</Animated.View>;
+  return (
+    <Animated.View
+      accessible={Boolean(props.accessibilityLabel)}
+      accessibilityLabel={props.accessibilityLabel}
+      accessibilityRole={props.accessibilityRole}
+      importantForAccessibility={props.accessibilityLabel ? 'auto' : 'no'}
+      style={[animatedStyle, props.style]}
+    >
+      {renderIcon(props)}
+    </Animated.View>
+  );
 }
 
 function renderIcon(props: AnimatedIconProps) {
@@ -57,12 +75,22 @@ function renderIcon(props: AnimatedIconProps) {
         name={props.name}
         size={props.size}
         color={props.color}
+        accessible={false}
+        importantForAccessibility="no"
         {...(props.brand ? { brand: true } : {})}
         {...(props.solid ? { solid: true } : {})}
       />
     );
   }
-  return <Ionicons name={props.name} size={props.size} color={props.color} />;
+  return (
+    <Ionicons
+      name={props.name}
+      size={props.size}
+      color={props.color}
+      accessible={false}
+      importantForAccessibility="no"
+    />
+  );
 }
 
 function buildAnimation(motion: IconMotion, progress: Animated.Value): Animated.CompositeAnimation {

@@ -4,8 +4,6 @@ import {
   View,
   Text,
   TextInput,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
@@ -37,42 +35,24 @@ export default function VerifyResetCodeScreen() {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const inputRef = useRef<TextInput | null>(null);
   const canSubmit = code.join('').length === CODE_LENGTH;
 
-  const handleCodeChange = (text: string, index: number) => {
-    const newCode = [...code];
+  const handleCodeChange = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, CODE_LENGTH);
+    setCode(Array.from({ length: CODE_LENGTH }, (_, index) => digits[index] ?? ''));
 
-    if (text.length > 1) {
-      const digits = text.replace(/\D/g, '').slice(0, CODE_LENGTH);
-      for (let i = 0; i < CODE_LENGTH; i++) {
-        newCode[i] = digits[i] || '';
-      }
-      setCode(newCode);
-      const nextEmptyIndex = newCode.findIndex((digit) => digit === '');
-      if (nextEmptyIndex === -1) {
-        inputRefs.current[CODE_LENGTH - 1]?.blur();
-      } else {
-        inputRefs.current[nextEmptyIndex]?.focus();
-      }
+    if (digits.length === CODE_LENGTH) {
+      inputRef.current?.blur();
       return;
     }
 
-    newCode[index] = text.replace(/\D/g, '');
-    setCode(newCode);
-
-    if (text && index < CODE_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
+    setFocusedIndex(digits.length);
   };
 
-  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
-      const newCode = [...code];
-      newCode[index - 1] = '';
-      setCode(newCode);
-      inputRefs.current[index - 1]?.focus();
-    }
+  const focusCodeInput = () => {
+    inputRef.current?.focus();
+    setFocusedIndex(Math.min(code.join('').length, CODE_LENGTH - 1));
   };
 
   const handleVerifyCode = async () => {
@@ -155,24 +135,34 @@ export default function VerifyResetCodeScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.normal)
-                .delay(Stagger.card)
-                .easing(Ease.out)}
+              entering={FadeInDown.duration(Duration.normal).delay(Stagger.card).easing(Ease.out)}
             >
               <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
                 Enter reset code
               </Text>
 
               <View style={styles.codeContainer}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.hiddenCodeInput}
+                  value={code.join('')}
+                  onChangeText={handleCodeChange}
+                  onFocus={() => setFocusedIndex(Math.min(code.join('').length, CODE_LENGTH - 1))}
+                  onBlur={() => setFocusedIndex(-1)}
+                  keyboardType="number-pad"
+                  maxLength={CODE_LENGTH}
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  selectionColor={colors.primary}
+                  caretHidden
+                  accessibilityLabel="Reset code"
+                />
                 {Array.from({ length: CODE_LENGTH }).map((_, index) => {
                   const filled = !!code[index];
                   const focused = focusedIndex === index;
                   return (
-                    <TextInput
+                    <TouchableOpacity
                       key={index}
-                      ref={(ref) => {
-                        inputRefs.current[index] = ref;
-                      }}
                       style={[
                         styles.codeInput,
                         {
@@ -182,20 +172,14 @@ export default function VerifyResetCodeScreen() {
                             : filled
                               ? colors.surfaceBorder
                               : colors.inputBorder,
-                          color: colors.text,
                         },
                       ]}
-                      onFocus={() => setFocusedIndex(index)}
-                      onBlur={() => setFocusedIndex(-1)}
-                      value={code[index]}
-                      onChangeText={(text) => handleCodeChange(text, index)}
-                      onKeyPress={(e) => handleKeyPress(e, index)}
-                      keyboardType="number-pad"
-                      maxLength={index === 0 ? CODE_LENGTH : 1}
-                      selectTextOnFocus
-                      selectionColor={colors.primary}
-                      placeholderTextColor={colors.textMuted}
-                    />
+                      onPress={focusCodeInput}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reset code digit ${index + 1}`}
+                    >
+                      <Text style={[styles.codeDigit, { color: colors.text }]}>{code[index]}</Text>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -214,7 +198,13 @@ export default function VerifyResetCodeScreen() {
                 <Text style={[styles.resendText, { color: colors.textSecondary }]}>
                   Need a new code?{' '}
                 </Text>
-                <TouchableOpacity onPress={handleResendCode} disabled={resending}>
+                <TouchableOpacity
+                  onPress={handleResendCode}
+                  disabled={resending}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resend reset code"
+                  accessibilityState={{ disabled: resending, busy: resending }}
+                >
                   <Text
                     style={[
                       styles.resendLink,
@@ -230,6 +220,8 @@ export default function VerifyResetCodeScreen() {
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.replace('/(auth)/forgot-password')}
+                accessibilityRole="button"
+                accessibilityLabel="Back to forgot password"
               >
                 <Text style={[styles.backText, { color: colors.textMuted }]}>Back</Text>
               </TouchableOpacity>
@@ -306,12 +298,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
     gap: 8,
+    position: 'relative',
+  },
+  hiddenCodeInput: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
+    color: 'transparent',
+    backgroundColor: 'transparent',
+    opacity: 0.01,
   },
   codeInput: {
     flex: 1,
     height: 56,
     borderRadius: 14,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  codeDigit: {
     fontSize: Fonts.sizes.xxl,
     fontWeight: '700',
     textAlign: 'center',

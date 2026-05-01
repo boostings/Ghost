@@ -143,8 +143,8 @@ class UserServiceTest {
                 eq(AuditAction.USER_PUSH_TOKEN_UPDATED),
                 eq("User"),
                 eq(userId),
-                eq("ExponentPushToken[old]"),
-                eq("ExponentPushToken[new]")
+                eq("[PUSH_TOKEN_PRESENT]"),
+                eq("[PUSH_TOKEN_PRESENT]")
         );
     }
 
@@ -168,8 +168,8 @@ class UserServiceTest {
                 eq(AuditAction.USER_PUSH_TOKEN_UPDATED),
                 eq("User"),
                 eq(userId),
-                eq("ExponentPushToken[old]"),
-                eq(null)
+                eq("[PUSH_TOKEN_PRESENT]"),
+                eq("[PUSH_TOKEN_CLEARED]")
         );
     }
 }

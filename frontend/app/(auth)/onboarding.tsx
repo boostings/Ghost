@@ -232,9 +232,7 @@ export default function OnboardingScreen() {
 
           <GlassCard
             style={styles.card}
-            entering={FadeInDown.duration(Duration.normal)
-              .delay(Stagger.card)
-              .easing(Ease.out)}
+            entering={FadeInDown.duration(Duration.normal).delay(Stagger.card).easing(Ease.out)}
           >
             <Text style={[styles.cardTitle, { color: colors.text }]}>Join a Class</Text>
             <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>

@@ -240,50 +240,48 @@ export default function CourseCatalogScreen() {
     setPrimaryInstructorEmailError(null);
   }, [creatingSectionId]);
 
-  const createWhiteboardFromSection = useCallback(
-    async () => {
-      if (!setupSection) return;
-      const normalizedPrimaryInstructorEmail = sanitizeSingleLine(primaryInstructorEmail).toLowerCase();
-      if (setupMode === 'helping') {
-        if (!normalizedPrimaryInstructorEmail) {
-          setPrimaryInstructorEmailError('Primary instructor email is required');
-          return;
-        }
-        if (!isValidEmail(normalizedPrimaryInstructorEmail)) {
-          setPrimaryInstructorEmailError('Enter a valid @ilstu.edu email address');
-          return;
-        }
+  const createWhiteboardFromSection = useCallback(async () => {
+    if (!setupSection) return;
+    const normalizedPrimaryInstructorEmail =
+      sanitizeSingleLine(primaryInstructorEmail).toLowerCase();
+    if (setupMode === 'helping') {
+      if (!normalizedPrimaryInstructorEmail) {
+        setPrimaryInstructorEmailError('Primary instructor email is required');
+        return;
       }
+      if (!isValidEmail(normalizedPrimaryInstructorEmail)) {
+        setPrimaryInstructorEmailError('Enter a valid @ilstu.edu email address');
+        return;
+      }
+    }
 
-      setCreatingSectionId(setupSection.id);
-      try {
-        const created = await whiteboardService.createWhiteboard({
-          courseCode: setupSection.courseCode,
-          courseName: setupSection.courseName,
-          section: setupSection.section,
-          semester: setupSection.semester,
-        });
-        addWhiteboard(created);
-        if (setupMode === 'helping') {
-          try {
-            await whiteboardService.inviteFaculty(created.id, normalizedPrimaryInstructorEmail);
-          } catch (inviteError: unknown) {
-            Alert.alert(
-              'Whiteboard Created',
-              `The whiteboard was created, but the primary instructor invite failed: ${extractErrorMessage(inviteError)}`
-            );
-          }
+    setCreatingSectionId(setupSection.id);
+    try {
+      const created = await whiteboardService.createWhiteboard({
+        courseCode: setupSection.courseCode,
+        courseName: setupSection.courseName,
+        section: setupSection.section,
+        semester: setupSection.semester,
+      });
+      addWhiteboard(created);
+      if (setupMode === 'helping') {
+        try {
+          await whiteboardService.inviteFaculty(created.id, normalizedPrimaryInstructorEmail);
+        } catch (inviteError: unknown) {
+          Alert.alert(
+            'Whiteboard Created',
+            `The whiteboard was created, but the primary instructor invite failed: ${extractErrorMessage(inviteError)}`
+          );
         }
-        setSetupSection(null);
-        router.replace(`/whiteboard/${created.id}`);
-      } catch (error: unknown) {
-        Alert.alert('Create failed', extractErrorMessage(error));
-      } finally {
-        setCreatingSectionId(null);
       }
-    },
-    [addWhiteboard, primaryInstructorEmail, router, setupMode, setupSection]
-  );
+      setSetupSection(null);
+      router.replace(`/whiteboard/${created.id}`);
+    } catch (error: unknown) {
+      Alert.alert('Create failed', extractErrorMessage(error));
+    } finally {
+      setCreatingSectionId(null);
+    }
+  }, [addWhiteboard, primaryInstructorEmail, router, setupMode, setupSection]);
 
   const handleSortChoice = useCallback(
     (key: CourseCatalogSortBy) => {
@@ -897,16 +895,13 @@ function FacultySetupSheet({
   onCreate: () => void;
 }) {
   const colorScheme = useColorScheme();
-  const {
-    valid: primaryInstructorEmailValid,
-    visibleError: visiblePrimaryInstructorEmailError,
-  } = getEmailFieldState({
-    value: sanitizeSingleLine(primaryInstructorEmail),
-    active: mode === 'helping',
-    manualError: primaryInstructorEmailError,
-  });
-  const createDisabled =
-    loading || (mode === 'helping' && !primaryInstructorEmailValid);
+  const { valid: primaryInstructorEmailValid, visibleError: visiblePrimaryInstructorEmailError } =
+    getEmailFieldState({
+      value: sanitizeSingleLine(primaryInstructorEmail),
+      active: mode === 'helping',
+      manualError: primaryInstructorEmailError,
+    });
+  const createDisabled = loading || (mode === 'helping' && !primaryInstructorEmailValid);
 
   return (
     <Modal

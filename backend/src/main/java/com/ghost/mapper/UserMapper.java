@@ -1,6 +1,7 @@
 package com.ghost.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ghost.dto.response.UserResponse;
 import com.ghost.model.User;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UserMapper {
+
+    private static final TypeReference<Map<String, Object>> SETTINGS_TYPE = new TypeReference<>() {};
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,7 +45,7 @@ public class UserMapper {
             return Map.of();
         }
         try {
-            return objectMapper.readValue(settingsJson, Map.class);
+            return objectMapper.readValue(settingsJson, SETTINGS_TYPE);
         } catch (JsonProcessingException e) {
             return Map.of();
         }

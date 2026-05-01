@@ -29,12 +29,8 @@ export default function SettingsScreen() {
   const colors = useThemeColors();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const {
-    pushEnabled,
-    emailEnabled,
-    setPushEnabled,
-    setEmailEnabled,
-  } = useNotificationPreferences();
+  const { pushEnabled, emailEnabled, setPushEnabled, setEmailEnabled } =
+    useNotificationPreferences();
   const { anonymousModeEnabled, setAnonymousMode } = useAnonymousMode();
   const isStudent = user?.role === 'STUDENT';
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -207,6 +203,8 @@ export default function SettingsScreen() {
                   onValueChange={setPushEnabled}
                   trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
                   thumbColor={pushEnabled ? colors.primary : colors.textMuted}
+                  accessibilityLabel="Push notifications"
+                  accessibilityHint="Alerts for new answers and comments"
                 />
               </View>
               <View style={[styles.divider, { backgroundColor: colors.surfaceBorder }]} />
@@ -225,6 +223,8 @@ export default function SettingsScreen() {
                   onValueChange={setEmailEnabled}
                   trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
                   thumbColor={emailEnabled ? colors.primary : colors.textMuted}
+                  accessibilityLabel="Email notifications"
+                  accessibilityHint="Daily summary of important updates"
                 />
               </View>
             </View>
@@ -254,6 +254,8 @@ export default function SettingsScreen() {
                     onValueChange={setAnonymousMode}
                     trackColor={{ false: colors.surfaceBorder, true: `${colors.primary}80` }}
                     thumbColor={anonymousModeEnabled ? colors.primary : colors.textMuted}
+                    accessibilityLabel="Anonymous mode"
+                    accessibilityHint="Students see Ghost while faculty still see your name"
                   />
                 </View>
               </View>

@@ -311,6 +311,7 @@ export default function AlertsScreen() {
         </View>
 
         <FlatList
+          style={styles.list}
           data={rows}
           renderItem={renderRow}
           keyExtractor={(row) => row.key}
@@ -419,6 +420,7 @@ function AlertRow({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   safe: { flex: 1 },
+  list: { flex: 1, marginBottom: 96 },
 
   header: {
     flexDirection: 'row',
@@ -474,7 +476,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
 
-  listContent: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 110 },
+  listContent: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 150 },
   emptyContent: { flexGrow: 1, justifyContent: 'center' },
 
   sectionLabel: {

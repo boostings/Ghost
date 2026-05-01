@@ -70,6 +70,7 @@ const IconButton: React.FC<IconButtonProps> = ({
       hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       style={[
         styles.button,
         {
@@ -84,7 +85,13 @@ const IconButton: React.FC<IconButtonProps> = ({
         animatedStyle,
       ]}
     >
-      <Ionicons name={name} size={size} color={iconColor} />
+      <Ionicons
+        name={name}
+        size={size}
+        color={iconColor}
+        accessible={false}
+        importantForAccessibility="no"
+      />
     </AnimatedPressable>
   );
 };

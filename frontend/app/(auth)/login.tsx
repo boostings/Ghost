@@ -159,9 +159,7 @@ export default function LoginScreen() {
             <GlassCard
               style={styles.card}
               blurIntensity={75}
-              entering={FadeInDown.duration(Duration.normal)
-                .delay(Stagger.card)
-                .easing(Ease.out)}
+              entering={FadeInDown.duration(Duration.normal).delay(Stagger.card).easing(Ease.out)}
             >
               <Text style={[styles.cardTitle, { color: colors.text }]}>Welcome Back</Text>
               <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>

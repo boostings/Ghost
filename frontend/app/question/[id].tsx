@@ -473,6 +473,7 @@ export default function QuestionDetailScreen() {
                   multiline
                   maxLength={2000}
                   selectionColor={themeColors.primary}
+                  accessibilityLabel={editingCommentId ? 'Edit comment' : 'Write a comment'}
                 />
                 <TouchableOpacity
                   style={[
@@ -484,6 +485,10 @@ export default function QuestionDetailScreen() {
                   disabled={!commentText.trim() || submitting}
                   accessibilityRole="button"
                   accessibilityLabel="Post comment"
+                  accessibilityState={{
+                    disabled: !commentText.trim() || submitting,
+                    busy: submitting,
+                  }}
                 >
                   {submitting ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
@@ -571,7 +576,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 36,
   },
   questionSection: {
     marginBottom: 8,
@@ -775,7 +780,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundLight,
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 12,
   },
   editingBanner: {
     flexDirection: 'row',
@@ -807,10 +812,10 @@ const styles = StyleSheet.create({
   commentInput: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 20,
+    borderRadius: 18,
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingTop: 9,
+    paddingBottom: 9,
     color: Colors.text,
     fontSize: Fonts.sizes.md,
     maxHeight: 120,
@@ -818,9 +823,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

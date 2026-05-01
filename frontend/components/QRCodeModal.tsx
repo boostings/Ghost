@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Share } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Share, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
@@ -12,6 +12,7 @@ interface QRCodeModalProps {
   onClose: () => void;
   inviteCode: string;
   whiteboardName: string;
+  subtitle?: string;
 }
 
 const QRCodeModal: React.FC<QRCodeModalProps> = ({
@@ -19,6 +20,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
   onClose,
   inviteCode,
   whiteboardName,
+  subtitle,
 }) => {
   const deepLink = `ghost://join/${inviteCode}`;
   const [copied, setCopied] = useState(false);
@@ -61,10 +63,15 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
   return (
     <GlassModal visible={visible} onClose={onClose} title={whiteboardName}>
       <View style={styles.content}>
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        ) : null}
         {/* QR Code */}
         <View style={styles.qrContainer}>
           <View style={styles.qrBackground}>
-            <QRCode value={deepLink} size={200} backgroundColor="#FFFFFF" color="#111827" />
+            <QRCode value={deepLink} size={172} backgroundColor="#FFFFFF" color="#111827" />
           </View>
         </View>
 
@@ -104,24 +111,34 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
   },
+  subtitle: {
+    alignSelf: 'stretch',
+    color: Colors.textSecondary,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: Fonts.medium.fontWeight,
+    textAlign: 'center',
+    lineHeight: 17,
+    marginTop: -2,
+    marginBottom: 10,
+  },
   qrContainer: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   qrBackground: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 14,
   },
   instructions: {
     color: Colors.textSecondary,
     fontSize: Fonts.sizes.md,
     fontWeight: Fonts.regular.fontWeight,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   codeSection: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 14,
   },
   codeLabel: {
     color: Colors.textMuted,
@@ -135,15 +152,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
   codeText: {
     color: Colors.text,
-    fontSize: Fonts.sizes.xxl,
+    fontSize: Fonts.sizes.xl,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     fontWeight: Fonts.bold.fontWeight,
-    letterSpacing: 4,
+    letterSpacing: 2,
   },
   copyHint: {
     color: Colors.textMuted,

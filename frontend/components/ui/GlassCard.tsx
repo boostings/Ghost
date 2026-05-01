@@ -18,6 +18,7 @@ interface GlassCardProps {
   blurIntensity?: number;
   onPress?: () => void;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
   entering?: AnimatedViewProps['entering'];
   exiting?: AnimatedViewProps['exiting'];
   layout?: AnimatedViewProps['layout'];
@@ -31,6 +32,7 @@ const GlassCard: React.FC<GlassCardProps> = ({
   blurIntensity = 60,
   onPress,
   accessibilityLabel,
+  accessibilityHint,
   entering,
   exiting,
   layout,
@@ -88,6 +90,7 @@ const GlassCard: React.FC<GlassCardProps> = ({
           onPressOut={handlePressOut}
           accessibilityRole="button"
           accessibilityLabel={accessibilityLabel}
+          accessibilityHint={accessibilityHint}
           style={[styles.pressable, pressStyle]}
         >
           {inner}

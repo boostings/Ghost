@@ -39,6 +39,8 @@ interface GlassInputProps {
   editable?: boolean;
   showClear?: boolean;
   style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 const GlassInput: React.FC<GlassInputProps> = ({
@@ -59,6 +61,8 @@ const GlassInput: React.FC<GlassInputProps> = ({
   editable = true,
   showClear = false,
   style,
+  accessibilityLabel,
+  accessibilityHint,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showSecure, setShowSecure] = useState(secureTextEntry ?? false);
@@ -101,7 +105,11 @@ const GlassInput: React.FC<GlassInputProps> = ({
           !editable && styles.containerDisabled,
         ]}
       >
-        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        {icon && (
+          <View style={styles.iconContainer} accessible={false} importantForAccessibility="no">
+            {icon}
+          </View>
+        )}
         <TextInput
           style={[
             styles.input,
@@ -123,6 +131,9 @@ const GlassInput: React.FC<GlassInputProps> = ({
           onSubmitEditing={onSubmitEditing}
           maxLength={maxLength}
           editable={editable}
+          accessibilityLabel={accessibilityLabel ?? label ?? placeholder}
+          accessibilityHint={accessibilityHint}
+          accessibilityState={{ disabled: !editable }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           selectionColor={colors.primary}
@@ -134,6 +145,7 @@ const GlassInput: React.FC<GlassInputProps> = ({
             style={styles.affordance}
             accessibilityRole="button"
             accessibilityLabel={showSecure ? 'Show password' : 'Hide password'}
+            accessibilityState={{ selected: !showSecure }}
           >
             <Ionicons
               name={showSecure ? 'eye-outline' : 'eye-off-outline'}

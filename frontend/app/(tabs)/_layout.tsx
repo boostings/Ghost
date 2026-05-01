@@ -81,6 +81,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const unreadCount = useNotificationStore((store) => store.unreadCount);
 
   // Filter the routes to only the ones we want to render. Keeps "search"
   // (registered with href:null) out of the bar even if React Navigation still
@@ -155,7 +156,12 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         iconActive={tabConfig.iconActive}
         iconInactive={tabConfig.iconInactive}
         showBadge={tabConfig.name === 'notifications'}
-        accessibilityLabel={descriptor.options.tabBarAccessibilityLabel ?? `${tabConfig.label} tab`}
+        accessibilityLabel={
+          descriptor.options.tabBarAccessibilityLabel ??
+          (tabConfig.name === 'notifications' && unreadCount > 0
+            ? `${tabConfig.label} tab, ${unreadCount} unread ${unreadCount === 1 ? 'alert' : 'alerts'}`
+            : `${tabConfig.label} tab`)
+        }
         onPress={onPress}
         onLongPress={onLongPress}
         reduceMotion={reduceMotion}
@@ -273,7 +279,13 @@ function TabSlot({
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Animated.View style={[styles.iconWrap, animatedIconStyle]}>
-        <Ionicons name={iconName} size={22} color={iconColor} />
+        <Ionicons
+          name={iconName}
+          size={22}
+          color={iconColor}
+          accessible={false}
+          importantForAccessibility="no"
+        />
         {showBadge ? <NotificationBadge colors={colors} /> : null}
       </Animated.View>
       <Text
@@ -293,7 +305,11 @@ function NotificationBadge({ colors }: { colors: AppColors }) {
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   if (unreadCount === 0) return null;
   return (
-    <View style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.cardBg }]}>
+    <View
+      style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.cardBg }]}
+      accessible={false}
+      importantForAccessibility="no"
+    >
       <Text style={styles.badgeText} allowFontScaling={false}>
         {unreadCount > 99 ? '99+' : unreadCount}
       </Text>

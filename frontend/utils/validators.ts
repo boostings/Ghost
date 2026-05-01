@@ -160,7 +160,6 @@ export function getEmailFieldState({
 }: EmailFieldOptions): EmailFieldState {
   const normalized = value.trim().toLowerCase();
   const valid = isValidEmail(normalized);
-  const visibleError =
-    manualError ?? (active && normalized && !valid ? invalidMessage : undefined);
+  const visibleError = manualError ?? (active && normalized && !valid ? invalidMessage : undefined);
   return { normalized, valid, visibleError };
 }

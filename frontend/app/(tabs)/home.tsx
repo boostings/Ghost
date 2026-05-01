@@ -352,10 +352,7 @@ export default function HomeScreen() {
                 color={colors.textMuted}
                 motion="none"
               />
-              <Text
-                style={[styles.teacherText, { color: colors.textSecondary }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.teacherText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {item.ownerName}
               </Text>
             </View>
@@ -408,9 +405,7 @@ export default function HomeScreen() {
     const visibleItems = expanded ? items : items.slice(0, 3);
     const remaining = items.length - 3;
     const toggle = () =>
-      variant === 'awaiting'
-        ? setShowAllAwaiting((v) => !v)
-        : setShowAllAnswered((v) => !v);
+      variant === 'awaiting' ? setShowAllAwaiting((v) => !v) : setShowAllAnswered((v) => !v);
 
     const isAnswered = variant === 'answered';
     const accent = isAnswered ? colors.verifiedAnswer : colors.warning;
@@ -430,7 +425,10 @@ export default function HomeScreen() {
               onPress={() => navigateToQuestion(item)}
               style={({ pressed }) => [
                 styles.questionRow,
-                idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.surfaceBorder },
+                idx > 0 && {
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: colors.surfaceBorder,
+                },
                 pressed && { backgroundColor: colors.surfaceLight },
               ]}
               accessibilityRole="button"
@@ -438,10 +436,7 @@ export default function HomeScreen() {
             >
               <View style={[styles.statusDot, { backgroundColor: accent }]} />
               <View style={styles.questionRowBody}>
-                <Text
-                  style={[styles.questionRowTitle, { color: colors.text }]}
-                  numberOfLines={1}
-                >
+                <Text style={[styles.questionRowTitle, { color: colors.text }]} numberOfLines={1}>
                   {item.title}
                 </Text>
                 <Text
@@ -470,10 +465,7 @@ export default function HomeScreen() {
         {items.length > 3 ? (
           <Pressable
             onPress={toggle}
-            style={({ pressed }) => [
-              styles.loadMoreButton,
-              pressed && { opacity: 0.6 },
-            ]}
+            style={({ pressed }) => [styles.loadMoreButton, pressed && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel={expanded ? 'Show fewer' : `Show ${remaining} more`}
           >
@@ -493,9 +485,7 @@ export default function HomeScreen() {
       entering={FadeInDown.duration(Duration.normal).delay(Stagger.hero).easing(Ease.out)}
     >
       {renderMyQuestionStrip(awaitingTitle, 'awaiting', awaitingQuestions)}
-      {!isFaculty
-        ? renderMyQuestionStrip(answeredTitle, 'answered', answeredQuestions)
-        : null}
+      {!isFaculty ? renderMyQuestionStrip(answeredTitle, 'answered', answeredQuestions) : null}
       {whiteboards.length > 0 ? (
         <Text style={[styles.classesHeading, { color: colors.text }]}>Your Classes</Text>
       ) : null}
@@ -643,11 +633,7 @@ export default function HomeScreen() {
           )}
         </GlassModal>
 
-        <GlassModal
-          visible={showScannerModal}
-          onClose={closeScanner}
-          title="Scan Class QR"
-        >
+        <GlassModal visible={showScannerModal} onClose={closeScanner} title="Scan Class QR">
           <View
             style={[
               styles.scannerContainer,

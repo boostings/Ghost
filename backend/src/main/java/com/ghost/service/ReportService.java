@@ -139,6 +139,7 @@ public class ReportService {
         }
 
         Report report = reportBuilder.build();
+        report.setCreatedAt(LocalDateTime.now());
         report = reportRepository.save(report);
         notifyFacultyOfSubmittedReport(
                 whiteboardId,

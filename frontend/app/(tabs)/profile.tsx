@@ -266,6 +266,7 @@ export default function ProfileScreen() {
         </View>
 
         <FlatList
+          style={styles.list}
           data={questions}
           renderItem={renderQuestion}
           keyExtractor={(item) => item.id}
@@ -289,7 +290,7 @@ export default function ProfileScreen() {
                 <View style={[styles.heroEdge, { backgroundColor: colors.primary }]} />
                 <View style={styles.heroBody}>
                   <View style={styles.heroTop}>
-                    <Avatar firstName={firstName} lastName={lastName} size={68} />
+                    <Avatar firstName={firstName} lastName={lastName} size={58} />
                     <View style={styles.heroNameBlock}>
                       <Text style={[styles.heroName, { color: colors.text }]} numberOfLines={1}>
                         {fullName}
@@ -457,6 +458,8 @@ export default function ProfileScreen() {
                           true: 'rgba(187,39,68,0.55)',
                         }}
                         thumbColor={pushEnabled ? colors.primary : colors.textMuted}
+                        accessibilityLabel="Push notifications"
+                        accessibilityHint="Alerts for new answers and comments"
                       />
                     </View>
                     <View
@@ -482,6 +485,8 @@ export default function ProfileScreen() {
                           true: 'rgba(187,39,68,0.55)',
                         }}
                         thumbColor={emailEnabled ? colors.primary : colors.textMuted}
+                        accessibilityLabel="Email summaries"
+                        accessibilityHint="Periodic digests of class activity"
                       />
                     </View>
                   </View>
@@ -519,6 +524,8 @@ export default function ProfileScreen() {
                             true: 'rgba(187,39,68,0.55)',
                           }}
                           thumbColor={anonymousModeEnabled ? colors.primary : colors.textMuted}
+                          accessibilityLabel="Anonymous mode"
+                          accessibilityHint="Students see Ghost while faculty still see your name"
                         />
                       </View>
                     </View>
@@ -559,6 +566,7 @@ export default function ProfileScreen() {
                     ]}
                     accessibilityRole="button"
                     accessibilityLabel="Delete account"
+                    accessibilityState={{ disabled: deleting, busy: deleting }}
                   >
                     {deleting ? (
                       <ActivityIndicator size="small" color={colors.error} />
@@ -571,6 +579,7 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
                 <Text style={[styles.versionText, { color: colors.textMuted }]}>Ghost v1.0.0</Text>
+                <View style={styles.tabBarSpacer} />
               </View>
             </>
           }
@@ -719,13 +728,14 @@ function QuestionRow({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   safe: { flex: 1 },
+  list: { flex: 1, marginBottom: 96 },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 18,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   headerCopy: { flex: 1 },
   eyebrow: {
@@ -735,27 +745,27 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 36,
-    lineHeight: 38,
+    fontSize: 34,
+    lineHeight: 36,
     fontWeight: '900',
     letterSpacing: -0.8,
   },
 
-  listContent: { paddingHorizontal: 20, paddingBottom: 130 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 140 },
 
   heroCard: {
     flexDirection: 'row',
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   heroEdge: { width: 4 },
-  heroBody: { flex: 1, padding: 16 },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroBody: { flex: 1, padding: 13 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroNameBlock: { flex: 1 },
   heroName: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '900',
     letterSpacing: -0.4,
   },
@@ -788,7 +798,7 @@ const styles = StyleSheet.create({
   heroEmail: {
     fontSize: 13,
     fontWeight: '600',
-    marginTop: 12,
+    marginTop: 8,
   },
 
   standingCard: {
@@ -826,10 +836,10 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 22 },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   statTile: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
@@ -849,7 +859,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  settingsBlock: { marginBottom: 22 },
+  settingsBlock: { marginBottom: 12 },
   blockEyebrow: {
     fontSize: 11,
     fontWeight: '900',
@@ -863,7 +873,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   settingRail: { width: 3 },
-  settingsCardBody: { flex: 1, padding: 14 },
+  settingsCardBody: { flex: 1, padding: 11 },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -878,7 +888,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   settingDescription: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
-  settingDivider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
+  settingDivider: { height: StyleSheet.hairlineWidth, marginVertical: 8 },
 
   actionRow: { flexDirection: 'row', gap: 10 },
   actionButton: {
@@ -887,7 +897,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 50,
+    height: 46,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -905,6 +915,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 16,
   },
+  tabBarSpacer: { height: 96 },
 
   sectionHeader: {
     flexDirection: 'row',
@@ -1004,18 +1015,18 @@ const styles = StyleSheet.create({
 
   loadingState: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' },
   emptyState: {
-    paddingVertical: 40,
+    paddingVertical: 24,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
   emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   emptyTitle: {
     fontSize: 16,

@@ -28,6 +28,7 @@ class EmailServiceTest {
                 "resend-key",
                 "Ghost <noreply@example.com>",
                 "https://api.resend.test/emails",
+                true,
                 restClientBuilder
         );
 
@@ -53,6 +54,7 @@ class EmailServiceTest {
                 "",
                 "Ghost <noreply@example.com>",
                 "https://api.resend.test/emails",
+                true,
                 RestClient.builder()
         );
 
@@ -62,5 +64,24 @@ class EmailServiceTest {
         assertThat(output).contains("student@ilstu.edu");
         assertThat(output).contains("Your Ghost verification code");
         assertThat(output).contains("123456");
+    }
+
+    @Test
+    void sendPasswordResetCodeShouldLogCodeWhenEmailDeliveryIsDisabledByConfig(CapturedOutput output) {
+        EmailService emailService = new EmailService(
+                "resend-key",
+                "Ghost <noreply@example.com>",
+                "https://api.resend.test/emails",
+                false,
+                RestClient.builder()
+        );
+
+        emailService.sendPasswordResetCode("student@ilstu.edu", "654321");
+
+        assertThat(output).contains("[email-disabled]");
+        assertThat(output).contains("disabled-by-config");
+        assertThat(output).contains("student@ilstu.edu");
+        assertThat(output).contains("Your Ghost password reset code");
+        assertThat(output).contains("654321");
     }
 }

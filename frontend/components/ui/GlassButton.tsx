@@ -26,6 +26,7 @@ interface GlassButtonProps {
   loading?: boolean;
   icon?: React.ReactNode;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
   solid?: boolean;
 }
 
@@ -40,6 +41,7 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   loading = false,
   icon,
   accessibilityLabel,
+  accessibilityHint,
   solid = false,
 }) => {
   const colorScheme = useColorScheme();
@@ -88,6 +90,8 @@ const GlassButton: React.FC<GlassButtonProps> = ({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
       {isSolid ? (
         <LinearGradient
@@ -106,7 +110,15 @@ const GlassButton: React.FC<GlassButtonProps> = ({
               <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
             ) : (
               <View style={styles.content}>
-                {icon && <View style={styles.iconContainer}>{icon}</View>}
+                {icon && (
+                  <View
+                    style={styles.iconContainer}
+                    accessible={false}
+                    importantForAccessibility="no"
+                  >
+                    {icon}
+                  </View>
+                )}
                 <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
                   {title}
                 </Text>
@@ -135,7 +147,15 @@ const GlassButton: React.FC<GlassButtonProps> = ({
               <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
             ) : (
               <View style={styles.content}>
-                {icon && <View style={styles.iconContainer}>{icon}</View>}
+                {icon && (
+                  <View
+                    style={styles.iconContainer}
+                    accessible={false}
+                    importantForAccessibility="no"
+                  >
+                    {icon}
+                  </View>
+                )}
                 <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
                   {title}
                 </Text>

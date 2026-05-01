@@ -113,9 +113,7 @@ export default function NewPasswordScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.normal)
-                .delay(Stagger.card)
-                .easing(Ease.out)}
+              entering={FadeInDown.duration(Duration.normal).delay(Stagger.card).easing(Ease.out)}
             >
               <GlassInput
                 label="New Password"
@@ -158,6 +156,8 @@ export default function NewPasswordScreen() {
                     router.replace('/(auth)/forgot-password');
                   }
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
               >
                 <Text style={[styles.backText, { color: colors.textMuted }]}>Back</Text>
               </TouchableOpacity>

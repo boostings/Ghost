@@ -16,3 +16,6 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET}
+
+resend:
+  enabled: ${RESEND_ENABLED:false}

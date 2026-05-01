@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -94,8 +95,7 @@ export default function WhiteboardSettingsScreen() {
     value: transferEmail,
     manualError: transferEmailError,
   });
-  const transferDisabled =
-    transferring || !normalizedTransferEmail || !transferEmailValid;
+  const transferDisabled = transferring || !normalizedTransferEmail || !transferEmailValid;
 
   const handleTransferOwnership = async () => {
     if (!whiteboardId) return;
@@ -241,21 +241,24 @@ export default function WhiteboardSettingsScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.qrPlaceholder}
+                style={styles.qrPreviewRow}
                 onPress={handleOpenQrModal}
                 activeOpacity={0.8}
               >
                 {qrValue ? (
                   <View style={styles.inlineQrBackground}>
-                    <QRCode value={qrValue} size={132} backgroundColor="#FFFFFF" color="#111827" />
+                    <QRCode value={qrValue} size={72} backgroundColor="#FFFFFF" color="#111827" />
                   </View>
                 ) : (
                   <View style={styles.inlineQrUnavailable}>
                     <Text style={styles.inlineQrUnavailableText}>QR unavailable</Text>
                   </View>
                 )}
-                <Text style={styles.qrText}>Open Full QR Code</Text>
-                <Text style={styles.qrSubtext}>Students can scan this to join</Text>
+                <View style={styles.qrPreviewCopy}>
+                  <Text style={styles.qrText}>Open Full QR Code</Text>
+                  <Text style={styles.qrSubtext}>Students can scan this to join</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
               </TouchableOpacity>
             </GlassCard>
           )}
@@ -427,9 +430,8 @@ export default function WhiteboardSettingsScreen() {
           visible={showQrModal}
           onClose={() => setShowQrModal(false)}
           inviteCode={inviteCode}
-          whiteboardName={
-            whiteboard ? `${whiteboard.courseCode} - ${whiteboard.courseName}` : 'Whiteboard'
-          }
+          whiteboardName={whiteboard?.courseCode || 'Whiteboard'}
+          subtitle={whiteboard?.courseName}
         />
       </SafeAreaView>
     </LinearGradient>
@@ -450,7 +452,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 72,
   },
   heroCard: {
     marginBottom: 16,
@@ -574,45 +576,49 @@ const styles = StyleSheet.create({
   },
   inviteCodeText: {
     fontSize: Fonts.sizes.xxxl,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     fontWeight: '800',
     color: Colors.primary,
-    letterSpacing: 4,
+    letterSpacing: 2,
   },
   copyText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
     marginTop: 4,
   },
-  qrPlaceholder: {
+  qrPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
+    padding: 12,
   },
   inlineQrBackground: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 7,
   },
   inlineQrUnavailable: {
-    width: 152,
-    height: 152,
-    borderRadius: 14,
+    width: 86,
+    height: 86,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   inlineQrUnavailableText: {
     color: Colors.textMuted,
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
   },
+  qrPreviewCopy: {
+    flex: 1,
+  },
   qrText: {
-    fontSize: Fonts.sizes.lg,
-    fontWeight: '600',
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 4,
   },

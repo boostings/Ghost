@@ -153,9 +153,7 @@ export default function RegisterScreen() {
 
             <GlassCard
               style={styles.card}
-              entering={FadeInDown.duration(Duration.normal)
-                .delay(Stagger.card)
-                .easing(Ease.out)}
+              entering={FadeInDown.duration(Duration.normal).delay(Stagger.card).easing(Ease.out)}
             >
               <View style={styles.nameRow}>
                 <View style={styles.nameField}>

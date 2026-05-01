@@ -206,37 +206,39 @@ export default function WhiteboardDetailScreen() {
                   />
                 </TouchableOpacity>
               )}
-              <View style={styles.metaItem}>
-                <AnimatedIcon
-                  name="arrow-up"
-                  size={13}
-                  color={
-                    item.karmaScore > 0
-                      ? Colors.success
-                      : item.karmaScore < 0
-                        ? Colors.error
-                        : Colors.textMuted
-                  }
-                  motion="none"
-                />
-                <Text
-                  style={[
-                    styles.metaCount,
-                    item.karmaScore > 0 && styles.karmaPositive,
-                    item.karmaScore < 0 && styles.karmaNegative,
-                  ]}
-                >
-                  {item.karmaScore}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <AnimatedIcon
-                  name="chatbubble-outline"
-                  size={13}
-                  color={Colors.textMuted}
-                  motion="none"
-                />
-                <Text style={styles.metaCount}>{item.commentCount}</Text>
+              <View style={styles.footerStatGroup}>
+                <View style={styles.metaItem}>
+                  <AnimatedIcon
+                    name="arrow-up"
+                    size={13}
+                    color={
+                      item.karmaScore > 0
+                        ? Colors.success
+                        : item.karmaScore < 0
+                          ? Colors.error
+                          : Colors.textMuted
+                    }
+                    motion="none"
+                  />
+                  <Text
+                    style={[
+                      styles.metaCount,
+                      item.karmaScore > 0 && styles.karmaPositive,
+                      item.karmaScore < 0 && styles.karmaNegative,
+                    ]}
+                  >
+                    {item.karmaScore}
+                  </Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <AnimatedIcon
+                    name="chatbubble-outline"
+                    size={13}
+                    color={Colors.textMuted}
+                    motion="none"
+                  />
+                  <Text style={styles.metaCount}>{item.commentCount}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -387,10 +389,7 @@ export default function WhiteboardDetailScreen() {
                 motion="none"
               />
             </View>
-            <Text
-              style={[styles.heroTitle, { color: colors.text }]}
-              numberOfLines={2}
-            >
+            <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
               {whiteboard?.courseName || 'Whiteboard'}
             </Text>
           </View>
@@ -454,6 +453,7 @@ export default function WhiteboardDetailScreen() {
               autoCorrect={false}
               autoCapitalize="none"
               returnKeyType="search"
+              accessibilityLabel="Search questions"
             />
             {searchQuery.length > 0 ? (
               <TouchableOpacity
@@ -614,6 +614,7 @@ export default function WhiteboardDetailScreen() {
                 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
+                accessibilityLabel={`Sort by ${option.label}`}
               >
                 <Text style={[styles.sortOptionLabel, selected && styles.sortOptionLabelSelected]}>
                   {option.label}
@@ -740,6 +741,8 @@ function StatPill({
         styles.statPill,
         { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.surfaceBorder },
       ]}
+      accessible
+      accessibilityLabel={`${label}: ${value}`}
     >
       <View style={[styles.statDot, { backgroundColor: accent }]} />
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -896,6 +899,7 @@ const styles = StyleSheet.create({
   filterRow: {
     gap: 8,
     paddingHorizontal: 24,
+    paddingRight: 48,
     paddingBottom: 8,
     alignItems: 'center',
   },
@@ -938,7 +942,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 32,
+    paddingBottom: 72,
   },
   emptyList: {
     flexGrow: 1,
@@ -1040,7 +1044,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   footerActionButton: {
     minHeight: 32,
@@ -1061,6 +1065,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  footerStatGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 2,
   },
   metaCount: {
     fontSize: Fonts.sizes.sm,
@@ -1129,5 +1139,4 @@ const styles = StyleSheet.create({
   sortOptionLabelSelected: {
     color: Colors.primary,
   },
-
 });

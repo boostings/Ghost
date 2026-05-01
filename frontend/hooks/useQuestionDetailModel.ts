@@ -62,14 +62,11 @@ export function useQuestionDetailModel({
   const targetWhiteboard = targetWhiteboardId
     ? whiteboards.find((w) => w.id === targetWhiteboardId)
     : undefined;
-  const isOwner =
-    targetWhiteboard != null && user != null && targetWhiteboard.ownerId === user.id;
+  const isOwner = targetWhiteboard != null && user != null && targetWhiteboard.ownerId === user.id;
   const isFaculty =
     targetWhiteboard?.myRole === 'FACULTY' ||
     isOwner ||
-    (targetWhiteboard != null &&
-      targetWhiteboard.myRole === undefined &&
-      user?.role === 'FACULTY');
+    (targetWhiteboard != null && targetWhiteboard.myRole === undefined && user?.role === 'FACULTY');
 
   const fetchData = useCallback(async () => {
     if (!questionId) {
