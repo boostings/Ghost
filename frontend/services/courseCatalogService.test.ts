@@ -147,14 +147,19 @@ describe('courseCatalogService', () => {
   it('imports only the backend-defined allowed catalog terms', async () => {
     const { module, apiMock } = await loadCourseCatalogService();
     const result = {
-      allowedTerms: ['Summer 2026', 'Fall 2026', 'Winter 2026'],
+      allowedTerms: ['Spring 2026', 'Summer 2026', 'Fall 2026', 'Winter 2026'],
       sectionsImported: 5941,
     };
     apiMock.post.mockResolvedValue({ data: result });
 
     await expect(module.courseCatalogService.importAllowedTerms()).resolves.toEqual(result);
 
-    expect(module.COURSE_CATALOG_TERMS).toEqual(['Summer 2026', 'Fall 2026', 'Winter 2026']);
+    expect(module.COURSE_CATALOG_TERMS).toEqual([
+      'Spring 2026',
+      'Summer 2026',
+      'Fall 2026',
+      'Winter 2026',
+    ]);
     expect(apiMock.post).toHaveBeenCalledWith('/faculty/course-catalog/import');
   });
 });

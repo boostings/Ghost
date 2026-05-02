@@ -7,6 +7,7 @@ const mockSetWhiteboards = jest.fn();
 const mockSetLoading = jest.fn();
 const mockRequestCameraPermission = jest.fn();
 const mockWhiteboardList = jest.fn();
+const mockGetMyQuestions = jest.fn();
 
 const mockAuthStoreState = {
   user: {
@@ -99,9 +100,15 @@ jest.mock('../../stores/whiteboardStore', () => ({
 
 jest.mock('../../services/whiteboardService', () => ({
   whiteboardService: {
-    list: (...args: unknown[]) => mockWhiteboardList(...args),
+    getWhiteboards: (...args: unknown[]) => mockWhiteboardList(...args),
     joinByInviteCode: jest.fn(),
     hasAnyWhiteboard: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/questionService', () => ({
+  questionService: {
+    getMyQuestions: (...args: unknown[]) => mockGetMyQuestions(...args),
   },
 }));
 
@@ -117,6 +124,10 @@ describe('smoke app shell', () => {
       content: [],
       totalPages: 0,
     });
+    mockGetMyQuestions.mockResolvedValue({
+      content: [],
+      totalPages: 0,
+    });
   });
 
   it('renders the login screen and shows required-field validation on submit', async () => {
@@ -125,7 +136,7 @@ describe('smoke app shell', () => {
     fireEvent(getByPlaceholderText('Enter your password'), 'submitEditing');
 
     expect(getByText('Welcome Back')).toBeTruthy();
-    expect(await findByText('Email is required')).toBeTruthy();
+    expect(await findByText('Use your @ilstu.edu address')).toBeTruthy();
     expect(await findByText('Password is required')).toBeTruthy();
   });
 
@@ -137,7 +148,7 @@ describe('smoke app shell', () => {
     });
 
     await waitFor(() => {
-      expect(mockWhiteboardList).toHaveBeenCalledWith(0, 20);
+      expect(mockWhiteboardList).toHaveBeenCalledWith({ page: 0, size: 20 });
     });
 
     // "Your Classes" only renders when the user has at least one whiteboard;

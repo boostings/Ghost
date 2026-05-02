@@ -7,6 +7,7 @@ const mockSetWhiteboards = jest.fn();
 const mockSetLoading = jest.fn();
 const mockRequestCameraPermission = jest.fn();
 const mockWhiteboardList = jest.fn();
+const mockGetMyQuestions = jest.fn();
 
 const mockAuthStoreState = {
   user: {
@@ -108,8 +109,14 @@ jest.mock('../../stores/whiteboardStore', () => ({
 
 jest.mock('../../services/whiteboardService', () => ({
   whiteboardService: {
-    list: (...args: unknown[]) => mockWhiteboardList(...args),
+    getWhiteboards: (...args: unknown[]) => mockWhiteboardList(...args),
     joinByInviteCode: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/questionService', () => ({
+  questionService: {
+    getMyQuestions: (...args: unknown[]) => mockGetMyQuestions(...args),
   },
 }));
 
@@ -124,6 +131,10 @@ describe('HomeScreen bootstrap integration', () => {
     jest.clearAllMocks();
     mockWhiteboardStoreState.whiteboards = [];
     mockWhiteboardStoreState.isLoading = false;
+    mockGetMyQuestions.mockResolvedValue({
+      content: [],
+      totalPages: 0,
+    });
   });
 
   it('only requests the first page once when focus fires twice during startup', async () => {
@@ -135,6 +146,6 @@ describe('HomeScreen bootstrap integration', () => {
       expect(mockWhiteboardList).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockWhiteboardList).toHaveBeenCalledWith(0, 20);
+    expect(mockWhiteboardList).toHaveBeenCalledWith({ page: 0, size: 20 });
   });
 });

@@ -31,8 +31,8 @@ jest.mock('../../stores/authStore', () => ({
 jest.mock('../../services/whiteboardService', () => ({
   __esModule: true,
   whiteboardService: {
-    list: jest.fn(),
-    listDiscoverable: jest.fn(),
+    getWhiteboards: jest.fn(),
+    getDiscoverableWhiteboards: jest.fn(),
     joinByInviteCode: jest.fn(),
     requestToJoin: jest.fn(),
   },
@@ -54,14 +54,14 @@ describe('Onboarding catalog access', () => {
     mockUseAuthStore.mockImplementation((selector: (state: unknown) => unknown) =>
       selector({ user: { id: 'faculty-1', role: 'FACULTY' } })
     );
-    mockWhiteboardService.list.mockResolvedValue(emptyPage);
-    mockWhiteboardService.listDiscoverable.mockResolvedValue(emptyPage);
+    mockWhiteboardService.getWhiteboards.mockResolvedValue(emptyPage);
+    mockWhiteboardService.getDiscoverableWhiteboards.mockResolvedValue(emptyPage);
   });
 
   it('lets first-time faculty open the class catalog before joining a whiteboard', async () => {
     const { getByText } = render(<OnboardingScreen />);
 
-    await waitFor(() => expect(mockWhiteboardService.list).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockWhiteboardService.getWhiteboards).toHaveBeenCalledTimes(1));
 
     fireEvent.press(getByText('Create From Class Catalog'));
 
