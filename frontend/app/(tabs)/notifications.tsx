@@ -84,7 +84,6 @@ export default function AlertsScreen() {
   const notifications = useNotificationStore((state) => state.notifications);
   const setNotifications = useNotificationStore((state) => state.setNotifications);
   const markAsRead = useNotificationStore((state) => state.markAsRead);
-  const storeMarkAllAsRead = useNotificationStore((state) => state.markAllAsRead);
   const clearAll = useNotificationStore((state) => state.clearAll);
   const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
   const setLoading = useNotificationStore((state) => state.setLoading);
@@ -168,13 +167,6 @@ export default function AlertsScreen() {
     },
     [markAsRead, router]
   );
-
-  const handleMarkAll = useCallback(() => {
-    if (notifications.every((n) => n.isRead)) return;
-    haptic.success();
-    storeMarkAllAsRead();
-    notificationService.markAllAsRead().catch(() => undefined);
-  }, [notifications, storeMarkAllAsRead]);
 
   const handleClearAll = useCallback(() => {
     if (notifications.length === 0) return;
@@ -274,26 +266,6 @@ export default function AlertsScreen() {
               >
                 <Ionicons name="trash-outline" size={14} color={colors.error} />
                 <Text style={[styles.headerActionText, { color: colors.error }]}>Clear all</Text>
-              </Pressable>
-            ) : null}
-            {unreadCount > 0 ? (
-              <Pressable
-                onPress={handleMarkAll}
-                style={({ pressed }) => [
-                  styles.headerActionButton,
-                  {
-                    backgroundColor: `${colors.primary}1F`,
-                    borderColor: `${colors.primary}40`,
-                  },
-                  pressed && { backgroundColor: `${colors.primary}33` },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Mark all as read"
-              >
-                <Ionicons name="checkmark-done" size={14} color={colors.primary} />
-                <Text style={[styles.headerActionText, { color: colors.primary }]}>
-                  Mark all read
-                </Text>
               </Pressable>
             ) : null}
           </View>
