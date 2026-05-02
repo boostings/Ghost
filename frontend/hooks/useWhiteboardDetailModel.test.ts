@@ -70,6 +70,7 @@ jest.mock('../services/bookmarkService', () => ({
 import { questionService } from '../services/questionService';
 import { whiteboardService } from '../services/whiteboardService';
 import { notifyQuestionDeleted } from '../utils/questionDeletionEvents';
+import { notifyQuestionChanged } from '../utils/questionEvents';
 import { useWhiteboardDetailModel } from './useWhiteboardDetailModel';
 
 const mockQuestionService = questionService as jest.Mocked<typeof questionService>;
@@ -281,5 +282,39 @@ describe('useWhiteboardDetailModel', () => {
     });
 
     expect(result.current.questions.map((question) => question.id)).toEqual(['q-2']);
+  });
+
+  it('adds locally created questions to the mounted whiteboard feed immediately', async () => {
+    mockQuestionService.getQuestions.mockResolvedValue({
+      content: [makeQuestion({ id: 'q-1', createdAt: '2026-01-01T00:00:00.000Z' })],
+      page: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+
+    const { result } = renderHook(() => useWhiteboardDetailModel('wb-1'));
+
+    await waitFor(() =>
+      expect(result.current.questions.map((question) => question.id)).toEqual(['q-1'])
+    );
+
+    act(() => {
+      notifyQuestionChanged({
+        whiteboardId: 'wb-1',
+        question: makeQuestion({ id: 'q-new', createdAt: '2026-01-02T00:00:00.000Z' }),
+      });
+    });
+
+    expect(result.current.questions.map((question) => question.id)).toEqual(['q-new', 'q-1']);
+
+    act(() => {
+      notifyQuestionChanged({
+        whiteboardId: 'other-whiteboard',
+        question: makeQuestion({ id: 'q-other', whiteboardId: 'other-whiteboard' }),
+      });
+    });
+
+    expect(result.current.questions.map((question) => question.id)).toEqual(['q-new', 'q-1']);
   });
 });

@@ -23,6 +23,7 @@ import { topicService } from '../../services/topicService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { sanitizeSingleLine, sanitizeText } from '../../utils/sanitize';
 import { sortTopics } from '../../utils/topicOrder';
+import { notifyQuestionChanged } from '../../utils/questionEvents';
 import type { TopicResponse } from '../../types';
 
 export default function CreateQuestionScreen() {
@@ -81,11 +82,12 @@ export default function CreateQuestionScreen() {
     try {
       const sanitizedTitle = sanitizeSingleLine(title);
       const sanitizedBody = sanitizeText(body);
-      await questionService.createQuestion(whiteboardId, {
+      const createdQuestion = await questionService.createQuestion(whiteboardId, {
         title: sanitizedTitle,
         body: sanitizedBody,
         topicId: selectedTopicId,
       });
+      notifyQuestionChanged({ whiteboardId, question: createdQuestion });
       router.back();
     } catch (error: unknown) {
       Alert.alert('Error', extractErrorMessage(error));

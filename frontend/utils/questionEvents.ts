@@ -1,10 +1,19 @@
 import type { QuestionResponse } from '../types';
 
+type QuestionChangedEvent = {
+  whiteboardId: string;
+  question: QuestionResponse;
+};
+
 type ParsedQuestionMessage = {
   type?: string;
   question?: QuestionResponse;
   questionId?: string;
 };
+
+type QuestionChangedListener = (event: QuestionChangedEvent) => void;
+
+const questionChangedListeners = new Set<QuestionChangedListener>();
 
 export function sortQuestionsForFeed(questions: QuestionResponse[]): QuestionResponse[] {
   return [...questions].sort((left, right) => {
@@ -14,6 +23,31 @@ export function sortQuestionsForFeed(questions: QuestionResponse[]): QuestionRes
 
     return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
   });
+}
+
+export function upsertQuestionForFeed(
+  questions: QuestionResponse[],
+  question: QuestionResponse
+): QuestionResponse[] {
+  const existingIndex = questions.findIndex((existing) => existing.id === question.id);
+  if (existingIndex >= 0) {
+    const next = [...questions];
+    next[existingIndex] = question;
+    return sortQuestionsForFeed(next);
+  }
+
+  return sortQuestionsForFeed([question, ...questions]);
+}
+
+export function notifyQuestionChanged(event: QuestionChangedEvent): void {
+  questionChangedListeners.forEach((listener) => listener(event));
+}
+
+export function subscribeToQuestionChanged(listener: QuestionChangedListener): () => void {
+  questionChangedListeners.add(listener);
+  return () => {
+    questionChangedListeners.delete(listener);
+  };
 }
 
 export function parseQuestionMessage(body: string): ParsedQuestionMessage {
@@ -70,12 +104,5 @@ export function reconcileQuestionEvent(
     return questions;
   }
 
-  const existingIndex = questions.findIndex((existing) => existing.id === question.id);
-  if (existingIndex >= 0) {
-    const next = [...questions];
-    next[existingIndex] = question;
-    return sortQuestionsForFeed(next);
-  }
-
-  return sortQuestionsForFeed([question, ...questions]);
+  return upsertQuestionForFeed(questions, question);
 }

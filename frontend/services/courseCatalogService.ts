@@ -7,12 +7,7 @@ import type {
   PaginationParams,
 } from '../types';
 
-export const COURSE_CATALOG_TERMS = [
-  'Spring 2026',
-  'Summer 2026',
-  'Fall 2026',
-  'Winter 2026',
-] as const;
+export const COURSE_CATALOG_TERMS = ['Summer 2026', 'Fall 2026', 'Winter 2026'] as const;
 
 export type CourseCatalogSortBy =
   | 'courseCode'

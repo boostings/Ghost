@@ -1,7 +1,11 @@
 import { differenceInDays, differenceInYears, format, formatDistanceToNowStrict } from 'date-fns';
 
+const TIMEZONE_PATTERN = /(Z|[+-]\d{2}:?\d{2})$/i;
+
 function toDate(input: string | Date): Date | null {
-  const date = typeof input === 'string' ? new Date(input) : input;
+  const normalizedInput =
+    typeof input === 'string' && !TIMEZONE_PATTERN.test(input) ? `${input}Z` : input;
+  const date = typeof normalizedInput === 'string' ? new Date(normalizedInput) : normalizedInput;
   return Number.isNaN(date.getTime()) ? null : date;
 }
 

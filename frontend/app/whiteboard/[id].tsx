@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  ScrollView,
   SectionList,
   TextInput,
   Alert,
+  type LayoutChangeEvent,
   type GestureResponderEvent,
 } from 'react-native';
 import Animated, {
@@ -41,25 +41,22 @@ import { Duration, Ease, enterList } from '../../constants/motion';
 import { commentService } from '../../services/commentService';
 import { haptic } from '../../utils/haptics';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
-import { smartTitleCase } from '../../utils/titleCase';
-import {
-  SORT_OPTIONS,
-  useWhiteboardDetailModel,
-  type SortMode,
-} from '../../hooks/useWhiteboardDetailModel';
+import { useWhiteboardDetailModel } from '../../hooks/useWhiteboardDetailModel';
 import { formatTimestamp } from '../../utils/formatTimestamp';
 import { isQuestionEdited } from '../../utils/questionMeta';
 import { getQuestionDisplayStatus } from '../../utils/questionStatus';
 import type { CommentResponse, QuestionResponse } from '../../types';
 
-type GroupMode = 'status' | 'topic' | 'chronological';
 type QuestionSection = { key: string; title: string; data: QuestionResponse[] };
 
-const GROUP_OPTIONS: Array<{ value: GroupMode; label: string }> = [
-  { value: 'status', label: 'Status' },
-  { value: 'topic', label: 'Topic' },
-  { value: 'chronological', label: 'Recent' },
-];
+const MIN_TITLE_FONT_SIZE = 34;
+const MAX_TITLE_FONT_SIZE = 44;
+const TITLE_LINE_COUNT = 1;
+const TITLE_AVERAGE_CHAR_WIDTH = 0.72;
+
+function clampTitleFontSize(size: number): number {
+  return Math.max(MIN_TITLE_FONT_SIZE, Math.min(MAX_TITLE_FONT_SIZE, size));
+}
 
 export default function WhiteboardDetailScreen() {
   const router = useRouter();
@@ -78,7 +75,6 @@ export default function WhiteboardDetailScreen() {
     loadingMore,
     topicFilter,
     searchQuery,
-    sortMode,
     isSearching,
     reportModalVisible,
     reportTarget,
@@ -92,20 +88,37 @@ export default function WhiteboardDetailScreen() {
     handleTopicFilter,
     clearFilters,
     setSearchQuery,
-    setSortMode,
     openReportModal,
     closeReportModal,
   } = useWhiteboardDetailModel(id);
 
-  const [sortSheetVisible, setSortSheetVisible] = useState(false);
+  const [topicSheetVisible, setTopicSheetVisible] = useState(false);
   const [contactSheetVisible, setContactSheetVisible] = useState(false);
+  const [overflowVisible, setOverflowVisible] = useState(false);
   const [viewMode, setViewMode] = useState<'questions' | 'triage'>('questions');
-  const [groupMode, setGroupMode] = useState<GroupMode>('status');
   const [triageVerifyQuestion, setTriageVerifyQuestion] = useState<QuestionResponse | null>(null);
   const [triageComments, setTriageComments] = useState<CommentResponse[]>([]);
   const [loadingTriageComments, setLoadingTriageComments] = useState(false);
+  const [titleColumnWidth, setTitleColumnWidth] = useState(0);
   const whiteboardAccent = useMemo(() => accentForWhiteboard(id ?? ''), [id]);
   const triageOnly = isFaculty && viewMode === 'triage';
+  const courseTitle = whiteboard?.courseCode?.trim() || 'Whiteboard';
+
+  const heroTitleFontSize = useMemo(() => {
+    if (titleColumnWidth <= 0) {
+      return 30;
+    }
+
+    const effectiveLength = Math.max(courseTitle.length, 8);
+    const targetSize =
+      (titleColumnWidth * TITLE_LINE_COUNT) / (effectiveLength * TITLE_AVERAGE_CHAR_WIDTH);
+    return Math.round(clampTitleFontSize(targetSize));
+  }, [courseTitle.length, titleColumnWidth]);
+
+  const handleTitleColumnLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    setTitleColumnWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+  }, []);
 
   useEffect(() => {
     if (isFaculty) {
@@ -117,8 +130,14 @@ export default function WhiteboardDetailScreen() {
     event.stopPropagation();
   };
 
-  const sortLabel =
-    SORT_OPTIONS.find((option) => option.value === sortMode)?.label ?? 'Recent activity';
+  const topicLabel =
+    topicFilter === 'ALL'
+      ? 'All topics'
+      : (topicFilters.find((topic) => topic.id === topicFilter)?.name ?? 'Topic');
+  const topicOptions = useMemo(
+    () => [{ id: 'ALL', name: 'All topics' }, ...topicFilters],
+    [topicFilters]
+  );
 
   const visual = useMemo(() => getCourseVisual(whiteboard?.courseCode), [whiteboard?.courseCode]);
   const visualTint = useMemo(() => visualColors(visual), [visual]);
@@ -131,24 +150,15 @@ export default function WhiteboardDetailScreen() {
     ? FadeIn.duration(Duration.fast)
     : FadeInDown.duration(Duration.normal).delay(60).easing(Ease.out);
 
-  const filtersEntering = reduceMotion
-    ? FadeIn.duration(Duration.fast)
-    : FadeIn.duration(Duration.normal).delay(100).easing(Ease.out);
-
-  const activeTopicName =
-    topicFilter === 'ALL'
-      ? null
-      : (topicFilters.find((topic) => topic.id === topicFilter)?.name ?? null);
-
   const triageQuestions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return questions
       .filter((question) => {
-        const topicMatches = topicFilter === 'ALL' || question.topicId === topicFilter;
         const searchMatches =
           query.length === 0 ||
           question.title.toLowerCase().includes(query) ||
           question.body.toLowerCase().includes(query);
+        const topicMatches = topicFilter === 'ALL' || question.topicId === topicFilter;
         return topicMatches && searchMatches && question.status === 'OPEN';
       })
       .sort((a, b) => {
@@ -156,38 +166,6 @@ export default function WhiteboardDetailScreen() {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
   }, [questions, searchQuery, topicFilter]);
-
-  const questionSections = useMemo<QuestionSection[]>(() => {
-    if (groupMode === 'status') {
-      return sections;
-    }
-
-    if (groupMode === 'chronological') {
-      return questions.length > 0
-        ? [
-            {
-              key: 'all',
-              title: `All questions · ${questions.length}`,
-              data: questions,
-            },
-          ]
-        : [];
-    }
-
-    const topicGroups = new Map<string, QuestionResponse[]>();
-    questions.forEach((question) => {
-      const topic = question.topicName || 'Untagged';
-      const group = topicGroups.get(topic) ?? [];
-      group.push(question);
-      topicGroups.set(topic, group);
-    });
-
-    return Array.from(topicGroups.entries()).map(([topic, data]) => ({
-      key: `topic-${topic}`,
-      title: `${topic} · ${data.length}`,
-      data,
-    }));
-  }, [groupMode, questions, sections]);
 
   const displaySections = triageOnly
     ? [
@@ -197,7 +175,7 @@ export default function WhiteboardDetailScreen() {
           data: triageQuestions,
         },
       ].filter((section) => section.data.length > 0)
-    : questionSections;
+    : sections;
 
   const openTriageVerifyPicker = useCallback(
     async (question: QuestionResponse) => {
@@ -238,6 +216,9 @@ export default function WhiteboardDetailScreen() {
       return (
         <GlassCard
           style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
+          blurIntensity={42}
+          highlight={false}
+          padding={14}
           entering={cardEntering}
           layout={
             reduceMotion ? undefined : LinearTransition.duration(Duration.fast).easing(Ease.out)
@@ -266,9 +247,7 @@ export default function WhiteboardDetailScreen() {
             {item.title}
           </Text>
 
-          {wasEdited && <Text style={styles.editedText}>Edited</Text>}
-
-          <Text style={styles.questionBody} numberOfLines={3}>
+          <Text style={styles.questionBody} numberOfLines={2}>
             {item.isHidden ? '[hidden]' : item.body}
           </Text>
 
@@ -293,11 +272,14 @@ export default function WhiteboardDetailScreen() {
           ) : null}
 
           <View style={styles.questionFooter}>
-            <Text style={styles.authorText} numberOfLines={1}>
-              {item.authorName}
-            </Text>
-            <Text style={styles.dotSep}>{' · '}</Text>
-            <Text style={styles.dateText}>{formatTimestamp(item.createdAt)}</Text>
+            <View style={styles.footerMeta}>
+              <Text style={styles.authorText} numberOfLines={1}>
+                {item.authorName}
+              </Text>
+              <Text style={styles.dotSep}>{' · '}</Text>
+              {wasEdited ? <Text style={styles.editedInlineText}>edited </Text> : null}
+              <Text style={styles.dateText}>{formatTimestamp(item.createdAt)}</Text>
+            </View>
             <View style={styles.footerRight}>
               <TouchableOpacity
                 onPress={(event) => {
@@ -440,8 +422,15 @@ export default function WhiteboardDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Reply to question"
               >
-                <AnimatedIcon name="chatbubble-outline" size={14} color={colors.textSecondary} motion="none" />
-                <Text style={[styles.triageActionText, { color: colors.textSecondary }]}>Reply</Text>
+                <AnimatedIcon
+                  name="chatbubble-outline"
+                  size={14}
+                  color={colors.textSecondary}
+                  motion="none"
+                />
+                <Text style={[styles.triageActionText, { color: colors.textSecondary }]}>
+                  Reply
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -465,18 +454,14 @@ export default function WhiteboardDetailScreen() {
     ]
   );
 
-  const renderSectionHeader = ({
-    section,
-  }: {
-    section: QuestionSection;
-  }) => {
+  const renderSectionHeader = ({ section }: { section: QuestionSection }) => {
     if (isSearching) return null;
     const sectionIcon =
       section.key === 'pinned'
         ? 'pin'
         : section.key === 'answered'
           ? 'checkmark-circle'
-        : section.key === 'closed'
+          : section.key === 'closed'
             ? 'lock-closed'
             : section.key === 'all'
               ? 'time-outline'
@@ -498,8 +483,38 @@ export default function WhiteboardDetailScreen() {
         entering={reduceMotion ? FadeIn.duration(Duration.fast) : FadeIn.duration(Duration.normal)}
         style={styles.sectionHeader}
       >
-        <AnimatedIcon name={sectionIcon} size={14} color={sectionColor} motion="none" />
-        <Text style={styles.sectionLabel}>{section.title}</Text>
+        <View style={styles.sectionHeaderTitle}>
+          <AnimatedIcon name={sectionIcon} size={14} color={sectionColor} motion="none" />
+          <Text style={styles.sectionLabel}>{section.title}</Text>
+        </View>
+        {section.key === 'open' ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.sectionTopicDrawer,
+              { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+              pressed && { borderColor: colors.primary, opacity: 0.78 },
+            ]}
+            onPress={() => {
+              haptic.selection();
+              setTopicSheetVisible(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter by topic. Current: ${topicLabel}`}
+          >
+            <AnimatedIcon
+              name="pricetag-outline"
+              size={13}
+              color={colors.textMuted}
+              motion="none"
+            />
+            <Text
+              style={[styles.sectionTopicText, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {topicLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </Animated.View>
     );
   };
@@ -532,14 +547,9 @@ export default function WhiteboardDetailScreen() {
   const ownerName = whiteboard?.ownerName?.trim();
   const instructorSummary = whiteboard?.instructorSummary?.trim();
   const semester = whiteboard?.semester?.trim();
-  const memberCount = whiteboard?.memberCount ?? 0;
-  const sectionCount = whiteboard?.sectionCount ?? 0;
-  const metaParts = [
-    semester || null,
-    sectionCount > 1 ? `${sectionCount} sections` : null,
-    `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`,
-    instructorSummary || ownerName || null,
-  ].filter(Boolean) as string[];
+  const metaParts = [semester || null, instructorSummary || ownerName || null].filter(
+    Boolean
+  ) as string[];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -551,55 +561,73 @@ export default function WhiteboardDetailScreen() {
       />
       <NoiseOverlay />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Top row: back + class actions (icon-only) */}
+        {/* Top row: back + primary CTA + overflow */}
         <Animated.View entering={heroEntering} style={styles.topRow}>
           <ScreenHeader onBack={() => router.back()} border={false} style={styles.inlineHeader} />
           <View style={styles.topActions}>
-            {!whiteboard?.isDemo ? (
-              <IconAction
-                icon="add-circle-outline"
-                onPress={() => {
-                  haptic.medium();
-                  router.push({
-                    pathname: '/question/create',
-                    params: { whiteboardId: id },
-                  });
-                }}
-                accessibilityLabel="Ask a question"
-              />
-            ) : null}
-            <IconAction
-              icon="mail-outline"
+            <Pressable
               onPress={() => {
-                haptic.selection();
-                setContactSheetVisible(true);
-              }}
-              accessibilityLabel="Contact faculty"
-            />
-            <IconAction
-              icon="people-outline"
-              onPress={() => {
-                haptic.selection();
+                haptic.medium();
                 router.push({
-                  pathname: '/whiteboard/members',
+                  pathname: '/question/create',
                   params: { whiteboardId: id },
                 });
               }}
-              accessibilityLabel="View whiteboard members"
+              style={({ pressed }) => [
+                styles.askButton,
+                { backgroundColor: whiteboardAccent.primary },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Ask a question"
+              hitSlop={6}
+            >
+              <AnimatedIcon name="add" size={16} color="#FFFFFF" motion="none" />
+              <Text style={[styles.askButtonText, { color: '#FFFFFF' }]}>Ask</Text>
+            </Pressable>
+            <IconAction
+              icon="ellipsis-horizontal"
+              onPress={() => {
+                haptic.selection();
+                setOverflowVisible(true);
+              }}
+              accessibilityLabel="More whiteboard actions"
             />
-            {isFaculty ? (
-              <IconAction
-                icon="settings-outline"
-                onPress={() => {
-                  haptic.selection();
-                  router.push({
-                    pathname: '/whiteboard/settings',
-                    params: { whiteboardId: id },
-                  });
-                }}
-                accessibilityLabel="Open whiteboard settings"
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={heroEntering} style={styles.heroHeading}>
+          <View style={styles.heroTitleRow}>
+            <View
+              style={[
+                styles.iconDisc,
+                { backgroundColor: visualTint.background, borderColor: visualTint.border },
+              ]}
+            >
+              <AnimatedIcon
+                name={visual.icon}
+                size={16}
+                color={visualTint.foreground}
+                motion="none"
               />
-            ) : null}
+            </View>
+            <View style={styles.heroTitleColumn} onLayout={handleTitleColumnLayout}>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  {
+                    color: colors.text,
+                    fontSize: heroTitleFontSize,
+                    lineHeight: heroTitleFontSize + 4,
+                  },
+                ]}
+                numberOfLines={TITLE_LINE_COUNT}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {courseTitle}
+              </Text>
+            </View>
           </View>
         </Animated.View>
 
@@ -611,29 +639,17 @@ export default function WhiteboardDetailScreen() {
             { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
           ]}
         >
-          <View style={styles.heroTitleRow}>
-            <View
-              style={[
-                styles.iconDisc,
-                { backgroundColor: visualTint.background, borderColor: visualTint.border },
-              ]}
-            >
-              <AnimatedIcon
-                name={visual.icon}
-                size={20}
-                color={visualTint.foreground}
-                motion="none"
-              />
-            </View>
-            <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
-              {whiteboard?.courseName ? smartTitleCase(whiteboard.courseName) : 'Whiteboard'}
-            </Text>
-          </View>
-
           {metaParts.length > 0 ? (
-            <Text style={[styles.heroMeta, { color: colors.textMuted }]} numberOfLines={2}>
-              {metaParts.join(' · ')}
-            </Text>
+            <>
+              {whiteboard?.courseName ? (
+                <Text style={[styles.heroCourseName, { color: colors.text }]} numberOfLines={2}>
+                  {whiteboard.courseName.trim()}
+                </Text>
+              ) : null}
+              <Text style={[styles.heroMeta, { color: colors.textMuted }]} numberOfLines={2}>
+                {metaParts.join(' · ')}
+              </Text>
+            </>
           ) : null}
 
           {/* Stats strip — hide pills with zero counts to reduce visual noise */}
@@ -673,14 +689,18 @@ export default function WhiteboardDetailScreen() {
 
         {/* Search + sort row */}
         {isFaculty ? (
-          <Animated.View entering={controlsEntering} style={styles.facultyTabs}>
+          <Animated.View
+            entering={controlsEntering}
+            style={[
+              styles.facultyTabs,
+              { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+            ]}
+          >
             <Pressable
               onPress={() => setViewMode('questions')}
               style={({ pressed }) => [
                 styles.facultyTab,
-                { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
                 viewMode === 'questions' && {
-                  borderColor: colors.primary,
                   backgroundColor: `${colors.primary}26`,
                 },
                 pressed && { opacity: 0.75 },
@@ -702,9 +722,7 @@ export default function WhiteboardDetailScreen() {
               onPress={() => setViewMode('triage')}
               style={({ pressed }) => [
                 styles.facultyTab,
-                { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
                 viewMode === 'triage' && {
-                  borderColor: STATUS_COLORS.OPEN.fg,
                   backgroundColor: STATUS_COLORS.OPEN.bg,
                 },
                 pressed && { opacity: 0.75 },
@@ -722,27 +740,10 @@ export default function WhiteboardDetailScreen() {
                 Triage
               </Text>
             </Pressable>
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/whiteboard/members',
-                  params: { whiteboardId: id },
-                })
-              }
-              style={({ pressed }) => [
-                styles.facultyTab,
-                { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
-                pressed && { opacity: 0.75 },
-              ]}
-              accessibilityRole="tab"
-              accessibilityLabel="Members tab"
-            >
-              <Text style={[styles.facultyTabText, { color: colors.textSecondary }]}>Members</Text>
-            </Pressable>
           </Animated.View>
         ) : null}
 
-        <Animated.View entering={controlsEntering} style={styles.controlsRow}>
+        <Animated.View entering={controlsEntering} style={styles.feedControls}>
           <View
             style={[
               styles.searchField,
@@ -777,154 +778,7 @@ export default function WhiteboardDetailScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.sortChip,
-              { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
-              pressed && { borderColor: colors.primary },
-            ]}
-            onPress={() => {
-              haptic.selection();
-              setSortSheetVisible(true);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={`Change sort order. Current: ${sortLabel}`}
-          >
-            <AnimatedIcon name="swap-vertical" size={14} color={colors.text} motion="none" />
-            <Text style={[styles.sortChipText, { color: colors.text }]} numberOfLines={1}>
-              {sortLabel}
-            </Text>
-          </Pressable>
         </Animated.View>
-
-        {/* Topic filter */}
-        {topicFilters.length > 0 ? (
-          <Animated.View entering={filtersEntering} style={styles.filterScroller}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRow}
-            >
-              <FilterChip
-                label="All Topics"
-                active={topicFilter === 'ALL'}
-                onPress={() => handleTopicFilter('ALL')}
-              />
-              {topicFilters.map((topic) => (
-                <FilterChip
-                  key={topic.id}
-                  label={topic.name}
-                  active={topicFilter === topic.id}
-                  onPress={() => handleTopicFilter(topic.id)}
-                />
-              ))}
-            </ScrollView>
-            <View pointerEvents="none" style={styles.filterFade}>
-              <LinearGradient
-                colors={['rgba(10,12,20,0)', Colors.background]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <AnimatedIcon
-                name="chevron-forward"
-                size={12}
-                color={colors.textMuted}
-                motion="none"
-              />
-            </View>
-          </Animated.View>
-        ) : null}
-
-        {isFaculty ? (
-          <Animated.View
-            entering={filtersEntering}
-            style={[
-              styles.facultyToolbar,
-              { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
-            ]}
-          >
-            <View style={styles.facultyToolbarCopy}>
-              <Text style={[styles.facultyToolbarTitle, { color: colors.text }]}>
-                {stats.open} unanswered
-              </Text>
-              <Text style={[styles.facultyToolbarMeta, { color: colors.textMuted }]}>
-                {triageQuestions.length} in triage ·{' '}
-                {triageQuestions.filter((question) => question.commentCount === 0).length} without replies
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => {
-                haptic.selection();
-                setViewMode((value) => (value === 'triage' ? 'questions' : 'triage'));
-              }}
-              style={({ pressed }) => [
-                styles.triageButton,
-                {
-                  backgroundColor: triageOnly ? STATUS_COLORS.OPEN.bg : colors.surfaceLight,
-                  borderColor: triageOnly ? STATUS_COLORS.OPEN.fg : colors.surfaceBorder,
-                },
-                pressed && { opacity: 0.75 },
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: triageOnly }}
-              accessibilityLabel="Show questions without replies"
-            >
-              <AnimatedIcon
-                name="filter"
-                size={14}
-                color={triageOnly ? STATUS_COLORS.OPEN.fg : colors.text}
-                motion="none"
-              />
-              <Text
-                style={[
-                  styles.triageButtonText,
-                  { color: triageOnly ? STATUS_COLORS.OPEN.fg : colors.text },
-                ]}
-              >
-                Triage
-              </Text>
-            </Pressable>
-          </Animated.View>
-        ) : null}
-
-        {!triageOnly ? (
-          <Animated.View entering={filtersEntering} style={styles.groupModeRow}>
-            {GROUP_OPTIONS.map((option) => {
-              const selected = groupMode === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => {
-                    haptic.selection();
-                    setGroupMode(option.value);
-                  }}
-                  style={({ pressed }) => [
-                    styles.groupModeChip,
-                    { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
-                    selected && {
-                      backgroundColor: `${colors.primary}24`,
-                      borderColor: colors.primary,
-                    },
-                    pressed && { opacity: 0.75 },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`Group by ${option.label}`}
-                >
-                  <Text
-                    style={[
-                      styles.groupModeText,
-                      { color: selected ? colors.primary : colors.textSecondary },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </Animated.View>
-        ) : null}
 
         {/* Question Feed */}
         <SectionList
@@ -952,11 +806,7 @@ export default function WhiteboardDetailScreen() {
             triageOnly ? (
               <EmptyState
                 ionIcon="checkmark-circle-outline"
-                title={
-                  activeTopicName
-                    ? `No triage questions in ${activeTopicName}`
-                    : 'No triage questions'
-                }
+                title="No triage questions"
                 subtitle="Everything in this view is already answered or closed."
                 actionLabel="View all questions"
                 onAction={() => setViewMode('questions')}
@@ -971,31 +821,21 @@ export default function WhiteboardDetailScreen() {
               />
             ) : questions.length > 0 ? (
               <EmptyState
-                ionIcon="filter-outline"
-                title="No matching questions"
-                subtitle="Adjust filters to see more questions."
-                actionLabel="Clear filters"
-                onAction={clearFilters}
+                ionIcon="help-circle-outline"
+                title="No questions to show"
+                subtitle="Try refreshing this class."
               />
             ) : (
               <EmptyState
                 ionIcon="help-circle-outline"
                 title="No questions yet"
-                subtitle={
-                  loadError ||
-                  (whiteboard?.isDemo
-                    ? 'This demo class is read-only.'
-                    : 'Be the first to ask a question in this class!')
-                }
-                actionLabel={whiteboard?.isDemo ? undefined : 'Ask a question'}
-                onAction={
-                  whiteboard?.isDemo
-                    ? undefined
-                    : () =>
-                        router.push({
-                          pathname: '/question/create',
-                          params: { whiteboardId: id },
-                        })
+                subtitle={loadError || 'Be the first to ask a question in this class!'}
+                actionLabel="Ask a question"
+                onAction={() =>
+                  router.push({
+                    pathname: '/question/create',
+                    params: { whiteboardId: id },
+                  })
                 }
               />
             )
@@ -1037,30 +877,32 @@ export default function WhiteboardDetailScreen() {
         />
 
         <GlassModal
-          visible={sortSheetVisible}
-          onClose={() => setSortSheetVisible(false)}
-          title="Sort by"
+          visible={topicSheetVisible}
+          onClose={() => setTopicSheetVisible(false)}
+          title="Topic"
         >
-          {SORT_OPTIONS.map((option) => {
-            const selected = option.value === sortMode;
+          {topicOptions.map((option) => {
+            const selected = option.id === topicFilter;
             return (
               <Pressable
-                key={option.value}
+                key={option.id}
                 style={({ pressed }) => [
-                  styles.sortOption,
-                  selected && styles.sortOptionSelected,
+                  styles.topicOption,
+                  selected && styles.topicOptionSelected,
                   pressed && { opacity: 0.7 },
                 ]}
                 onPress={() => {
-                  setSortMode(option.value as SortMode);
-                  setSortSheetVisible(false);
+                  handleTopicFilter(option.id);
+                  setTopicSheetVisible(false);
                 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                accessibilityLabel={`Sort by ${option.label}`}
+                accessibilityLabel={`Filter by ${option.name}`}
               >
-                <Text style={[styles.sortOptionLabel, selected && styles.sortOptionLabelSelected]}>
-                  {option.label}
+                <Text
+                  style={[styles.topicOptionLabel, selected && styles.topicOptionLabelSelected]}
+                >
+                  {option.name}
                 </Text>
                 {selected ? (
                   <AnimatedIcon name="checkmark" size={18} color={Colors.primary} motion="none" />
@@ -1123,14 +965,20 @@ export default function WhiteboardDetailScreen() {
                 accessibilityLabel={`Mark comment by ${comment.authorName} as answer`}
               >
                 <View style={styles.verifyCommentHeader}>
-                  <Text style={[styles.verifyCommentAuthor, { color: colors.text }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.verifyCommentAuthor, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
                     {comment.authorName}
                   </Text>
                   <Text style={[styles.verifyCommentDate, { color: colors.textMuted }]}>
                     {formatTimestamp(comment.createdAt)}
                   </Text>
                 </View>
-                <Text style={[styles.verifyCommentBody, { color: colors.textSecondary }]} numberOfLines={4}>
+                <Text
+                  style={[styles.verifyCommentBody, { color: colors.textSecondary }]}
+                  numberOfLines={4}
+                >
                   {comment.body}
                 </Text>
               </Pressable>
@@ -1147,6 +995,45 @@ export default function WhiteboardDetailScreen() {
           onClose={() => setContactSheetVisible(false)}
           whiteboardId={id}
         />
+
+        <GlassModal
+          visible={overflowVisible}
+          onClose={() => setOverflowVisible(false)}
+          title="Whiteboard"
+        >
+          <OverflowAction
+            icon="mail-outline"
+            label="Contact faculty"
+            onPress={() => {
+              setOverflowVisible(false);
+              setContactSheetVisible(true);
+            }}
+          />
+          <OverflowAction
+            icon="people-outline"
+            label="View members"
+            onPress={() => {
+              setOverflowVisible(false);
+              router.push({
+                pathname: '/whiteboard/members',
+                params: { whiteboardId: id },
+              });
+            }}
+          />
+          {isFaculty ? (
+            <OverflowAction
+              icon="settings-outline"
+              label="Whiteboard settings"
+              onPress={() => {
+                setOverflowVisible(false);
+                router.push({
+                  pathname: '/whiteboard/settings',
+                  params: { whiteboardId: id },
+                });
+              }}
+            />
+          ) : null}
+        </GlassModal>
       </SafeAreaView>
     </View>
   );
@@ -1179,18 +1066,16 @@ function IconAction({
   );
 }
 
-function FilterChip({
+function OverflowAction({
+  icon,
   label,
-  active,
   onPress,
 }: {
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  active: boolean;
   onPress: () => void;
 }) {
   const themeColors = useThemeColors();
-  const inactiveBg = themeColors.surfaceLight;
-  const inactiveBorder = themeColors.surfaceBorder;
   return (
     <Pressable
       onPress={() => {
@@ -1198,27 +1083,16 @@ function FilterChip({
         onPress();
       }}
       style={({ pressed }) => [
-        styles.filterChip,
-        { backgroundColor: inactiveBg, borderColor: inactiveBorder },
-        active && {
-          backgroundColor: `${themeColors.primary}26`,
-          borderColor: themeColors.primary,
-        },
-        pressed && { backgroundColor: `${themeColors.primary}10` },
+        styles.overflowItem,
+        { borderColor: themeColors.surfaceBorder, backgroundColor: themeColors.surfaceLight },
+        pressed && { opacity: 0.75 },
       ]}
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`Filter by ${label}`}
+      accessibilityLabel={label}
     >
-      <Text
-        style={[
-          styles.filterChipText,
-          { color: themeColors.textSecondary },
-          active && { color: themeColors.primary },
-        ]}
-      >
-        {label}
-      </Text>
+      <AnimatedIcon name={icon} size={18} color={themeColors.text} motion="none" />
+      <Text style={[styles.overflowItemText, { color: themeColors.text }]}>{label}</Text>
+      <AnimatedIcon name="chevron-forward" size={14} color={themeColors.textMuted} motion="none" />
     </Pressable>
   );
 }
@@ -1266,7 +1140,7 @@ const styles = StyleSheet.create({
   topActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   inlineHeader: {
     flex: 1,
@@ -1274,12 +1148,41 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   iconAction: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  askButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: 20,
+  },
+  askButtonText: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  overflowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 8,
+  },
+  overflowItemText: {
+    flex: 1,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '700',
+    letterSpacing: 0,
   },
   backButton: {
     flexDirection: 'row',
@@ -1300,20 +1203,28 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
 
+  heroHeading: {
+    marginHorizontal: 18,
+    marginTop: 4,
+    marginBottom: 12,
+  },
   hero: {
     marginHorizontal: 18,
-    marginBottom: 12,
+    marginBottom: 14,
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    borderRadius: 22,
+    paddingTop: 14,
+    paddingBottom: 16,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
   },
   heroTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 11,
-    marginBottom: 8,
+    gap: 12,
+  },
+  heroTitleColumn: {
+    flex: 1,
+    minWidth: 0,
   },
   iconDisc: {
     width: 42,
@@ -1322,20 +1233,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 2,
   },
   heroTitle: {
-    flex: 1,
-    fontSize: 25,
-    lineHeight: 29,
     fontWeight: '900',
     letterSpacing: 0,
+    includeFontPadding: false,
+  },
+  heroCourseName: {
+    fontSize: Fonts.sizes.lg,
+    lineHeight: 23,
+    fontWeight: '900',
+    letterSpacing: 0,
+    marginBottom: 7,
   },
   heroMeta: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 0.7,
     textTransform: 'uppercase',
-    marginBottom: 14,
+    marginBottom: 12,
   },
 
   statsStrip: {
@@ -1345,15 +1262,17 @@ const styles = StyleSheet.create({
   },
   facultyTabs: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 18,
-    paddingBottom: 10,
+    gap: 4,
+    marginHorizontal: 18,
+    marginBottom: 10,
+    padding: 4,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   facultyTab: {
-    minHeight: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 13,
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1389,14 +1308,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  controlsRow: {
-    flexDirection: 'row',
+  feedControls: {
     paddingHorizontal: 18,
-    paddingBottom: 10,
+    paddingBottom: 12,
     gap: 8,
   },
+  feedToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   searchField: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
@@ -1409,121 +1332,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Fonts.sizes.md,
     paddingVertical: 0,
-  },
-  sortChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    height: 42,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxWidth: 156,
-  },
-  sortChipText: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0,
-    maxWidth: 118,
-  },
-
-  filterRow: {
-    gap: 7,
-    paddingHorizontal: 18,
-    paddingRight: 36,
-    paddingBottom: 9,
-    alignItems: 'center',
-  },
-  filterScroller: {
-    position: 'relative',
-  },
-  filterFade: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 9,
-    width: 30,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingRight: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 13,
-    height: 34,
-    flexShrink: 0,
-    alignSelf: 'center',
-    borderRadius: 17,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.textSecondary,
-    letterSpacing: 0,
-  },
-  filterChipTextActive: {
-    color: Colors.text,
-  },
-  groupModeRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 18,
-    paddingBottom: 12,
-    gap: 7,
-  },
-  groupModeChip: {
-    minHeight: 32,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  groupModeText: {
-    fontSize: Fonts.sizes.xs,
-    fontWeight: '800',
-    letterSpacing: 0.35,
-  },
-  facultyToolbar: {
-    marginHorizontal: 24,
-    marginBottom: 12,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  facultyToolbarCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  facultyToolbarTitle: {
-    fontSize: Fonts.sizes.md,
-    fontWeight: '900',
-    letterSpacing: -0.1,
-  },
-  facultyToolbarMeta: {
-    fontSize: Fonts.sizes.xs,
-    marginTop: 2,
-    fontWeight: '700',
-  },
-  triageButton: {
-    minHeight: 36,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  triageButtonText: {
-    fontSize: Fonts.sizes.xs,
-    fontWeight: '900',
-    letterSpacing: 0.3,
   },
   triageActionRow: {
     flexDirection: 'row',
@@ -1557,10 +1365,18 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 10,
     marginBottom: 8,
     marginTop: 4,
     paddingHorizontal: 4,
+  },
+  sectionHeaderTitle: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
   },
   sectionLabel: {
     fontSize: Fonts.sizes.sm,
@@ -1569,7 +1385,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-
+  sectionTopicDrawer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 9,
+    maxWidth: 136,
+  },
+  sectionTopicText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '800',
+    letterSpacing: 0,
+    maxWidth: 100,
+  },
   listContent: {
     paddingHorizontal: 24,
     paddingTop: 8,
@@ -1599,7 +1430,8 @@ const styles = StyleSheet.create({
   },
 
   questionCard: {
-    marginBottom: 12,
+    marginBottom: 10,
+    borderRadius: 18,
   },
   pinnedCard: {
     borderColor: 'rgba(255,187,51,0.3)',
@@ -1619,24 +1451,26 @@ const styles = StyleSheet.create({
   questionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 7,
+    marginBottom: 10,
   },
   topicBadge: {
-    marginRight: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
   },
   questionTitle: {
-    fontSize: Fonts.sizes.lg,
-    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '900',
     color: Colors.text,
-    marginBottom: 6,
-    letterSpacing: -0.2,
+    marginBottom: 7,
+    letterSpacing: 0,
   },
   questionBody: {
-    fontSize: Fonts.sizes.md,
+    fontSize: 17,
     color: Colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 24,
+    marginBottom: 18,
   },
   answerStripe: {
     backgroundColor: 'rgba(34,197,94,0.10)',
@@ -1667,11 +1501,19 @@ const styles = StyleSheet.create({
   questionFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  footerMeta: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   authorText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
     flexShrink: 1,
+    fontWeight: '600',
   },
   dotSep: {
     color: Colors.textMuted,
@@ -1680,50 +1522,48 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
+    fontWeight: '600',
   },
-  editedText: {
+  editedInlineText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textMuted,
     fontStyle: 'italic',
-    marginBottom: 8,
+    fontWeight: '600',
   },
   footerRight: {
-    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   footerActionButton: {
-    minHeight: 32,
-    minWidth: 32,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.035)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(255,255,255,0.075)',
   },
   footerActionActive: {
-    backgroundColor: 'rgba(187,39,68,0.14)',
-    borderColor: 'rgba(187,39,68,0.32)',
+    backgroundColor: 'rgba(187,39,68,0.12)',
+    borderColor: 'rgba(187,39,68,0.24)',
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   footerStatGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginLeft: 2,
+    gap: 9,
+    marginLeft: 0,
   },
   metaCount: {
-    fontSize: Fonts.sizes.sm,
+    fontSize: 15,
     color: Colors.textMuted,
-    fontWeight: '700',
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   karmaPositive: {
@@ -1767,8 +1607,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     opacity: 0.4,
   },
-
-  sortOption: {
+  topicOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1776,17 +1615,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
   },
-  sortOptionSelected: {
+  topicOptionSelected: {
     backgroundColor: 'rgba(187,39,68,0.12)',
   },
-  sortOptionLabel: {
+  topicOptionLabel: {
     fontSize: Fonts.sizes.md,
     fontWeight: '600',
     color: Colors.text,
   },
-  sortOptionLabelSelected: {
+  topicOptionLabelSelected: {
     color: Colors.primary,
   },
+
   verifySheetIntro: {
     marginBottom: 14,
   },

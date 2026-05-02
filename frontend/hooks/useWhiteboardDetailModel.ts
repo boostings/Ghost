@@ -10,7 +10,11 @@ import { useWebSocket } from './useWebSocket';
 import { useAuthStore } from '../stores/authStore';
 import { useWhiteboardStore } from '../stores/whiteboardStore';
 import { subscribeToQuestionDeleted } from '../utils/questionDeletionEvents';
-import { reconcileQuestionEvent } from '../utils/questionEvents';
+import {
+  reconcileQuestionEvent,
+  subscribeToQuestionChanged,
+  upsertQuestionForFeed,
+} from '../utils/questionEvents';
 import type { CommentResponse, QuestionResponse, WhiteboardResponse } from '../types';
 
 export type SortMode = 'recent' | 'topVoted' | 'mostCommented';
@@ -453,12 +457,21 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
       );
     });
 
+    const unsubscribeLocalQuestionChange = subscribeToQuestionChanged((event) => {
+      if (event.whiteboardId !== whiteboardId) {
+        return;
+      }
+
+      setQuestions((previousQuestions) => upsertQuestionForFeed(previousQuestions, event.question));
+    });
+
     const subscription = subscribe(`/topic/whiteboard/${whiteboardId}/questions`, (frame) => {
       setQuestions((previousQuestions) => reconcileQuestionEvent(previousQuestions, frame.body));
     });
 
     return () => {
       unsubscribeLocalDelete();
+      unsubscribeLocalQuestionChange();
       subscription?.unsubscribe();
     };
   }, [subscribe, whiteboardId]);

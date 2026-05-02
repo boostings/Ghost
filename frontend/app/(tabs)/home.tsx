@@ -40,7 +40,6 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
 import { extractErrorMessage } from '../../hooks/useApi';
-import { formatTimestamp } from '../../utils/formatTimestamp';
 import { parseInviteCode } from '../../utils/inviteCode';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
 import { smartTitleCase } from '../../utils/titleCase';
@@ -282,19 +281,9 @@ export default function HomeScreen() {
     setScannerLocked(false);
   };
 
-  const latestOpenByWhiteboard = useMemo(() => {
-    const byWhiteboard = new Map<string, QuestionResponse>();
-    for (const question of awaitingQuestions) {
-      if (!question.whiteboardId || byWhiteboard.has(question.whiteboardId)) continue;
-      byWhiteboard.set(question.whiteboardId, question);
-    }
-    return byWhiteboard;
-  }, [awaitingQuestions]);
-
   const renderWhiteboardCard = useCallback(
     ({ item, index }: { item: WhiteboardResponse; index: number }) => {
       const accent = accentForWhiteboard(item.id);
-      const latestOpenQuestion = latestOpenByWhiteboard.get(item.id);
       return (
         <Animated.View
           entering={
@@ -392,31 +381,6 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {latestOpenQuestion ? (
-              <View
-                style={[
-                  styles.recentQuestion,
-                  { backgroundColor: colors.surface, borderColor: `${accent.primary}33` },
-                ]}
-              >
-                <Text style={[styles.recentQuestionLabel, { color: accent.primary }]}>
-                  Latest open
-                </Text>
-                <Text
-                  style={[styles.recentQuestionTitle, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {latestOpenQuestion.title}
-                </Text>
-                <Text
-                  style={[styles.recentQuestionMeta, { color: colors.textMuted }]}
-                  numberOfLines={1}
-                >
-                  {latestOpenQuestion.authorName} · {formatTimestamp(latestOpenQuestion.createdAt)}
-                </Text>
-              </View>
-            ) : null}
-
             <View style={[styles.cardFooter, { borderTopColor: colors.surfaceBorder }]}>
               <View style={styles.metaItem}>
                 <AnimatedIcon
@@ -445,7 +409,7 @@ export default function HomeScreen() {
         </Animated.View>
       );
     },
-    [colors, latestOpenByWhiteboard, reduceMotion, router]
+    [colors, reduceMotion, router]
   );
 
   const navigateToQuestion = useCallback(
@@ -458,28 +422,9 @@ export default function HomeScreen() {
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     const period = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-    const firstName = user?.firstName?.trim();
-    return `Good ${period}${firstName ? `, ${firstName}` : ''}`;
-  }, [user?.firstName]);
-
-  const homeStats = useMemo(() => {
-    const today = new Date();
-    const isToday = (input: string) => {
-      const date = new Date(input);
-      return (
-        date.getFullYear() === today.getFullYear() &&
-        date.getMonth() === today.getMonth() &&
-        date.getDate() === today.getDate()
-      );
-    };
-
-    return {
-      todayCount: [...awaitingQuestions, ...answeredQuestions].filter((question) =>
-        isToday(question.createdAt)
-      ).length,
-      unansweredCount: awaitingQuestions.length,
-    };
-  }, [answeredQuestions, awaitingQuestions]);
+    // removing name so title looks right here, keeping logic for future use
+    return `Good ${period}`;
+  }, []);
 
   const renderMyQuestionStrip = (
     title: string,
@@ -573,7 +518,7 @@ export default function HomeScreen() {
       {renderMyQuestionStrip(awaitingTitle, 'awaiting', awaitingQuestions)}
       {!isFaculty ? renderMyQuestionStrip(answeredTitle, 'answered', answeredQuestions) : null}
       {whiteboards.length > 0 ? (
-        <Text style={[styles.classesHeading, { color: colors.text }]}>Your Classes</Text>
+        <Text style={[styles.classesHeading, { color: colors.text }]}>Your Whiteboards</Text>
       ) : null}
     </Animated.View>
   );
@@ -602,10 +547,6 @@ export default function HomeScreen() {
               {user ? `WELCOME BACK, ${user.firstName.toUpperCase()}` : 'WELCOME BACK'}
             </Text>
             <Text style={[styles.headerTitle, { color: colors.text }]}>{greeting}</Text>
-            <Text style={[styles.statStrip, { color: colors.textSecondary }]}>
-              {homeStats.todayCount} questions in your classes today · {homeStats.unansweredCount}{' '}
-              unanswered
-            </Text>
           </View>
           <Pressable
             onPress={() => {
@@ -771,12 +712,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -0.6,
   },
-  statStrip: {
-    fontSize: Fonts.sizes.sm,
-    fontWeight: '700',
-    marginTop: 8,
-    lineHeight: 18,
-  },
   headerFab: {
     width: 48,
     height: 48,
@@ -914,29 +849,6 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     fontWeight: '600',
     flexShrink: 1,
-  },
-  recentQuestion: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  recentQuestionLabel: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  recentQuestionTitle: {
-    fontSize: Fonts.sizes.sm,
-    fontWeight: '800',
-    letterSpacing: -0.1,
-  },
-  recentQuestionMeta: {
-    fontSize: Fonts.sizes.xs,
-    marginTop: 3,
   },
   cardFooter: {
     flexDirection: 'row',

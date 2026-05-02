@@ -18,6 +18,10 @@ describe('formatTimestamp', () => {
     expect(formatTimestamp('2026-04-30T12:00:00.000Z')).toBe('1 day ago');
   });
 
+  it('treats API timestamps without timezone offsets as UTC', () => {
+    expect(formatTimestamp('2026-05-01T11:55:00.000')).toBe('5 minutes ago');
+  });
+
   it('formats same-year older dates without the year', () => {
     expect(formatTimestamp('2026-04-01T12:00:00.000Z')).toBe('Apr 1');
   });

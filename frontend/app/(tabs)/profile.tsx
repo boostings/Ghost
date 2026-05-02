@@ -572,38 +572,36 @@ export default function ProfileScreen() {
                     <Text style={[styles.actionButtonText, { color: colors.text }]}>Log out</Text>
                   </Pressable>
                 </View>
+                <View style={styles.actionRow}>
+                  <Pressable
+                    onLongPress={handleDelete}
+                    disabled={deleting}
+                    delayLongPress={900}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      styles.dangerZoneButton,
+                      {
+                        backgroundColor: deleting ? `${colors.error}30` : `${colors.error}1F`,
+                        borderColor: `${colors.error}66`,
+                      },
+                      pressed && { backgroundColor: `${colors.error}33` },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete account"
+                    accessibilityHint="Long press to start account deletion confirmation"
+                    accessibilityState={{ disabled: deleting, busy: deleting }}
+                  >
+                    {deleting ? (
+                      <ActivityIndicator size="small" color={colors.error} />
+                    ) : (
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                    )}
+                    <Text style={[styles.actionButtonText, { color: colors.error }]}>
+                      Long-press to delete account
+                    </Text>
+                  </Pressable>
+                </View>
                 <GhostWordmark version="v1.0.0" />
-              </View>
-
-              <View style={styles.settingsBlock}>
-                <Text style={[styles.blockEyebrow, { color: colors.error }]}>DANGER ZONE</Text>
-                <Pressable
-                  onLongPress={handleDelete}
-                  disabled={deleting}
-                  delayLongPress={900}
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    styles.dangerZoneButton,
-                    {
-                      backgroundColor: deleting ? `${colors.error}30` : `${colors.error}1F`,
-                      borderColor: `${colors.error}66`,
-                    },
-                    pressed && { backgroundColor: `${colors.error}33` },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete account"
-                  accessibilityHint="Long press to start account deletion confirmation"
-                  accessibilityState={{ disabled: deleting, busy: deleting }}
-                >
-                  {deleting ? (
-                    <ActivityIndicator size="small" color={colors.error} />
-                  ) : (
-                    <Ionicons name="trash-outline" size={16} color={colors.error} />
-                  )}
-                  <Text style={[styles.actionButtonText, { color: colors.error }]}>
-                    Long-press to delete account
-                  </Text>
-                </Pressable>
                 <View style={styles.tabBarSpacer} />
               </View>
             </>
@@ -914,7 +912,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   actionButtonDanger: {},
-  dangerZoneButton: { flex: 0 },
+  dangerZoneButton: { flex: 1 },
   actionButtonText: {
     fontSize: 13,
     fontWeight: '900',
