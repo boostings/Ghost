@@ -62,11 +62,17 @@ export function isValidPassword(password: string): boolean {
     return false;
   }
 
-  if (password.length < 8) {
+  const normalized = normalizePassword(password);
+
+  if (normalized.length < 8) {
     return false;
   }
 
-  return /^(?=.*[A-Za-z])(?=.*\d).+$/.test(password);
+  return /^(?=.*[A-Za-z])(?=.*\d).+$/.test(normalized);
+}
+
+export function normalizePassword(password: string): string {
+  return password.trimEnd();
 }
 
 /**
@@ -107,11 +113,13 @@ export function getNameError(name: string, fieldName: string = 'Name'): string |
  * Returns a validation error message for a password, or null if valid.
  */
 export function getPasswordError(password: string): string | null {
-  if (!password || password.length === 0) {
+  const normalized = normalizePassword(password);
+
+  if (!normalized || normalized.length === 0) {
     return 'Password is required';
   }
 
-  if (!isValidPassword(password)) {
+  if (!isValidPassword(normalized)) {
     return 'Password must be at least 8 characters and include a letter and number';
   }
 
@@ -122,24 +130,27 @@ export function getPasswordError(password: string): string | null {
  * Returns a validation error message for password confirmation, or null if valid.
  */
 export function getConfirmPasswordError(password: string, confirmPassword: string): string | null {
-  if (!confirmPassword || confirmPassword.length === 0) {
+  const normalizedPassword = normalizePassword(password);
+  const normalizedConfirmPassword = normalizePassword(confirmPassword);
+
+  if (!normalizedConfirmPassword || normalizedConfirmPassword.length === 0) {
     return 'Please confirm your password';
   }
 
-  if (password !== confirmPassword) {
+  if (normalizedPassword !== normalizedConfirmPassword) {
     return 'Passwords do not match';
   }
 
   return null;
 }
 
-export interface EmailFieldState {
+interface EmailFieldState {
   normalized: string;
   valid: boolean;
   visibleError: string | undefined;
 }
 
-export interface EmailFieldOptions {
+interface EmailFieldOptions {
   value: string;
   active?: boolean;
   manualError?: string | null;

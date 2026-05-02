@@ -8,8 +8,8 @@ import { useWhiteboardStore } from '../stores/whiteboardStore';
 import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../types';
 
 export type FilterStatus = 'ALL' | QuestionStatus;
-export type WhiteboardFilter = 'ALL' | string;
-export type TopicFilter = 'ALL' | string;
+type WhiteboardFilter = 'ALL' | string;
+type TopicFilter = 'ALL' | string;
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 250;
@@ -89,7 +89,7 @@ export function useQuestionSearchModel() {
     }
 
     whiteboardService
-      .list(0, PAGE_SIZE)
+      .getWhiteboards({ page: 0, size: PAGE_SIZE })
       .then((response) => {
         if (active) {
           setFallbackWhiteboards(response.content);
@@ -155,7 +155,7 @@ export function useQuestionSearchModel() {
           params.topic = selectedTopic;
         }
 
-        const response = await questionService.search(params);
+        const response = await questionService.searchQuestions(params);
         setResults((previousResults) =>
           replace ? response.content : [...previousResults, ...response.content]
         );

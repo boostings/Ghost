@@ -43,7 +43,7 @@ export default function EditQuestionScreen() {
     if (!questionId || !whiteboardId) return;
     try {
       const [question, topicsData] = await Promise.all([
-        questionService.getById(whiteboardId, questionId),
+        questionService.getQuestion(whiteboardId, questionId),
         topicService.list(whiteboardId),
       ]);
       setTitle(question.title);
@@ -89,7 +89,7 @@ export default function EditQuestionScreen() {
     try {
       const sanitizedTitle = sanitizeSingleLine(title);
       const sanitizedBody = sanitizeText(body);
-      await questionService.update(whiteboardId, questionId, {
+      await questionService.editQuestion(whiteboardId, questionId, {
         title: sanitizedTitle,
         body: sanitizedBody,
         topicId: selectedTopicId,

@@ -25,7 +25,7 @@ import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
-import { getEmailFieldState } from '../../utils/validators';
+import { getEmailFieldState, normalizePassword } from '../../utils/validators';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -52,7 +52,8 @@ export default function LoginScreen() {
     manualError: errors.email,
     invalidMessage: 'Use your @ilstu.edu address',
   });
-  const canSubmit = emailField.valid && password.length > 0;
+  const normalizedPassword = normalizePassword(password);
+  const canSubmit = emailField.valid && normalizedPassword.length > 0;
 
   const validate = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
@@ -60,7 +61,7 @@ export default function LoginScreen() {
     if (!emailField.valid) {
       newErrors.email = 'Use your @ilstu.edu address';
     }
-    if (!password) {
+    if (!normalizedPassword) {
       newErrors.password = 'Password is required';
     }
 
@@ -81,7 +82,10 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const normalizedEmail = emailField.normalized;
-      const response = await authService.login({ email: normalizedEmail, password });
+      const response = await authService.login({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      });
       haptic.success();
       setAuth(response.user, response.accessToken, response.refreshToken);
     } catch (error: unknown) {

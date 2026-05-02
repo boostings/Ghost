@@ -1,4 +1,4 @@
-import { Easing, FadeInDown, FadeIn } from 'react-native-reanimated';
+import { Easing, FadeInDown } from 'react-native-reanimated';
 
 export const Duration = {
   instant: 120,
@@ -9,7 +9,6 @@ export const Duration = {
   drawer: 500,
 } as const;
 
-// Curated easings - "out" mirrors the Emil/Linear easeOutExpo feel.
 export const Ease = {
   out: Easing.bezier(0.16, 1, 0.3, 1),
   inOut: Easing.bezier(0.65, 0, 0.35, 1),
@@ -37,15 +36,7 @@ export const Stagger = {
   footer: 280,
 } as const;
 
-// Helpers for consistent screen entrances. Per Emil Kowalski:
-// UI entrances use ease-out (not springs) and stay under 300ms — springs are
-// reserved for natural motion like drag/drop and press/release.
-export const enterCard = (delay = 0) =>
-  FadeInDown.duration(Duration.normal).delay(delay).easing(Ease.out);
-
 export const enterList = (index: number) =>
   FadeInDown.duration(Duration.normal)
     .delay(index * Stagger.list)
     .easing(Ease.out);
-
-export const enterFade = (delay = 0) => FadeIn.duration(Duration.normal).delay(delay);

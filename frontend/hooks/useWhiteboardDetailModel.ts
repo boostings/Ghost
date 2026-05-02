@@ -11,15 +11,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useWhiteboardStore } from '../stores/whiteboardStore';
 import { subscribeToQuestionDeleted } from '../utils/questionDeletionEvents';
 import { reconcileQuestionEvent } from '../utils/questionEvents';
-import type { CommentResponse, QuestionResponse, QuestionStatus, WhiteboardResponse } from '../types';
-
-export type FeedStatusFilter = 'ALL' | QuestionStatus;
-
-export const FEED_STATUS_FILTERS: Array<{ label: string; value: FeedStatusFilter }> = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Open', value: 'OPEN' },
-  { label: 'Closed', value: 'CLOSED' },
-];
+import type { CommentResponse, QuestionResponse, WhiteboardResponse } from '../types';
 
 export type SortMode = 'recent' | 'topVoted' | 'mostCommented';
 
@@ -29,13 +21,13 @@ export const SORT_OPTIONS: Array<{ label: string; value: SortMode }> = [
   { label: 'Most commented', value: 'mostCommented' },
 ];
 
-export type FeedSection = {
+type FeedSection = {
   key: 'pinned' | 'open' | 'answered' | 'closed';
   title: string;
   data: QuestionResponse[];
 };
 
-export type FeedStats = {
+type FeedStats = {
   pinned: number;
   open: number;
   answered: number;
@@ -145,16 +137,16 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
 
         const trimmedQuery = debouncedQuery.trim();
         const questionsPromise = trimmedQuery
-          ? questionService.search({
+          ? questionService.searchQuestions({
               q: trimmedQuery,
               whiteboard: whiteboardId,
               page: nextPage,
               size: PAGE_SIZE,
             })
-          : questionService.list(whiteboardId, { page: nextPage, size: PAGE_SIZE });
+          : questionService.getQuestions(whiteboardId, { page: nextPage, size: PAGE_SIZE });
 
         const [nextWhiteboard, questionPage] = await Promise.all([
-          replace ? whiteboardService.getById(whiteboardId) : Promise.resolve(null),
+          replace ? whiteboardService.getWhiteboard(whiteboardId) : Promise.resolve(null),
           questionsPromise,
         ]);
 
@@ -192,6 +184,11 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     },
     [debouncedQuery, hasMore, loadingMore, setCurrentWhiteboard, whiteboardId]
   );
+  const fetchDataRef = useRef(fetchData);
+
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -207,12 +204,10 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     }, [fetchData, whiteboardId])
   );
 
-  // Re-run feed query when debounced search query changes (after the page is already loaded).
   useEffect(() => {
     if (!whiteboardId) return;
     if (loadedWhiteboardIdRef.current !== whiteboardId) return;
-    fetchData({ page: 0, replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchDataRef.current({ page: 0, replace: true });
   }, [debouncedQuery, whiteboardId]);
 
   const handleRefresh = useCallback(async () => {
@@ -428,8 +423,7 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     );
     const pinned = topicMatched.filter((question) => question.isPinned).length;
     const answered = topicMatched.filter(
-      (question) =>
-        !question.isPinned && question.status === 'CLOSED' && question.verifiedAnswerId
+      (question) => !question.isPinned && question.status === 'CLOSED' && question.verifiedAnswerId
     ).length;
     const open = topicMatched.filter(
       (question) => !question.isPinned && question.status === 'OPEN'

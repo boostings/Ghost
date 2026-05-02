@@ -17,46 +17,56 @@ jest.mock('./useWebSocket', () => ({
 }));
 
 jest.mock('../stores/authStore', () => ({
-  useAuthStore: (selector: (state: { user: { id: string; role: 'FACULTY' } }) => unknown) =>
-    selector({
-      user: {
-        id: 'u-1',
-        role: 'FACULTY',
-      },
-    }),
+  useAuthStore: Object.assign(
+    (selector: (state: { user: { id: string; role: 'FACULTY' } }) => unknown) =>
+      selector({
+        user: {
+          id: 'u-1',
+          role: 'FACULTY',
+        },
+      }),
+    {
+      getState: () => ({
+        user: {
+          id: 'u-1',
+          role: 'FACULTY',
+        },
+      }),
+    }
+  ),
 }));
 
 jest.mock('../services/questionService', () => ({
   __esModule: true,
   questionService: {
-    getById: jest.fn(),
-    getByIdGlobal: jest.fn(),
-    delete: jest.fn(),
-    close: jest.fn(),
-    pin: jest.fn(),
-    unpin: jest.fn(),
-    vote: jest.fn(),
-    removeVote: jest.fn(),
+    getQuestion: jest.fn(),
+    getQuestionById: jest.fn(),
+    deleteQuestion: jest.fn(),
+    closeQuestion: jest.fn(),
+    pinQuestion: jest.fn(),
+    unpinQuestion: jest.fn(),
+    voteOnQuestion: jest.fn(),
+    removeQuestionVote: jest.fn(),
   },
 }));
 
 jest.mock('../services/commentService', () => ({
   __esModule: true,
   commentService: {
-    list: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    vote: jest.fn(),
-    removeVote: jest.fn(),
-    verify: jest.fn(),
+    getComments: jest.fn(),
+    createComment: jest.fn(),
+    editComment: jest.fn(),
+    deleteComment: jest.fn(),
+    voteOnComment: jest.fn(),
+    removeCommentVote: jest.fn(),
+    markVerifiedAnswer: jest.fn(),
   },
 }));
 
 jest.mock('../services/whiteboardService', () => ({
   __esModule: true,
   whiteboardService: {
-    getById: jest.fn(() => Promise.resolve(null)),
+    getWhiteboard: jest.fn(() => Promise.resolve(null)),
   },
 }));
 
@@ -138,8 +148,8 @@ describe('useQuestionDetailModel', () => {
       unsubscribe: jest.fn(),
       callback,
     }));
-    mockQuestionService.getById.mockResolvedValue(makeQuestion());
-    mockCommentService.list.mockResolvedValue([]);
+    mockQuestionService.getQuestion.mockResolvedValue(makeQuestion());
+    mockCommentService.getComments.mockResolvedValue([]);
   });
 
   it('surfaces a missing question id without touching network services', async () => {
@@ -152,18 +162,18 @@ describe('useQuestionDetailModel', () => {
     expect(result.current.question).toBeNull();
     expect(result.current.comments).toEqual([]);
     expect(result.current.loadError).toBe('Missing question id.');
-    expect(mockQuestionService.getById).not.toHaveBeenCalled();
-    expect(mockCommentService.list).not.toHaveBeenCalled();
+    expect(mockQuestionService.getQuestion).not.toHaveBeenCalled();
+    expect(mockCommentService.getComments).not.toHaveBeenCalled();
   });
 
   it('loads question data, sorts comments, and infers author permissions', async () => {
-    mockQuestionService.getById.mockResolvedValue(
+    mockQuestionService.getQuestion.mockResolvedValue(
       makeQuestion({
         authorId: 'u-1',
         isBookmarked: true,
       })
     );
-    mockCommentService.list.mockResolvedValue([
+    mockCommentService.getComments.mockResolvedValue([
       makeComment({
         id: 'c-2',
         createdAt: '2026-03-25T10:05:00.000Z',
@@ -195,7 +205,7 @@ describe('useQuestionDetailModel', () => {
   });
 
   it('hides author delete controls after a verified answer closes the question', async () => {
-    mockQuestionService.getById.mockResolvedValue(
+    mockQuestionService.getQuestion.mockResolvedValue(
       makeQuestion({
         authorId: 'u-1',
         status: 'CLOSED',
@@ -220,19 +230,19 @@ describe('useQuestionDetailModel', () => {
   });
 
   it('creates and updates comments using sanitized text', async () => {
-    mockCommentService.create.mockResolvedValue(
+    mockCommentService.createComment.mockResolvedValue(
       makeComment({
         id: 'c-2',
         body: 'new answer',
       })
     );
-    mockCommentService.update.mockResolvedValue(
+    mockCommentService.editComment.mockResolvedValue(
       makeComment({
         id: 'c-1',
         body: 'updated answer',
       })
     );
-    mockCommentService.list.mockResolvedValue([makeComment()]);
+    mockCommentService.getComments.mockResolvedValue([makeComment()]);
 
     const { result } = renderHook(() =>
       useQuestionDetailModel({
@@ -253,7 +263,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.submitComment();
     });
 
-    expect(mockCommentService.create).toHaveBeenCalledWith('wb-1', 'q-1', { body: 'new answer' });
+    expect(mockCommentService.createComment).toHaveBeenCalledWith('wb-1', 'q-1', { body: 'new answer' });
     expect(result.current.comments.map((comment) => comment.id)).toEqual(['c-1', 'c-2']);
     expect(result.current.commentText).toBe('');
 
@@ -268,7 +278,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.submitComment();
     });
 
-    expect(mockCommentService.update).toHaveBeenCalledWith('wb-1', 'q-1', 'c-1', {
+    expect(mockCommentService.editComment).toHaveBeenCalledWith('wb-1', 'q-1', 'c-1', {
       body: 'updated answer',
     });
     expect(result.current.comments[0].body).toBe('updated answer');
@@ -276,7 +286,7 @@ describe('useQuestionDetailModel', () => {
   });
 
   it('ignores empty comment submissions and blocks editing once the question closes', async () => {
-    mockCommentService.list.mockResolvedValue([makeComment()]);
+    mockCommentService.getComments.mockResolvedValue([makeComment()]);
     const subscriptions = new Map<string, (frame: { body: string }) => void>();
     mockSubscribe.mockImplementation((destination, callback) => {
       subscriptions.set(destination, callback);
@@ -302,7 +312,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.submitComment();
     });
 
-    expect(mockCommentService.create).not.toHaveBeenCalled();
+    expect(mockCommentService.createComment).not.toHaveBeenCalled();
 
     act(() => {
       result.current.startEditingComment(result.current.comments[0]);
@@ -330,7 +340,7 @@ describe('useQuestionDetailModel', () => {
   });
 
   it('removes deleted comments and resets edit state when deleting the active comment', async () => {
-    mockCommentService.list.mockResolvedValue([
+    mockCommentService.getComments.mockResolvedValue([
       makeComment({ id: 'c-1' }),
       makeComment({ id: 'c-2', createdAt: '2026-03-25T10:05:00.000Z' }),
     ]);
@@ -354,20 +364,20 @@ describe('useQuestionDetailModel', () => {
       await result.current.deleteComment('c-1');
     });
 
-    expect(mockCommentService.delete).toHaveBeenCalledWith('wb-1', 'q-1', 'c-1');
+    expect(mockCommentService.deleteComment).toHaveBeenCalledWith('wb-1', 'q-1', 'c-1');
     expect(result.current.comments.map((comment) => comment.id)).toEqual(['c-2']);
     expect(result.current.commentText).toBe('');
     expect(result.current.editingCommentId).toBeNull();
   });
 
   it('toggles question and comment votes while keeping karma scores in sync', async () => {
-    mockQuestionService.getById.mockResolvedValue(
+    mockQuestionService.getQuestion.mockResolvedValue(
       makeQuestion({
         userVote: 'DOWNVOTE',
         karmaScore: 3,
       })
     );
-    mockCommentService.list.mockResolvedValue([
+    mockCommentService.getComments.mockResolvedValue([
       makeComment({
         id: 'c-1',
         userVote: 'UPVOTE',
@@ -390,7 +400,7 @@ describe('useQuestionDetailModel', () => {
       await result.current.voteOnQuestion('UPVOTE');
     });
 
-    expect(mockQuestionService.vote).toHaveBeenCalledWith('q-1', 'UPVOTE');
+    expect(mockQuestionService.voteOnQuestion).toHaveBeenCalledWith('q-1', 'UPVOTE');
     expect(result.current.question?.userVote).toBe('UPVOTE');
     expect(result.current.question?.karmaScore).toBe(5);
 
@@ -398,14 +408,14 @@ describe('useQuestionDetailModel', () => {
       await result.current.voteOnComment('c-1', 'UPVOTE');
     });
 
-    expect(mockCommentService.removeVote).toHaveBeenCalledWith('c-1');
+    expect(mockCommentService.removeCommentVote).toHaveBeenCalledWith('c-1');
     expect(result.current.comments[0].userVote).toBeNull();
     expect(result.current.comments[0].karmaScore).toBe(1);
   });
 
   it('verifies answers, toggles bookmarks, and manages the report modal state', async () => {
-    mockCommentService.list.mockResolvedValue([makeComment()]);
-    mockCommentService.verify.mockResolvedValue(
+    mockCommentService.getComments.mockResolvedValue([makeComment()]);
+    mockCommentService.markVerifiedAnswer.mockResolvedValue(
       makeComment({
         id: 'c-1',
         isVerifiedAnswer: true,
@@ -458,8 +468,8 @@ describe('useQuestionDetailModel', () => {
   });
 
   it('rolls back optimistic answer verification when the request fails', async () => {
-    mockCommentService.list.mockResolvedValue([makeComment()]);
-    mockCommentService.verify.mockRejectedValue(new Error('verify failed'));
+    mockCommentService.getComments.mockResolvedValue([makeComment()]);
+    mockCommentService.markVerifiedAnswer.mockRejectedValue(new Error('verify failed'));
 
     const { result } = renderHook(() =>
       useQuestionDetailModel({
@@ -484,7 +494,7 @@ describe('useQuestionDetailModel', () => {
   });
 
   it('deletes the current question, refreshes closed questions, and toggles pin state', async () => {
-    mockQuestionService.getById.mockResolvedValue(
+    mockQuestionService.getQuestion.mockResolvedValue(
       makeQuestion({
         isPinned: true,
       })
@@ -510,10 +520,10 @@ describe('useQuestionDetailModel', () => {
       await result.current.refresh();
     });
 
-    expect(mockQuestionService.delete).toHaveBeenCalledWith('wb-1', 'q-1');
-    expect(mockQuestionService.close).toHaveBeenCalledWith('wb-1', 'q-1');
-    expect(mockQuestionService.unpin).toHaveBeenCalledWith('wb-1', 'q-1');
-    expect(mockQuestionService.getById).toHaveBeenCalledTimes(4);
+    expect(mockQuestionService.deleteQuestion).toHaveBeenCalledWith('wb-1', 'q-1');
+    expect(mockQuestionService.closeQuestion).toHaveBeenCalledWith('wb-1', 'q-1');
+    expect(mockQuestionService.unpinQuestion).toHaveBeenCalledWith('wb-1', 'q-1');
+    expect(mockQuestionService.getQuestion).toHaveBeenCalledTimes(4);
     expect(onQuestionDeleted).toHaveBeenCalledTimes(1);
   });
 

@@ -25,6 +25,7 @@ import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/authStore';
 import { extractErrorMessage } from '../../hooks/useApi';
+import { normalizePassword } from '../../utils/validators';
 
 export default function NewPasswordScreen() {
   const router = useRouter();
@@ -37,7 +38,9 @@ export default function NewPasswordScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const canSubmit = newPassword.length > 0 && confirmPassword.length > 0;
+  const normalizedNewPassword = normalizePassword(newPassword);
+  const normalizedConfirmPassword = normalizePassword(confirmPassword);
+  const canSubmit = normalizedNewPassword.length > 0 && normalizedConfirmPassword.length > 0;
 
   const handleResetPassword = async () => {
     if (!email || !code) {
@@ -45,17 +48,17 @@ export default function NewPasswordScreen() {
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (normalizedNewPassword.length < 8) {
       Alert.alert('Invalid Password', 'Password must be at least 8 characters.');
       return;
     }
 
-    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    if (!/[A-Za-z]/.test(normalizedNewPassword) || !/\d/.test(normalizedNewPassword)) {
       Alert.alert('Invalid Password', 'Password must contain at least one letter and one number.');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (normalizedNewPassword !== normalizedConfirmPassword) {
       Alert.alert('Passwords Do Not Match', 'Please make sure both passwords match.');
       return;
     }
@@ -65,8 +68,8 @@ export default function NewPasswordScreen() {
       const response = await authService.resetPassword({
         email,
         code,
-        newPassword,
-        confirmPassword,
+        newPassword: normalizedNewPassword,
+        confirmPassword: normalizedConfirmPassword,
       });
       setAuth(response.user, response.accessToken, response.refreshToken);
       router.replace('/(tabs)/home');

@@ -6,6 +6,7 @@ import {
   isValidEmail,
   isValidName,
   isValidPassword,
+  normalizePassword,
 } from './validators';
 
 describe('validators boundary values', () => {
@@ -32,6 +33,11 @@ describe('validators boundary values', () => {
     expect(isValidEmail('  Student@ILSTU.EDU  ')).toBe(true);
     expect(isValidEmail('student name@ilstu.edu')).toBe(false);
   });
+
+  it('normalizes only trailing password whitespace', () => {
+    expect(normalizePassword('testPassword123   ')).toBe('testPassword123');
+    expect(normalizePassword(' test Password123   ')).toBe(' test Password123');
+  });
 });
 
 describe('validators behavior', () => {
@@ -53,9 +59,9 @@ describe('validators behavior', () => {
     expect(getPasswordError('short7')).toBe(
       'Password must be at least 8 characters and include a letter and number'
     );
-    expect(getPasswordError('passw0rd')).toBeNull();
+    expect(getPasswordError('passw0rd   ')).toBeNull();
     expect(getConfirmPasswordError('password1', '')).toBe('Please confirm your password');
     expect(getConfirmPasswordError('password1', 'password2')).toBe('Passwords do not match');
-    expect(getConfirmPasswordError('password1', 'password1')).toBeNull();
+    expect(getConfirmPasswordError('password1   ', 'password1')).toBeNull();
   });
 });

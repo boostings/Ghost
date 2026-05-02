@@ -63,7 +63,10 @@ export function useInviteLinks() {
     const joinFromLink = async () => {
       try {
         await whiteboardService.joinByInviteCode(pendingInviteCode);
-        const whiteboardPage = await whiteboardService.list(0, WHITEBOARD_PAGE_SIZE);
+        const whiteboardPage = await whiteboardService.getWhiteboards({
+          page: 0,
+          size: WHITEBOARD_PAGE_SIZE,
+        });
         if (cancelled) {
           return;
         }

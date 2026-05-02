@@ -162,10 +162,10 @@ describe('questionService', () => {
     apiMock.post.mockResolvedValue({ data: undefined });
     apiMock.delete.mockResolvedValue({ data: undefined });
 
-    await questionService.pin('wb-1', 'q-1');
-    await questionService.unpin('wb-1', 'q-1');
-    await questionService.vote('q-1', 'UPVOTE');
-    await questionService.removeVote('q-1');
+    await questionService.pinQuestion('wb-1', 'q-1');
+    await questionService.unpinQuestion('wb-1', 'q-1');
+    await questionService.voteOnQuestion('q-1', 'UPVOTE');
+    await questionService.removeQuestionVote('q-1');
 
     expect(apiMock.post).toHaveBeenNthCalledWith(1, '/whiteboards/wb-1/questions/q-1/pin');
     expect(apiMock.delete).toHaveBeenNthCalledWith(1, '/whiteboards/wb-1/questions/q-1/pin');

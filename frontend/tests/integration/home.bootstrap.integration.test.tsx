@@ -98,8 +98,12 @@ jest.mock('expo-camera', () => {
 });
 
 jest.mock('../../stores/authStore', () => ({
-  useAuthStore: (selector: (state: typeof mockAuthStoreState) => unknown) =>
-    selector(mockAuthStoreState),
+  useAuthStore: Object.assign(
+    (selector: (state: typeof mockAuthStoreState) => unknown) => selector(mockAuthStoreState),
+    {
+      getState: () => mockAuthStoreState,
+    }
+  ),
 }));
 
 jest.mock('../../stores/whiteboardStore', () => ({

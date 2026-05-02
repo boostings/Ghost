@@ -10,7 +10,7 @@ import {
 
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
-export type IconMotion = 'pop' | 'tilt' | 'spin' | 'drop' | 'rise' | 'bounce' | 'fade' | 'none';
+type IconMotion = 'pop' | 'tilt' | 'spin' | 'drop' | 'rise' | 'bounce' | 'fade' | 'none';
 
 type BaseProps = {
   color: string;
@@ -33,7 +33,7 @@ type FA5Props = BaseProps & {
   solid?: boolean;
 };
 
-export type AnimatedIconProps = IonProps | FA5Props;
+type AnimatedIconProps = IonProps | FA5Props;
 
 export function AnimatedIcon(props: AnimatedIconProps) {
   const motion: IconMotion = props.motion ?? 'pop';

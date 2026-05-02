@@ -75,7 +75,7 @@ describe('LoginScreen', () => {
     const screen = render(<LoginScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText('you@ilstu.edu'), 'Student@ILSTU.edu');
-    fireEvent.changeText(screen.getByPlaceholderText('Enter your password'), 'password1');
+    fireEvent.changeText(screen.getByPlaceholderText('Enter your password'), 'password1   ');
     fireEvent.press(screen.getByText('Sign In'));
 
     await waitFor(() => {

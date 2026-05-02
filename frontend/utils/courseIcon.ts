@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 type IonName = keyof typeof Ionicons.glyphMap;
 
-export interface CourseVisual {
+interface CourseVisual {
   icon: IonName;
   /** Themed accent. We blend with the primary palette but each subject has a distinct hue
    * for memorability — kept in 0–360 hue range so the consumer can plug into HSL. */

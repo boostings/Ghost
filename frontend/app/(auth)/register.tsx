@@ -28,6 +28,7 @@ import {
   getPasswordError,
   getConfirmPasswordError,
   getEmailFieldState,
+  normalizePassword,
 } from '../../utils/validators';
 
 interface FormErrors {
@@ -57,12 +58,14 @@ export default function RegisterScreen() {
     manualError: errors.email,
     invalidMessage: 'Use your @ilstu.edu address',
   });
+  const normalizedPassword = normalizePassword(password);
+  const normalizedConfirmPassword = normalizePassword(confirmPassword);
   const canSubmit =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     emailField.valid &&
-    password.length > 0 &&
-    confirmPassword.length > 0;
+    normalizedPassword.length > 0 &&
+    normalizedConfirmPassword.length > 0;
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -75,10 +78,10 @@ export default function RegisterScreen() {
 
     if (!emailField.valid) newErrors.email = 'Use your @ilstu.edu address';
 
-    const passwordErr = getPasswordError(password);
+    const passwordErr = getPasswordError(normalizedPassword);
     if (passwordErr) newErrors.password = passwordErr;
 
-    const confirmErr = getConfirmPasswordError(password, confirmPassword);
+    const confirmErr = getConfirmPasswordError(normalizedPassword, normalizedConfirmPassword);
     if (confirmErr) newErrors.confirmPassword = confirmErr;
 
     setErrors(newErrors);
@@ -98,7 +101,7 @@ export default function RegisterScreen() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: emailField.normalized,
-        password,
+        password: normalizedPassword,
       });
       router.push({
         pathname: '/(auth)/verify-email',

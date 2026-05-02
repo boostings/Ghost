@@ -18,7 +18,7 @@ jest.mock('../services/whiteboardService', () => ({
   __esModule: true,
   whiteboardService: {
     joinByInviteCode: jest.fn(),
-    list: jest.fn(),
+    getWhiteboards: jest.fn(),
   },
 }));
 
@@ -62,7 +62,7 @@ describe('useInviteLinks', () => {
     useWhiteboardStore.getState().reset();
     useAuthStore.getState().logout();
     mockWhiteboardService.joinByInviteCode.mockResolvedValue(undefined);
-    mockWhiteboardService.list.mockResolvedValue({
+    mockWhiteboardService.getWhiteboards.mockResolvedValue({
       content: [makeWhiteboard()],
       page: 0,
       size: 20,
@@ -101,7 +101,7 @@ describe('useInviteLinks', () => {
       expect(mockWhiteboardService.joinByInviteCode).toHaveBeenCalledWith('JOINME');
     });
 
-    expect(mockWhiteboardService.list).toHaveBeenCalledWith(0, 20);
+    expect(mockWhiteboardService.getWhiteboards).toHaveBeenCalledWith({ page: 0, size: 20 });
     expect(useWhiteboardStore.getState().whiteboards).toHaveLength(1);
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/home');
   });
@@ -134,7 +134,7 @@ describe('useInviteLinks', () => {
       expect(alertSpy).toHaveBeenCalledWith('Join Failed', 'Join failed');
     });
 
-    expect(mockWhiteboardService.list).not.toHaveBeenCalled();
+    expect(mockWhiteboardService.getWhiteboards).not.toHaveBeenCalled();
 
     mockWhiteboardService.joinByInviteCode.mockResolvedValueOnce(undefined);
 
@@ -145,7 +145,7 @@ describe('useInviteLinks', () => {
     await waitFor(() => {
       expect(mockWhiteboardService.joinByInviteCode).toHaveBeenCalledTimes(2);
     });
-    expect(mockWhiteboardService.list).toHaveBeenCalledWith(0, 20);
+    expect(mockWhiteboardService.getWhiteboards).toHaveBeenCalledWith({ page: 0, size: 20 });
   });
 
   it('holds a scanned invite link until the user is authenticated', async () => {

@@ -78,15 +78,7 @@ async function fetchUnreadCount(accessToken: string | null): Promise<number> {
   return request;
 }
 
-/**
- * Notification service - handles fetching notifications,
- * marking them as read, and getting unread counts.
- */
 export const notificationService = {
-  /**
-   * Get paginated list of notifications for the current user.
-   * GET /notifications
-   */
   getNotifications: async (
     params?: PaginationParams
   ): Promise<PageResponse<NotificationResponse>> => {
@@ -99,37 +91,21 @@ export const notificationService = {
     return response.data;
   },
 
-  /**
-   * Get the count of unread notifications.
-   * GET /notifications/unread-count
-   */
   getUnreadCount: async (): Promise<number> => {
     const accessToken = useAuthStore.getState().accessToken ?? null;
     return fetchUnreadCount(accessToken);
   },
 
-  /**
-   * Mark a single notification as read.
-   * PUT /notifications/{id}/read
-   */
   markAsRead: async (id: string): Promise<void> => {
     await api.put(`/notifications/${id}/read`);
     resetUnreadCountCache();
   },
 
-  /**
-   * Mark all notifications as read.
-   * PUT /notifications/read-all
-   */
   markAllAsRead: async (): Promise<void> => {
     await api.put('/notifications/read-all');
     resetUnreadCountCache();
   },
 
-  /**
-   * Clear all notifications for the current user.
-   * DELETE /notifications
-   */
   clearAll: async (): Promise<void> => {
     await api.delete('/notifications');
     resetUnreadCountCache();
@@ -160,15 +136,5 @@ export const notificationService = {
       { mutedFor24h }
     );
     return response.data;
-  },
-
-  /**
-   * Legacy alias kept for backward compatibility while screens migrate.
-   */
-  list: async (
-    page = 0,
-    size: number = Config.PAGE_SIZE
-  ): Promise<PageResponse<NotificationResponse>> => {
-    return notificationService.getNotifications({ page, size });
   },
 };

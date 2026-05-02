@@ -81,7 +81,7 @@ export default function CreateQuestionScreen() {
     try {
       const sanitizedTitle = sanitizeSingleLine(title);
       const sanitizedBody = sanitizeText(body);
-      await questionService.create(whiteboardId, {
+      await questionService.createQuestion(whiteboardId, {
         title: sanitizedTitle,
         body: sanitizedBody,
         topicId: selectedTopicId,

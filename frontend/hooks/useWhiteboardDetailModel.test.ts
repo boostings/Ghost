@@ -18,13 +18,23 @@ jest.mock('./useWebSocket', () => ({
 }));
 
 jest.mock('../stores/authStore', () => ({
-  useAuthStore: (selector: (state: { user: { id: string; role: 'FACULTY' } }) => unknown) =>
-    selector({
-      user: {
-        id: 'u-1',
-        role: 'FACULTY',
-      },
-    }),
+  useAuthStore: Object.assign(
+    (selector: (state: { user: { id: string; role: 'FACULTY' } }) => unknown) =>
+      selector({
+        user: {
+          id: 'u-1',
+          role: 'FACULTY',
+        },
+      }),
+    {
+      getState: () => ({
+        user: {
+          id: 'u-1',
+          role: 'FACULTY',
+        },
+      }),
+    }
+  ),
 }));
 
 jest.mock('../stores/whiteboardStore', () => ({
@@ -37,15 +47,15 @@ jest.mock('../stores/whiteboardStore', () => ({
 jest.mock('../services/whiteboardService', () => ({
   __esModule: true,
   whiteboardService: {
-    getById: jest.fn(),
+    getWhiteboard: jest.fn(),
   },
 }));
 
 jest.mock('../services/questionService', () => ({
   __esModule: true,
   questionService: {
-    list: jest.fn(),
-    search: jest.fn(),
+    getQuestions: jest.fn(),
+    searchQuestions: jest.fn(),
   },
 }));
 
@@ -123,24 +133,24 @@ function makeQuestion(overrides: Partial<QuestionResponse> = {}): QuestionRespon
 describe('useWhiteboardDetailModel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockWhiteboardService.getById.mockResolvedValue(makeWhiteboard());
-    mockQuestionService.list.mockResolvedValue(makeEmptyQuestionPage());
+    mockWhiteboardService.getWhiteboard.mockResolvedValue(makeWhiteboard());
+    mockQuestionService.getQuestions.mockResolvedValue(makeEmptyQuestionPage());
   });
 
   it('treats an empty new whiteboard as loaded instead of refetching forever', async () => {
     const { result } = renderHook(() => useWhiteboardDetailModel('wb-1'));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    await waitFor(() => expect(mockWhiteboardService.getById).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockWhiteboardService.getWhiteboard).toHaveBeenCalledTimes(1));
 
-    expect(mockQuestionService.list).toHaveBeenCalledTimes(1);
+    expect(mockQuestionService.getQuestions).toHaveBeenCalledTimes(1);
     expect(result.current.questions).toEqual([]);
     expect(result.current.sections).toEqual([]);
     expect(result.current.loadError).toBeNull();
   });
 
   it('keeps answered search results out of the open counter', async () => {
-    mockQuestionService.search.mockResolvedValue({
+    mockQuestionService.searchQuestions.mockResolvedValue({
       content: [makeQuestion()],
       page: 0,
       size: 20,
@@ -156,18 +166,20 @@ describe('useWhiteboardDetailModel', () => {
       result.current.setSearchQuery('project');
     });
 
-    await waitFor(() => expect(mockQuestionService.search).toHaveBeenCalled());
+    await waitFor(() => expect(mockQuestionService.searchQuestions).toHaveBeenCalled());
 
-    expect(result.current.stats).toEqual({
-      pinned: 0,
-      open: 0,
-      answered: 1,
-      total: 1,
-    });
+    await waitFor(() =>
+      expect(result.current.stats).toEqual({
+        pinned: 0,
+        open: 0,
+        answered: 1,
+        total: 1,
+      })
+    );
   });
 
   it('keeps closed questions without verified answers out of the open section', async () => {
-    mockQuestionService.list.mockResolvedValue({
+    mockQuestionService.getQuestions.mockResolvedValue({
       content: [
         makeQuestion({
           id: 'q-open',
@@ -210,7 +222,7 @@ describe('useWhiteboardDetailModel', () => {
   });
 
   it('removes locally deleted questions from the mounted whiteboard feed', async () => {
-    mockQuestionService.list.mockResolvedValue({
+    mockQuestionService.getQuestions.mockResolvedValue({
       content: [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],
       page: 0,
       size: 20,
@@ -238,7 +250,7 @@ describe('useWhiteboardDetailModel', () => {
   });
 
   it('keeps locally deleted questions out of later stale feed responses', async () => {
-    mockQuestionService.list
+    mockQuestionService.getQuestions
       .mockResolvedValueOnce({
         content: [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],
         page: 0,

@@ -81,7 +81,7 @@ describe('commentService', () => {
     };
     apiMock.get.mockResolvedValue(response);
 
-    const comments = await commentService.list('wb-1', 'q-1', { page: 2, size: 5 });
+    const comments = await commentService.getComments('wb-1', 'q-1', { page: 2, size: 5 });
 
     expect(comments).toEqual(response.data);
     expect(apiMock.get).toHaveBeenCalledWith('/whiteboards/wb-1/questions/q-1/comments', {
@@ -112,7 +112,7 @@ describe('commentService', () => {
     };
     apiMock.post.mockResolvedValue(response);
 
-    const comment = await commentService.verify('wb-1', 'q-1', 'c-3');
+    const comment = await commentService.markVerifiedAnswer('wb-1', 'q-1', 'c-3');
 
     expect(comment).toEqual(response.data);
     expect(apiMock.post).toHaveBeenCalledWith(
@@ -124,8 +124,8 @@ describe('commentService', () => {
     apiMock.post.mockResolvedValue({ data: undefined });
     apiMock.delete.mockResolvedValue({ data: undefined });
 
-    await commentService.vote('c-9', 'DOWNVOTE');
-    await commentService.removeVote('c-9');
+    await commentService.voteOnComment('c-9', 'DOWNVOTE');
+    await commentService.removeCommentVote('c-9');
 
     expect(apiMock.post).toHaveBeenCalledWith('/karma/comments/c-9/vote', {
       voteType: 'DOWNVOTE',

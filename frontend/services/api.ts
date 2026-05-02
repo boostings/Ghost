@@ -3,11 +3,6 @@ import { Config } from '../constants/config';
 import { useAuthStore } from '../stores/authStore';
 import type { AuthResponse, RefreshTokenRequest } from '../types';
 
-/**
- * Axios instance configured with the Ghost API base URL.
- * Includes request interceptor for JWT token attachment
- * and response interceptor for automatic token refresh on auth expiry.
- */
 const api = axios.create({
   baseURL: Config.API_URL,
   timeout: 15000,
@@ -54,17 +49,12 @@ function sanitizeForLog(value: unknown): unknown {
   return value;
 }
 
-// Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
-// Queue of requests that are waiting for the token to be refreshed
 let failedQueue: Array<{
   resolve: (value: string) => void;
   reject: (reason: unknown) => void;
 }> = [];
 
-/**
- * Process the queue of failed requests after a token refresh.
- */
 function processQueue(error: unknown, token: string | null = null): void {
   failedQueue.forEach((promise) => {
     if (error) {
@@ -76,9 +66,6 @@ function processQueue(error: unknown, token: string | null = null): void {
   failedQueue = [];
 }
 
-/**
- * Request interceptor: Attach Bearer token from authStore to every request.
- */
 api.interceptors.request.use(
   (config) => {
     const { accessToken } = useAuthStore.getState();
@@ -105,11 +92,6 @@ api.interceptors.request.use(
   }
 );
 
-/**
- * Response interceptor: On 401 auth errors, attempt to refresh the access token.
- * If the refresh succeeds, retry the original request with the new token.
- * If the refresh fails, log the user out.
- */
 api.interceptors.response.use(
   (response) => {
     if (__DEV__) {
@@ -153,19 +135,16 @@ api.interceptors.response.use(
       });
     }
 
-    // Only attempt refresh for auth errors that haven't already been retried
     if (!isAuthError || originalRequest._retry) {
       return Promise.reject(error);
     }
 
-    // Don't try to refresh if we're already on the refresh or login endpoint
     if (isAuthEndpoint) {
       useAuthStore.getState().logout();
       return Promise.reject(error);
     }
 
     if (isRefreshing) {
-      // If we're already refreshing, queue this request and wait for the new token
       return new Promise<string>((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
@@ -197,7 +176,6 @@ api.interceptors.response.use(
       setTokens(newAccessToken, newRefreshToken);
       processQueue(null, newAccessToken);
 
-      // Retry the original request with the new token
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       return api(originalRequest);
     } catch (refreshError) {

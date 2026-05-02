@@ -79,16 +79,16 @@ export function useQuestionDetailModel({
 
     try {
       const resolvedQuestion = whiteboardId
-        ? questionService.getById(whiteboardId, questionId)
-        : questionService.getByIdGlobal(questionId);
+        ? questionService.getQuestion(whiteboardId, questionId)
+        : questionService.getQuestionById(questionId);
       const nextQuestion = await resolvedQuestion;
 
       // Load comments and the whiteboard (for the viewer's per-board role) in
       // parallel. Whiteboard fetch is best-effort: if it fails the moderation
       // UI just stays hidden, which is the safe default.
       const [nextComments, nextWhiteboard] = await Promise.all([
-        commentService.list(nextQuestion.whiteboardId, questionId),
-        whiteboardService.getById(nextQuestion.whiteboardId).catch(() => null),
+        commentService.getComments(nextQuestion.whiteboardId, questionId),
+        whiteboardService.getWhiteboard(nextQuestion.whiteboardId).catch(() => null),
       ]);
 
       setQuestion(nextQuestion);
@@ -194,7 +194,7 @@ export function useQuestionDetailModel({
       }
 
       if (editingCommentId) {
-        const updatedComment = await commentService.update(
+        const updatedComment = await commentService.editComment(
           resolvedWhiteboardId,
           questionId,
           editingCommentId,
@@ -217,7 +217,7 @@ export function useQuestionDetailModel({
         });
         setEditingCommentId(null);
       } else {
-        const newComment = await commentService.create(resolvedWhiteboardId, questionId, {
+        const newComment = await commentService.createComment(resolvedWhiteboardId, questionId, {
           body: sanitizedComment,
         });
         setComments((previousComments) => {
@@ -274,7 +274,7 @@ export function useQuestionDetailModel({
         throw new Error('Missing whiteboard context.');
       }
 
-      await commentService.delete(resolvedWhiteboardId, questionId, commentId);
+      await commentService.deleteComment(resolvedWhiteboardId, questionId, commentId);
       setComments((previousComments) =>
         previousComments.filter((comment) => comment.id !== commentId)
       );
@@ -293,7 +293,7 @@ export function useQuestionDetailModel({
       }
 
       if (question?.userVote === voteType) {
-        await questionService.removeVote(questionId);
+        await questionService.removeQuestionVote(questionId);
         setQuestion((previousQuestion) =>
           previousQuestion
             ? {
@@ -306,7 +306,7 @@ export function useQuestionDetailModel({
         return;
       }
 
-      await questionService.vote(questionId, voteType);
+      await questionService.voteOnQuestion(questionId, voteType);
       const oldVote = question?.userVote;
       let scoreDifference = voteType === 'UPVOTE' ? 1 : -1;
       if (oldVote) {
@@ -331,7 +331,7 @@ export function useQuestionDetailModel({
       const existingComment = comments.find((comment) => comment.id === commentId);
 
       if (existingComment?.userVote === voteType) {
-        await commentService.removeVote(commentId);
+        await commentService.removeCommentVote(commentId);
         setComments((previousComments) =>
           previousComments.map((comment) =>
             comment.id === commentId
@@ -346,7 +346,7 @@ export function useQuestionDetailModel({
         return;
       }
 
-      await commentService.vote(commentId, voteType);
+      await commentService.voteOnComment(commentId, voteType);
       const oldVote = existingComment?.userVote;
       let scoreDifference = voteType === 'UPVOTE' ? 1 : -1;
       if (oldVote) {
@@ -415,7 +415,7 @@ export function useQuestionDetailModel({
       );
 
       try {
-        const verifiedComment = await commentService.verify(
+        const verifiedComment = await commentService.markVerifiedAnswer(
           resolvedWhiteboardId,
           questionId,
           commentId
@@ -469,7 +469,7 @@ export function useQuestionDetailModel({
       throw new Error('Missing whiteboard context.');
     }
 
-    await questionService.delete(resolvedWhiteboardId, questionId);
+    await questionService.deleteQuestion(resolvedWhiteboardId, questionId);
     notifyQuestionDeleted({ whiteboardId: resolvedWhiteboardId, questionId });
     onQuestionDeleted?.();
   }, [onQuestionDeleted, question?.whiteboardId, questionId, whiteboardId]);
@@ -484,7 +484,7 @@ export function useQuestionDetailModel({
       throw new Error('Missing whiteboard context.');
     }
 
-    await questionService.close(resolvedWhiteboardId, questionId);
+    await questionService.closeQuestion(resolvedWhiteboardId, questionId);
     await fetchData();
   }, [fetchData, question?.whiteboardId, questionId, whiteboardId]);
 
@@ -499,9 +499,9 @@ export function useQuestionDetailModel({
     }
 
     if (question?.isPinned) {
-      await questionService.unpin(resolvedWhiteboardId, questionId);
+      await questionService.unpinQuestion(resolvedWhiteboardId, questionId);
     } else {
-      await questionService.pin(resolvedWhiteboardId, questionId);
+      await questionService.pinQuestion(resolvedWhiteboardId, questionId);
     }
 
     await fetchData();
