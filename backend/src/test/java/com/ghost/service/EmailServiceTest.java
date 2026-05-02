@@ -1,5 +1,8 @@
 package com.ghost.service;
 
+import com.ghost.model.Notification;
+import com.ghost.model.User;
+import com.ghost.model.enums.NotificationType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -7,6 +10,9 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -83,5 +89,50 @@ class EmailServiceTest {
         assertThat(output).contains("student@ilstu.edu");
         assertThat(output).contains("Your Ghost password reset code");
         assertThat(output).contains("654321");
+    }
+
+    @Test
+    void sendNotificationDigestShouldUseConfiguredResendEndpointAndEscapedSummary() {
+        RestClient.Builder restClientBuilder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restClientBuilder).build();
+        EmailService emailService = new EmailService(
+                "resend-key",
+                "Ghost <noreply@example.com>",
+                "https://api.resend.test/emails",
+                true,
+                restClientBuilder
+        );
+        User recipient = User.builder()
+                .id(UUID.randomUUID())
+                .email("student@ilstu.edu")
+                .build();
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .type(NotificationType.COMMENT_ADDED)
+                .title("Comment <added>")
+                .body("Read & reply")
+                .build();
+
+        server.expect(requestTo("https://api.resend.test/emails"))
+                .andExpect(method(org.springframework.http.HttpMethod.POST))
+                .andExpect(header("Authorization", "Bearer resend-key"))
+                .andExpect(content().string(allOf(
+                        containsString("\"from\":\"Ghost <noreply@example.com>\""),
+                        containsString("\"to\":[\"student@ilstu.edu\"]"),
+                        containsString("\"subject\":\"Your Ghost digest\""),
+                        containsString("Comment &lt;added&gt;"),
+                        containsString("Read &amp; reply")
+                )))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        emailService.sendNotificationDigest(new NotificationDigestJob.NotificationDigest(
+                recipient.getId(),
+                recipient.getEmail(),
+                null,
+                "DAILY_7AM",
+                List.of(notification)
+        ));
+
+        server.verify();
     }
 }

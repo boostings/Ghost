@@ -23,6 +23,10 @@ export type NotificationType =
   | 'CONTENT_HIDDEN'
   | 'POST_TRENDING';
 
+export type PushFrequency = 'REALTIME' | 'HOURLY' | 'OFF';
+
+export type EmailDigest = 'OFF' | 'DAILY_7AM' | 'WEEKLY_MON_7AM';
+
 export type ReportReason = 'SPAM' | 'INAPPROPRIATE' | 'HARASSMENT' | 'OFF_TOPIC' | 'OTHER';
 
 export type ReportStatus = 'PENDING' | 'REVIEWED' | 'DISMISSED';
@@ -92,6 +96,8 @@ export interface WhiteboardResponse {
   inviteCode: string;
   isDemo: boolean;
   memberCount: number;
+  sectionCount?: number;
+  instructorSummary?: string | null;
   createdAt: string;
   /**
    * Viewer's per-whiteboard role. Distinct from the user's global role:
@@ -180,8 +186,20 @@ export interface NotificationResponse {
   body: string | null;
   referenceType: string | null;
   referenceId: string | null;
+  whiteboardId?: string | null;
   isRead: boolean;
   createdAt: string;
+}
+
+export interface ClassNotificationOverrideResponse {
+  whiteboardId: string;
+  mutedUntil: string | null;
+}
+
+export interface NotificationPreferencesResponse {
+  pushFrequency: PushFrequency;
+  emailDigest: EmailDigest;
+  classOverrides: ClassNotificationOverrideResponse[];
 }
 
 export interface TopicResponse {

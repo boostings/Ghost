@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -54,6 +55,9 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     @Query("SELECT COALESCE(SUM(q.karmaScore), 0) FROM Question q WHERE q.author.id = :authorId")
     int sumKarmaByAuthorId(@Param("authorId") UUID authorId);
+
+    @Query("SELECT q.whiteboard.id FROM Question q WHERE q.id = :questionId AND q.isHidden = false")
+    Optional<UUID> findVisibleWhiteboardIdByQuestionId(@Param("questionId") UUID questionId);
 
     @Query(value = "SELECT * FROM questions q WHERE q.whiteboard_id = :whiteboardId " +
             "AND q.is_hidden = false " +

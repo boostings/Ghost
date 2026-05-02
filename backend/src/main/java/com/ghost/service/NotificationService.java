@@ -8,6 +8,7 @@ import com.ghost.model.User;
 import com.ghost.model.enums.NotificationReferenceType;
 import com.ghost.model.enums.NotificationType;
 import com.ghost.exception.ResourceNotFoundException;
+import com.ghost.repository.NotificationPreferenceRepository;
 import com.ghost.repository.NotificationRepository;
 import com.ghost.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class NotificationService {
     private final AuditLogService auditLogService;
     private final NotificationMapper notificationMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationPreferenceRepository notificationPreferenceRepository;
 
     private static final String EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -60,6 +62,7 @@ public class NotificationService {
                 .body(body)
                 .referenceType(NotificationReferenceType.from(refType))
                 .referenceId(refId)
+                .whiteboardId(whiteboardId)
                 .build();
 
         notification = notificationRepository.save(notification);
@@ -89,7 +92,7 @@ public class NotificationService {
         }
 
         // Send Expo push notification if user has a push token
-        if (recipient.getExpoPushToken() != null && !recipient.getExpoPushToken().isBlank()) {
+        if (shouldSendImmediatePush(recipient)) {
             sendExpoPush(recipient.getExpoPushToken(), payload);
         }
     }
@@ -165,20 +168,64 @@ public class NotificationService {
         return notificationRepository.countByRecipientIdAndIsReadFalse(userId);
     }
 
+    boolean shouldSendImmediatePush(User recipient) {
+        if (recipient.getExpoPushToken() == null || recipient.getExpoPushToken().isBlank()) {
+            return false;
+        }
+        return notificationPreferenceRepository.findByUserId(recipient.getId())
+                .map(preference -> "REALTIME".equals(preference.getPushFrequency()))
+                .orElse(true);
+    }
+
+    void sendPushDigest(NotificationDigestJob.NotificationDigest digest) {
+        if (digest.expoPushToken() == null
+                || digest.expoPushToken().isBlank()
+                || digest.notifications().isEmpty()) {
+            return;
+        }
+
+        sendExpoPush(
+                digest.expoPushToken(),
+                "Ghost Digest",
+                digest.notifications().size() + " unread "
+                        + (digest.notifications().size() == 1 ? "notification" : "notifications")
+                        + " from your classes",
+                Map.of(
+                        "digestType", digest.digestType(),
+                        "recipientId", digest.recipientId(),
+                        "notificationCount", digest.notifications().size()
+                )
+        );
+    }
+
     private void sendExpoPush(String expoPushToken, NotificationResponse notification) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("notificationId", notification.getId());
+        data.put("type", notification.getType().name());
+        data.put("referenceType", notification.getReferenceType());
+        data.put("referenceId", notification.getReferenceId());
+        sendExpoPush(
+                expoPushToken,
+                notification.getTitle(),
+                notification.getBody() != null ? notification.getBody() : "",
+                data
+        );
+    }
+
+    private void sendExpoPush(
+            String expoPushToken,
+            String title,
+            String body,
+            Map<String, Object> data
+    ) {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
             Map<String, Object> payload = new HashMap<>();
             payload.put("to", expoPushToken);
-            payload.put("title", notification.getTitle());
-            payload.put("body", notification.getBody() != null ? notification.getBody() : "");
+            payload.put("title", title);
+            payload.put("body", body);
             payload.put("sound", "default");
-            Map<String, Object> data = new HashMap<>();
-            data.put("notificationId", notification.getId());
-            data.put("type", notification.getType().name());
-            data.put("referenceType", notification.getReferenceType());
-            data.put("referenceId", notification.getReferenceId());
             payload.put("data", data);
 
             HttpHeaders headers = new HttpHeaders();

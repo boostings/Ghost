@@ -379,27 +379,59 @@ export function useQuestionDetailModel({
         throw new Error('Missing whiteboard context.');
       }
 
-      const verifiedComment = await commentService.verify(
-        resolvedWhiteboardId,
-        questionId,
-        commentId
-      );
-      setComments((previousComments) =>
-        previousComments.map((comment) =>
-          comment.id === verifiedComment.id ? verifiedComment : comment
+      const previousQuestion = question;
+      const previousComments = comments;
+      const targetComment = previousComments.find((comment) => comment.id === commentId);
+
+      setComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                isVerifiedAnswer: true,
+                verifiedById: user?.id ?? comment.verifiedById,
+                verifiedByName:
+                  user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`.trim()
+                    : comment.verifiedByName,
+              }
+            : {
+                ...comment,
+                isVerifiedAnswer: false,
+              }
         )
       );
-      setQuestion((previousQuestion) =>
-        previousQuestion
+      setQuestion((currentQuestion) =>
+        currentQuestion
           ? {
-              ...previousQuestion,
+              ...currentQuestion,
               status: 'CLOSED',
-              verifiedAnswerId: verifiedComment.id,
+              verifiedAnswerId: commentId,
+              verifiedAnswerPreview: targetComment?.body ?? currentQuestion.verifiedAnswerPreview,
+              verifiedAnswerAuthorName:
+                targetComment?.authorName ?? currentQuestion.verifiedAnswerAuthorName,
             }
-          : previousQuestion
+          : currentQuestion
       );
+
+      try {
+        const verifiedComment = await commentService.verify(
+          resolvedWhiteboardId,
+          questionId,
+          commentId
+        );
+        setComments((currentComments) =>
+          currentComments.map((comment) =>
+            comment.id === verifiedComment.id ? verifiedComment : comment
+          )
+        );
+      } catch (error) {
+        setQuestion(previousQuestion);
+        setComments(previousComments);
+        throw error;
+      }
     },
-    [question?.whiteboardId, questionId, whiteboardId]
+    [comments, question, questionId, user, whiteboardId]
   );
 
   const toggleBookmark = useCallback(async () => {

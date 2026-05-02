@@ -15,6 +15,7 @@ public class NotificationMapper {
                 .body(notification.getBody())
                 .referenceType(notification.getReferenceType() != null ? notification.getReferenceType().name() : null)
                 .referenceId(notification.getReferenceId())
+                .whiteboardId(notification.getWhiteboardId())
                 .isRead(notification.isRead())
                 .createdAt(notification.getCreatedAt())
                 .build();

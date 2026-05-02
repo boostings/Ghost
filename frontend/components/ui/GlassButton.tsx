@@ -1,5 +1,14 @@
 import React from 'react';
-import { StyleSheet, Pressable, Text, ActivityIndicator, View, useColorScheme } from 'react-native';
+import {
+  StyleSheet,
+  Pressable,
+  Text,
+  ActivityIndicator,
+  View,
+  useColorScheme,
+  Platform,
+  type ViewStyle,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -46,11 +55,16 @@ const GlassButton: React.FC<GlassButtonProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const colors = useThemeColors();
-  const variantStyles = getVariantStyles(variant, colors, solid, disabled);
+  const isInactive = disabled || loading;
+  const variantStyles = getVariantStyles(variant, colors, solid, isInactive);
   const isSolid = solid && variant === 'primary';
-  const gradientColors = disabled
+  const gradientColors = isInactive
     ? ([colors.backgroundLight, colors.surfaceLight, colors.backgroundLight] as const)
     : ([colors.primaryLight, colors.primary, colors.primaryDark] as const);
+  const webCursorStyle =
+    Platform.OS === 'web'
+      ? ({ cursor: isInactive ? 'not-allowed' : 'pointer' } as unknown as ViewStyle)
+      : null;
 
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -60,7 +74,7 @@ const GlassButton: React.FC<GlassButtonProps> = ({
   }));
 
   const handlePressIn = () => {
-    if (!disabled && !loading) {
+    if (!isInactive) {
       haptic.light();
     }
     scale.value = withSpring(PRESSED_SCALE, Spring.press);
@@ -80,52 +94,87 @@ const GlassButton: React.FC<GlassButtonProps> = ({
     <AnimatedPressable
       style={[
         styles.base,
-        { borderColor: disabled ? colors.inputBorder : colors.surfaceBorder, minHeight },
-        isSolid && !disabled && Shadow.primaryGlow(colors.primary),
+        {
+          borderColor: isInactive ? colors.inputBorder : colors.surfaceBorder,
+          minHeight,
+          opacity: isInactive ? 0.4 : 1,
+        },
+        webCursorStyle,
+        isSolid && !isInactive && Shadow.primaryGlow(colors.primary),
         animatedStyle,
       ]}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      disabled={disabled || loading}
+      disabled={isInactive}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      accessibilityState={{ disabled: isInactive, busy: loading }}
     >
       {isSolid ? (
-        <LinearGradient
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientFill}
-        >
-          <View
-            style={[
-              styles.contentWrap,
-              { paddingHorizontal: horizontalPad, paddingVertical: verticalPad, minHeight },
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
-            ) : (
-              <View style={styles.content}>
-                {icon && (
-                  <View
-                    style={styles.iconContainer}
-                    accessible={false}
-                    importantForAccessibility="no"
-                  >
-                    {icon}
-                  </View>
-                )}
-                <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
-                  {title}
-                </Text>
-              </View>
-            )}
+        isInactive ? (
+          <View style={[styles.gradientFill, { backgroundColor: variantStyles.overlayColor }]}>
+            <View
+              style={[
+                styles.contentWrap,
+                { paddingHorizontal: horizontalPad, paddingVertical: verticalPad, minHeight },
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
+              ) : (
+                <View style={styles.content}>
+                  {icon && (
+                    <View
+                      style={styles.iconContainer}
+                      accessible={false}
+                      importantForAccessibility="no"
+                    >
+                      {icon}
+                    </View>
+                  )}
+                  <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
+                    {title}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
-        </LinearGradient>
+        ) : (
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientFill}
+          >
+            <View
+              style={[
+                styles.contentWrap,
+                { paddingHorizontal: horizontalPad, paddingVertical: verticalPad, minHeight },
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={variantStyles.indicatorColor} />
+              ) : (
+                <View style={styles.content}>
+                  {icon && (
+                    <View
+                      style={styles.iconContainer}
+                      accessible={false}
+                      importantForAccessibility="no"
+                    >
+                      {icon}
+                    </View>
+                  )}
+                  <Text style={[styles.text, { fontSize, color: variantStyles.textColor }]}>
+                    {title}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </LinearGradient>
+        )
       ) : (
         <BlurView
           intensity={60}

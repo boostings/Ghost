@@ -8,13 +8,12 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import MaskedView from '@react-native-masked-view/masked-view';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { GhostMark } from '../../components/brand/GhostBrand';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
@@ -26,6 +25,7 @@ import { haptic } from '../../utils/haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
+import { getEmailFieldState } from '../../utils/validators';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -38,6 +38,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [emailBlurred, setEmailBlurred] = useState(false);
 
   useEffect(() => {
     if (params.email && typeof params.email === 'string') {
@@ -45,13 +46,19 @@ export default function LoginScreen() {
     }
   }, [params.email]);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0;
+  const emailField = getEmailFieldState({
+    value: email,
+    active: emailBlurred,
+    manualError: errors.email,
+    invalidMessage: 'Use your @ilstu.edu address',
+  });
+  const canSubmit = emailField.valid && password.length > 0;
 
   const validate = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
 
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
+    if (!emailField.valid) {
+      newErrors.email = 'Use your @ilstu.edu address';
     }
     if (!password) {
       newErrors.password = 'Password is required';
@@ -73,7 +80,7 @@ export default function LoginScreen() {
     setAuthError(null);
     setLoading(true);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail = emailField.normalized;
       const response = await authService.login({ email: normalizedEmail, password });
       haptic.success();
       setAuth(response.user, response.accessToken, response.refreshToken);
@@ -82,7 +89,7 @@ export default function LoginScreen() {
 
       if (errorMessage.toLowerCase().includes('email is not verified')) {
         haptic.warning();
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = emailField.normalized;
         router.push({
           pathname: '/(auth)/verify-email',
           params: { email: normalizedEmail, source: 'login' },
@@ -133,23 +140,7 @@ export default function LoginScreen() {
               style={styles.header}
               entering={FadeInDown.duration(Duration.hero).delay(Stagger.hero)}
             >
-              <MaskedView
-                style={styles.logoMask}
-                maskElement={
-                  <Image
-                    source={require('../../public/logo.png')}
-                    style={styles.logoMaskImage}
-                    resizeMode="contain"
-                  />
-                }
-              >
-                <LinearGradient
-                  colors={['#FFFFFF', '#F3F4F6', '#D1D5DB']}
-                  start={{ x: 0.2, y: 0 }}
-                  end={{ x: 0.8, y: 1 }}
-                  style={styles.logoFill}
-                />
-              </MaskedView>
+              <GhostMark size={148} animated />
               <Text style={[styles.title, { color: colors.text }]}>Ghost</Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Office hours, 24/7.
@@ -177,8 +168,9 @@ export default function LoginScreen() {
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                error={errors.email}
+                error={emailField.visibleError}
                 returnKeyType="next"
+                onBlur={() => setEmailBlurred(true)}
               />
 
               <GlassInput
@@ -301,18 +293,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: Spacing.xxxl + 4,
-  },
-  logoMask: {
-    width: 148,
-    height: 148,
-    marginBottom: 4,
-  },
-  logoMaskImage: {
-    width: 148,
-    height: 148,
-  },
-  logoFill: {
-    flex: 1,
   },
   title: {
     fontSize: 44,

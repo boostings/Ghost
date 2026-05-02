@@ -26,6 +26,7 @@
     "@react-native-community/netinfo": "11.5.2",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "axios": "^1.13.5",
+    "date-fns": "^4.1.0",
     "expo": "~55.0.18",
     "expo-blur": "~55.0.14",
     "expo-camera": "~55.0.16",

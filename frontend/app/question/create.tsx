@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
@@ -21,6 +22,7 @@ import { questionService } from '../../services/questionService';
 import { topicService } from '../../services/topicService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { sanitizeSingleLine, sanitizeText } from '../../utils/sanitize';
+import { sortTopics } from '../../utils/topicOrder';
 import type { TopicResponse } from '../../types';
 
 export default function CreateQuestionScreen() {
@@ -41,7 +43,7 @@ export default function CreateQuestionScreen() {
     }
     try {
       const response = await topicService.list(whiteboardId);
-      setTopics(response);
+      setTopics(sortTopics(response));
     } catch {
       setTopics([]);
     }
@@ -121,7 +123,7 @@ export default function CreateQuestionScreen() {
             <GlassCard style={styles.formCard}>
               {/* Title */}
               <GlassInput
-                label="Title"
+                label={`Title   ${title.length}/500`}
                 placeholder="What's your question about?"
                 value={title}
                 onChangeText={(text) => {
@@ -135,7 +137,7 @@ export default function CreateQuestionScreen() {
 
               {/* Body */}
               <GlassInput
-                label="Details"
+                label={`Details   ${body.length} chars`}
                 placeholder="Provide context and details about your question..."
                 value={body}
                 onChangeText={(text) => {
@@ -153,13 +155,13 @@ export default function CreateQuestionScreen() {
                   <Text style={styles.topicLabel}>Topic (Optional)</Text>
                   <View style={styles.topicList}>
                     <TouchableOpacity
-                      style={[styles.topicChip, !selectedTopicId && styles.topicChipActive]}
+                      style={[styles.topicChip, !selectedTopicId && styles.topicChipNeutralActive]}
                       onPress={() => setSelectedTopicId(undefined)}
                     >
                       <Text
                         style={[
                           styles.topicChipText,
-                          !selectedTopicId && styles.topicChipTextActive,
+                          !selectedTopicId && styles.topicChipTextNeutralActive,
                         ]}
                       >
                         None
@@ -188,14 +190,6 @@ export default function CreateQuestionScreen() {
                 </View>
               )}
 
-              {/* Character Count */}
-              <View style={styles.charCount}>
-                <Text style={styles.charCountText}>
-                  {title.length}/500 title{' \u00B7 '}
-                  {body.length} body
-                </Text>
-              </View>
-
               {/* Submit */}
               <GlassButton
                 title="Post Question"
@@ -207,19 +201,10 @@ export default function CreateQuestionScreen() {
 
             {/* Tips */}
             <GlassCard style={styles.tipsCard}>
-              <Text style={styles.tipsTitle}>Tips for a great question</Text>
-              <Text style={styles.tipItem}>
-                {'\u2022'} Be specific about what you need help with
-              </Text>
-              <Text style={styles.tipItem}>
-                {'\u2022'} Include relevant context (lecture, assignment, etc.)
-              </Text>
-              <Text style={styles.tipItem}>
-                {'\u2022'} Choose the right topic for easier discovery
-              </Text>
-              <Text style={styles.tipItem}>
-                {'\u2022'} Check if a similar question was already asked
-              </Text>
+              <View style={styles.tipsHeader}>
+                <Text style={styles.tipsTitle}>Tips for a great question</Text>
+                <Ionicons name="information-circle-outline" size={18} color={Colors.textMuted} />
+              </View>
             </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -301,6 +286,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(187,39,68,0.25)',
     borderColor: Colors.primary,
   },
+  topicChipNeutralActive: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.26)',
+  },
   topicChipText: {
     fontSize: Fonts.sizes.sm,
     color: Colors.textSecondary,
@@ -310,13 +299,9 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
   },
-  charCount: {
-    alignItems: 'flex-end',
-    marginBottom: 16,
-  },
-  charCountText: {
-    fontSize: Fonts.sizes.xs,
+  topicChipTextNeutralActive: {
     color: Colors.textMuted,
+    fontWeight: '600',
   },
   tipsCard: {
     // margin from GlassCard
@@ -325,12 +310,11 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.md,
     fontWeight: '700',
     color: Colors.textSecondary,
-    marginBottom: 8,
   },
-  tipItem: {
-    fontSize: Fonts.sizes.sm,
-    color: Colors.textMuted,
-    lineHeight: 20,
-    marginBottom: 2,
+  tipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
 });

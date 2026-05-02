@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { bookmarkService } from '../services/bookmarkService';
+import { commentService } from '../services/commentService';
 import { questionService } from '../services/questionService';
 import { whiteboardService } from '../services/whiteboardService';
 import { extractErrorMessage } from './useApi';
@@ -10,7 +11,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useWhiteboardStore } from '../stores/whiteboardStore';
 import { subscribeToQuestionDeleted } from '../utils/questionDeletionEvents';
 import { reconcileQuestionEvent } from '../utils/questionEvents';
-import type { QuestionResponse, QuestionStatus, WhiteboardResponse } from '../types';
+import type { CommentResponse, QuestionResponse, QuestionStatus, WhiteboardResponse } from '../types';
 
 export type FeedStatusFilter = 'ALL' | QuestionStatus;
 
@@ -29,7 +30,7 @@ export const SORT_OPTIONS: Array<{ label: string; value: SortMode }> = [
 ];
 
 export type FeedSection = {
-  key: 'pinned' | 'open' | 'answered';
+  key: 'pinned' | 'open' | 'answered' | 'closed';
   title: string;
   data: QuestionResponse[];
 };
@@ -42,7 +43,7 @@ export type FeedStats = {
 };
 
 const PAGE_SIZE = 20;
-const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 250;
 
 type ReportTarget = {
   questionId?: string;
@@ -253,6 +254,86 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     [questions]
   );
 
+  const handleTogglePin = useCallback(
+    async (questionId: string) => {
+      if (!whiteboardId || !isFaculty) {
+        return;
+      }
+
+      const question = questions.find((item) => item.id === questionId);
+      if (!question) {
+        return;
+      }
+
+      const nextPinned = !question.isPinned;
+      setQuestions((previousQuestions) =>
+        previousQuestions.map((item) =>
+          item.id === questionId ? { ...item, isPinned: nextPinned } : item
+        )
+      );
+
+      try {
+        if (nextPinned) {
+          await questionService.pinQuestion(whiteboardId, questionId);
+        } else {
+          await questionService.unpinQuestion(whiteboardId, questionId);
+        }
+      } catch (error: unknown) {
+        setQuestions((previousQuestions) =>
+          previousQuestions.map((item) =>
+            item.id === questionId ? { ...item, isPinned: question.isPinned } : item
+          )
+        );
+        Alert.alert('Error', extractErrorMessage(error));
+      }
+    },
+    [isFaculty, questions, whiteboardId]
+  );
+
+  const handleVerifyComment = useCallback(
+    async (questionId: string, comment: CommentResponse) => {
+      if (!whiteboardId || !isFaculty) {
+        return;
+      }
+
+      const question = questions.find((item) => item.id === questionId);
+      if (!question) {
+        return;
+      }
+
+      const trimmedCommentBody = comment.body.trim();
+      const verifiedAnswerPreview =
+        trimmedCommentBody.length > 160
+          ? `${trimmedCommentBody.slice(0, 160)}…`
+          : trimmedCommentBody;
+
+      setQuestions((previousQuestions) =>
+        previousQuestions.map((item) =>
+          item.id === questionId
+            ? {
+                ...item,
+                status: 'CLOSED',
+                verifiedAnswerId: comment.id,
+                verifiedAnswerPreview,
+                verifiedAnswerAuthorName: comment.authorName,
+                updatedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
+      try {
+        await commentService.markVerifiedAnswer(whiteboardId, questionId, comment.id);
+      } catch (error: unknown) {
+        setQuestions((previousQuestions) =>
+          previousQuestions.map((item) => (item.id === questionId ? question : item))
+        );
+        Alert.alert('Error', extractErrorMessage(error));
+      }
+    },
+    [isFaculty, questions, whiteboardId]
+  );
+
   const openReportModal = useCallback((questionId: string) => {
     setReportTarget({ questionId });
     setReportModalVisible(true);
@@ -305,8 +386,13 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     }
 
     const pinned = topicMatched.filter((q) => q.isPinned);
-    const answered = topicMatched.filter((q) => !q.isPinned && q.verifiedAnswerId);
-    const open = topicMatched.filter((q) => !q.isPinned && !q.verifiedAnswerId);
+    const open = topicMatched.filter((q) => !q.isPinned && q.status === 'OPEN');
+    const answered = topicMatched.filter(
+      (q) => !q.isPinned && q.status === 'CLOSED' && q.verifiedAnswerId
+    );
+    const closed = topicMatched.filter(
+      (q) => !q.isPinned && q.status === 'CLOSED' && !q.verifiedAnswerId
+    );
 
     const built: FeedSection[] = [];
     if (pinned.length > 0) {
@@ -326,6 +412,13 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
         data: sortQuestions(answered, sortMode),
       });
     }
+    if (closed.length > 0) {
+      built.push({
+        key: 'closed',
+        title: `Closed · ${closed.length}`,
+        data: sortQuestions(closed, sortMode),
+      });
+    }
     return built;
   }, [isSearching, questions, sortMode, topicFilter]);
 
@@ -335,10 +428,11 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     );
     const pinned = topicMatched.filter((question) => question.isPinned).length;
     const answered = topicMatched.filter(
-      (question) => !question.isPinned && question.verifiedAnswerId
+      (question) =>
+        !question.isPinned && question.status === 'CLOSED' && question.verifiedAnswerId
     ).length;
     const open = topicMatched.filter(
-      (question) => !question.isPinned && !question.verifiedAnswerId
+      (question) => !question.isPinned && question.status === 'OPEN'
     ).length;
 
     return {
@@ -396,6 +490,8 @@ export function useWhiteboardDetailModel(whiteboardId?: string) {
     handleRefresh,
     handleLoadMore,
     handleToggleBookmark,
+    handleTogglePin,
+    handleVerifyComment,
     handleTopicFilter,
     clearFilters,
     setSearchQuery,

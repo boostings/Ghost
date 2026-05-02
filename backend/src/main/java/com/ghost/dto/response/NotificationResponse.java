@@ -31,6 +31,8 @@ public class NotificationResponse {
 
     private UUID referenceId;
 
+    private UUID whiteboardId;
+
     @JsonProperty("isRead")
     private boolean isRead;
 

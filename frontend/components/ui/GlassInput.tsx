@@ -35,6 +35,7 @@ interface GlassInputProps {
   keyboardType?: TextInputProps['keyboardType'];
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: () => void;
+  onBlur?: TextInputProps['onBlur'];
   maxLength?: number;
   editable?: boolean;
   showClear?: boolean;
@@ -57,6 +58,7 @@ const GlassInput: React.FC<GlassInputProps> = ({
   keyboardType,
   returnKeyType,
   onSubmitEditing,
+  onBlur,
   maxLength,
   editable = true,
   showClear = false,
@@ -135,7 +137,10 @@ const GlassInput: React.FC<GlassInputProps> = ({
           accessibilityHint={accessibilityHint}
           accessibilityState={{ disabled: !editable }}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onBlur={(event) => {
+            setIsFocused(false);
+            onBlur?.(event);
+          }}
           selectionColor={colors.primary}
         />
         {secureTextEntry && (

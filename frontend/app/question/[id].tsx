@@ -12,6 +12,13 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -26,14 +33,31 @@ import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useQuestionDetailModel } from '../../hooks/useQuestionDetailModel';
 import { extractErrorMessage } from '../../hooks/useApi';
-import { formatFullDate } from '../../utils/formatDate';
+import { formatTimestampLong } from '../../utils/formatTimestamp';
 import { isQuestionEdited } from '../../utils/questionMeta';
+import { getQuestionDisplayStatus } from '../../utils/questionStatus';
 import type { CommentResponse, VoteType } from '../../types';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function QuestionDetailScreen() {
   const router = useRouter();
   const themeColors = useThemeColors();
-  const { id, whiteboardId } = useLocalSearchParams<{ id: string; whiteboardId: string }>();
+  const reduceMotion = useReducedMotion();
+  const { id, whiteboardId, reply, fromCard } = useLocalSearchParams<{
+    id: string;
+    whiteboardId: string;
+    reply?: string;
+    fromCard?: string;
+  }>();
+  const handleBack = React.useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(tabs)/home');
+  }, [router]);
   const {
     commentInputRef,
     question,
@@ -71,10 +95,59 @@ export default function QuestionDetailScreen() {
   } = useQuestionDetailModel({
     questionId: id,
     whiteboardId,
-    onQuestionDeleted: () => router.back(),
+    onQuestionDeleted: handleBack,
   });
 
+  React.useEffect(() => {
+    if (reply === '1' && !loading && !isClosed) {
+      const focusTimer = setTimeout(() => commentInputRef.current?.focus(), 250);
+      return () => clearTimeout(focusTimer);
+    }
+    return undefined;
+  }, [commentInputRef, isClosed, loading, reply]);
+
   const questionWasEdited = isQuestionEdited(question);
+  const composerProgress = useSharedValue(0);
+  const detailProgress = useSharedValue(fromCard === '1' && !reduceMotion ? 0 : 1);
+
+  React.useEffect(() => {
+    if (fromCard !== '1' || reduceMotion) {
+      detailProgress.value = 1;
+      return;
+    }
+
+    detailProgress.value = withTiming(1, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [detailProgress, fromCard, reduceMotion]);
+
+  React.useEffect(() => {
+    composerProgress.value = withTiming(submitting && !reduceMotion ? 1 : 0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [composerProgress, reduceMotion, submitting]);
+
+  const composerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - composerProgress.value * 0.18,
+    transform: [{ scaleY: 1 - composerProgress.value * 0.08 }],
+  }));
+
+  const sendAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: -composerProgress.value * 18 },
+      { scale: 1 + composerProgress.value * 0.08 },
+    ],
+  }));
+
+  const detailHeroStyle = useAnimatedStyle(() => ({
+    opacity: 0.88 + detailProgress.value * 0.12,
+    transform: [
+      { translateY: (1 - detailProgress.value) * 14 },
+      { scale: 0.97 + detailProgress.value * 0.03 },
+    ],
+  }));
 
   const handleQuestionVote = async (voteType: VoteType) => {
     try {
@@ -131,12 +204,12 @@ export default function QuestionDetailScreen() {
 
   const handleVerifyAnswer = (commentId: string) => {
     Alert.alert(
-      'Verify Answer',
-      'Mark this comment as the verified answer? This will close the question and prevent new comments.',
+      'Mark as Answer',
+      'Mark this comment as the verified answer? The question will be closed.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Verify',
+          text: 'Mark as Answer',
           onPress: async () => {
             try {
               await verifyAnswer(commentId);
@@ -226,7 +299,7 @@ export default function QuestionDetailScreen() {
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: themeColors.surfaceBorder }]}>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={handleBack}
               style={[styles.backButton, { backgroundColor: themeColors.surfaceLight }]}
               accessibilityRole="button"
               accessibilityLabel="Go back"
@@ -286,118 +359,120 @@ export default function QuestionDetailScreen() {
               question ? (
                 <View style={styles.questionSection}>
                   {/* Question Card */}
-                  <GlassCard style={styles.questionCard}>
-                    <View style={styles.questionMeta}>
-                      {question.topicName && <TopicBadge name={question.topicName} />}
-                      <StatusBadge status={question.status} />
-                      {question.isPinned && (
-                        <View style={styles.pinnedRow}>
-                          <AnimatedIcon name="pin" size={12} color={Colors.warning} motion="none" />
-                          <Text style={styles.pinnedText}>Pinned</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <Text style={styles.questionTitle}>{question.title}</Text>
-
-                    {questionWasEdited && <Text style={styles.editedText}>Edited</Text>}
-
-                    <View style={styles.questionAuthorRow}>
-                      <Text style={styles.authorName}>{question.authorName}</Text>
-                      <Text style={styles.dateText}>{formatFullDate(question.createdAt)}</Text>
-                    </View>
-
-                    <Text style={styles.questionBody}>{question.body}</Text>
-
-                    <View
-                      style={[styles.questionStats, { borderTopColor: themeColors.surfaceBorder }]}
-                    >
-                      <KarmaDisplay
-                        score={question.karmaScore}
-                        userVote={question.userVote}
-                        onUpvote={() => handleQuestionVote('UPVOTE')}
-                        onDownvote={() => handleQuestionVote('DOWNVOTE')}
-                        direction="horizontal"
-                      />
-
-                      <View style={styles.questionActionsRow}>
-                        {canEdit && (
-                          <TouchableOpacity
-                            onPress={() =>
-                              router.push({
-                                pathname: '/question/edit',
-                                params: {
-                                  questionId: id,
-                                  whiteboardId: whiteboardId || question.whiteboardId,
-                                },
-                              })
-                            }
-                            style={[
-                              styles.questionAction,
-                              {
-                                backgroundColor: themeColors.surfaceLight,
-                                borderColor: themeColors.surfaceBorder,
-                              },
-                            ]}
-                            accessibilityRole="button"
-                            accessibilityLabel="Edit question"
-                          >
-                            <Text style={[styles.questionActionText, { color: themeColors.text }]}>
-                              Edit
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                        {canDeleteQuestion && (
-                          <TouchableOpacity
-                            onPress={handleDeleteQuestion}
-                            style={[styles.questionAction, styles.questionActionDanger]}
-                            accessibilityRole="button"
-                            accessibilityLabel="Delete question"
-                          >
-                            <Text style={styles.questionActionTextDanger}>Delete</Text>
-                          </TouchableOpacity>
-                        )}
-                        {isFaculty && !isClosed && (
-                          <TouchableOpacity
-                            onPress={handleCloseQuestion}
-                            style={[
-                              styles.questionAction,
-                              {
-                                backgroundColor: themeColors.surfaceLight,
-                                borderColor: themeColors.surfaceBorder,
-                              },
-                            ]}
-                            accessibilityRole="button"
-                            accessibilityLabel="Close question"
-                          >
-                            <Text style={[styles.questionActionText, { color: themeColors.text }]}>
-                              Close
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                        {isFaculty && (
-                          <TouchableOpacity
-                            onPress={handleTogglePinnedState}
-                            style={[
-                              styles.questionAction,
-                              {
-                                backgroundColor: themeColors.surfaceLight,
-                                borderColor: themeColors.surfaceBorder,
-                              },
-                            ]}
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                              question.isPinned ? 'Unpin question' : 'Pin question'
-                            }
-                          >
-                            <Text style={[styles.questionActionText, { color: themeColors.text }]}>
-                              {question.isPinned ? 'Unpin' : 'Pin'}
-                            </Text>
-                          </TouchableOpacity>
+                  <Animated.View style={detailHeroStyle}>
+                    <GlassCard style={styles.questionCard}>
+                      <View style={styles.questionMeta}>
+                        {question.topicName && <TopicBadge name={question.topicName} />}
+                        <StatusBadge status={getQuestionDisplayStatus(question)} />
+                        {question.isPinned && (
+                          <View style={styles.pinnedRow}>
+                            <AnimatedIcon name="pin" size={12} color={Colors.warning} motion="none" />
+                            <Text style={styles.pinnedText}>Pinned</Text>
+                          </View>
                         )}
                       </View>
-                    </View>
-                  </GlassCard>
+
+                      <Text style={styles.questionTitle}>{question.title}</Text>
+
+                      {questionWasEdited && <Text style={styles.editedText}>Edited</Text>}
+
+                      <View style={styles.questionAuthorRow}>
+                        <Text style={styles.authorName}>{question.authorName}</Text>
+                        <Text style={styles.dateText}>{formatTimestampLong(question.createdAt)}</Text>
+                      </View>
+
+                      <Text style={styles.questionBody}>{question.body}</Text>
+
+                      <View
+                        style={[styles.questionStats, { borderTopColor: themeColors.surfaceBorder }]}
+                      >
+                        <KarmaDisplay
+                          score={question.karmaScore}
+                          userVote={question.userVote}
+                          onUpvote={() => handleQuestionVote('UPVOTE')}
+                          onDownvote={() => handleQuestionVote('DOWNVOTE')}
+                          direction="horizontal"
+                        />
+
+                        <View style={styles.questionActionsRow}>
+                          {canEdit && (
+                            <TouchableOpacity
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/question/edit',
+                                  params: {
+                                    questionId: id,
+                                    whiteboardId: whiteboardId || question.whiteboardId,
+                                  },
+                                })
+                              }
+                              style={[
+                                styles.questionAction,
+                                {
+                                  backgroundColor: themeColors.surfaceLight,
+                                  borderColor: themeColors.surfaceBorder,
+                                },
+                              ]}
+                              accessibilityRole="button"
+                              accessibilityLabel="Edit question"
+                            >
+                              <Text style={[styles.questionActionText, { color: themeColors.text }]}>
+                                Edit
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {canDeleteQuestion && (
+                            <TouchableOpacity
+                              onPress={handleDeleteQuestion}
+                              style={[styles.questionAction, styles.questionActionDanger]}
+                              accessibilityRole="button"
+                              accessibilityLabel="Delete question"
+                            >
+                              <Text style={styles.questionActionTextDanger}>Delete</Text>
+                            </TouchableOpacity>
+                          )}
+                          {isFaculty && !isClosed && (
+                            <TouchableOpacity
+                              onPress={handleCloseQuestion}
+                              style={[
+                                styles.questionAction,
+                                {
+                                  backgroundColor: themeColors.surfaceLight,
+                                  borderColor: themeColors.surfaceBorder,
+                                },
+                              ]}
+                              accessibilityRole="button"
+                              accessibilityLabel="Close question"
+                            >
+                              <Text style={[styles.questionActionText, { color: themeColors.text }]}>
+                                Close
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                          {isFaculty && (
+                            <TouchableOpacity
+                              onPress={handleTogglePinnedState}
+                              style={[
+                                styles.questionAction,
+                                {
+                                  backgroundColor: themeColors.surfaceLight,
+                                  borderColor: themeColors.surfaceBorder,
+                                },
+                              ]}
+                              accessibilityRole="button"
+                              accessibilityLabel={
+                                question.isPinned ? 'Unpin question' : 'Pin question'
+                              }
+                            >
+                              <Text style={[styles.questionActionText, { color: themeColors.text }]}>
+                                {question.isPinned ? 'Unpin' : 'Pin'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </GlassCard>
+                  </Animated.View>
 
                   {/* Closed Banner */}
                   {isClosed && (
@@ -409,7 +484,9 @@ export default function QuestionDetailScreen() {
                         motion="none"
                       />
                       <Text style={styles.closedText}>
-                        This question has been answered and is now closed
+                        {question.verifiedAnswerId
+                          ? 'This question has a verified answer and is now closed.'
+                          : 'This question is closed.'}
                       </Text>
                     </View>
                   )}
@@ -433,7 +510,7 @@ export default function QuestionDetailScreen() {
           />
 
           {/* Comment Input */}
-          {!isClosed && (
+          {!isClosed ? (
             <View
               style={[
                 styles.commentInputContainer,
@@ -455,7 +532,7 @@ export default function QuestionDetailScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-              <View style={styles.commentInputRow}>
+              <Animated.View style={[styles.commentInputRow, composerAnimatedStyle]}>
                 <TextInput
                   ref={commentInputRef}
                   style={[
@@ -475,11 +552,12 @@ export default function QuestionDetailScreen() {
                   selectionColor={themeColors.primary}
                   accessibilityLabel={editingCommentId ? 'Edit comment' : 'Write a comment'}
                 />
-                <TouchableOpacity
+                <AnimatedTouchableOpacity
                   style={[
                     styles.sendButton,
                     { backgroundColor: themeColors.primary },
                     (!commentText.trim() || submitting) && styles.sendButtonDisabled,
+                    sendAnimatedStyle,
                   ]}
                   onPress={submitComment}
                   disabled={!commentText.trim() || submitting}
@@ -500,8 +578,28 @@ export default function QuestionDetailScreen() {
                       motion="none"
                     />
                   )}
-                </TouchableOpacity>
-              </View>
+                </AnimatedTouchableOpacity>
+              </Animated.View>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.closedComposer,
+                {
+                  backgroundColor: themeColors.backgroundLight,
+                  borderTopColor: themeColors.surfaceBorder,
+                },
+              ]}
+            >
+              <AnimatedIcon
+                name="lock-closed"
+                size={16}
+                color={themeColors.textMuted}
+                motion="none"
+              />
+              <Text style={[styles.closedComposerText, { color: themeColors.textMuted }]}>
+                This question is closed.
+              </Text>
             </View>
           )}
         </KeyboardAvoidingView>
@@ -781,6 +879,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 34 : 12,
+  },
+  closedComposer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+  },
+  closedComposerText: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '600',
   },
   editingBanner: {
     flexDirection: 'row',

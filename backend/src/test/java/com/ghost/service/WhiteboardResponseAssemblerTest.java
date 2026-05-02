@@ -6,9 +6,11 @@ import com.ghost.model.Course;
 import com.ghost.model.Semester;
 import com.ghost.model.User;
 import com.ghost.model.Whiteboard;
+import com.ghost.repository.CourseSectionRepository;
 import com.ghost.repository.WhiteboardMembershipRepository;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,25 +22,34 @@ class WhiteboardResponseAssemblerTest {
     @Test
     void toResponseShouldAssembleMemberCountWithoutRepositoryInMapper() {
         WhiteboardMembershipRepository membershipRepository = mock(WhiteboardMembershipRepository.class);
+        CourseSectionRepository courseSectionRepository = mock(CourseSectionRepository.class);
         WhiteboardResponseAssembler assembler = new WhiteboardResponseAssembler(
                 membershipRepository,
+                courseSectionRepository,
                 new WhiteboardMapper()
         );
 
         UUID whiteboardId = UUID.randomUUID();
+        UUID courseId = UUID.randomUUID();
+        UUID semesterId = UUID.randomUUID();
         Whiteboard whiteboard = Whiteboard.builder()
                 .id(whiteboardId)
-                .course(Course.builder().courseCode("IT326").courseName("Software Engineering").section("001").build())
-                .semester(Semester.builder().name("Fall 2026").build())
+                .course(Course.builder().id(courseId).courseCode("IT326").courseName("Software Engineering").section("001").build())
+                .semester(Semester.builder().id(semesterId).name("Fall 2026").build())
                 .owner(User.builder().id(UUID.randomUUID()).firstName("Riley").lastName("Owner").build())
                 .inviteCode("ABCD1234")
                 .build();
 
         when(membershipRepository.countByWhiteboardId(whiteboardId)).thenReturn(7L);
+        when(courseSectionRepository.countByCourseIdAndSemesterId(courseId, semesterId)).thenReturn(2L);
+        when(courseSectionRepository.findDistinctInstructors(courseId, semesterId))
+                .thenReturn(List.of("Riley Owner", "Morgan Helper"));
 
         WhiteboardResponse response = assembler.toResponse(whiteboard, true);
 
         assertThat(response.getMemberCount()).isEqualTo(7);
+        assertThat(response.getSectionCount()).isEqualTo(2);
+        assertThat(response.getInstructorSummary()).isEqualTo("Riley Owner + 1 others");
         assertThat(response.getInviteCode()).isEqualTo("ABCD1234");
         assertThat(response.getOwnerName()).isEqualTo("Riley Owner");
     }

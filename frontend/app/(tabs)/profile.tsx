@@ -16,16 +16,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GhostWordmark } from '../../components/brand/GhostBrand';
 import Avatar from '../../components/ui/Avatar';
+import StatusBadge from '../../components/ui/StatusBadge';
 import { Ease } from '../../constants/motion';
-import { type AppColors, useThemeColors } from '../../constants/colors';
+import { STATUS_COLORS, type AppColors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
 import { isQuestionEdited } from '../../utils/questionMeta';
+import { getQuestionDisplayStatus } from '../../utils/questionStatus';
 import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
 import { authService } from '../../services/authService';
 import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
 import { useAnonymousMode } from '../../hooks/useAnonymousMode';
+import { formatTimestamp } from '../../utils/formatTimestamp';
 import type { QuestionResponse } from '../../types';
 
 const SUMMARY_LIMIT = 3;
@@ -77,25 +81,11 @@ function getStanding(karma: number, colors: AppColors): Standing {
 
 function memberSince(createdAt: string | undefined): string {
   if (!createdAt) return '—';
-  try {
-    const d = new Date(createdAt);
-    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  } catch {
+  const formatted = formatTimestamp(createdAt);
+  if (formatted === 'just now' || formatted.includes('ago')) {
     return '—';
   }
-}
-
-function relativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const diffMs = Date.now() - date.getTime();
-  const min = Math.floor(diffMs / 60000);
-  const hr = Math.floor(diffMs / 3600000);
-  const day = Math.floor(diffMs / 86400000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min}m ago`;
-  if (hr < 24) return `${hr}h ago`;
-  if (day < 7) return `${day}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatted;
 }
 
 export default function ProfileScreen() {
@@ -237,7 +227,12 @@ export default function ProfileScreen() {
         question={item}
         index={index}
         colors={colors}
-        onPress={() => router.push(`/question/${item.id}`)}
+        onPress={() =>
+          router.push({
+            pathname: '/question/[id]',
+            params: { id: item.id, whiteboardId: item.whiteboardId, fromCard: '1' },
+          })
+        }
       />
     ),
     [colors, router]
@@ -343,13 +338,13 @@ export default function ProfileScreen() {
                 <StatTile
                   icon={isFaculty ? 'checkmark-circle-outline' : 'help-circle-outline'}
                   colors={colors}
-                  value={loading ? '—' : questionCount.toLocaleString()}
+                  value={loading ? '—' : new Intl.NumberFormat('en-US').format(questionCount)}
                   label={isFaculty ? 'Resolved' : 'Questions'}
                 />
                 <StatTile
                   icon="flash-outline"
                   colors={colors}
-                  value={karmaScore.toLocaleString()}
+                  value={new Intl.NumberFormat('en-US').format(karmaScore)}
                   valueStyle={{
                     color:
                       karmaScore > 0
@@ -373,26 +368,28 @@ export default function ProfileScreen() {
                 <Text style={[styles.sectionEyebrow, { color: colors.text }]}>
                   {isFaculty ? 'ANSWERED IN YOUR CLASSES' : 'YOUR QUESTIONS'}
                 </Text>
-                <Pressable
-                  onPress={handleViewAllQuestions}
-                  disabled={loading || questionCount === 0}
-                  style={({ pressed }) => [
-                    styles.viewAllButton,
-                    {
-                      backgroundColor: colors.primarySoft,
-                      borderColor: colors.primaryFaint,
-                      opacity: loading || questionCount === 0 ? 0.55 : 1,
-                    },
-                    pressed && { backgroundColor: `${colors.primary}26` },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    isFaculty ? 'View all answered questions' : 'View all your questions'
-                  }
-                >
-                  <Text style={[styles.viewAllText, { color: colors.primary }]}>View all</Text>
-                  <Ionicons name="arrow-forward" size={12} color={colors.primary} />
-                </Pressable>
+                {questionCount > 0 ? (
+                  <Pressable
+                    onPress={handleViewAllQuestions}
+                    disabled={loading}
+                    style={({ pressed }) => [
+                      styles.viewAllButton,
+                      {
+                        backgroundColor: colors.primarySoft,
+                        borderColor: colors.primaryFaint,
+                        opacity: loading ? 0.55 : 1,
+                      },
+                      pressed && { backgroundColor: `${colors.primary}26` },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isFaculty ? 'View all answered questions' : 'View all your questions'
+                    }
+                  >
+                    <Text style={[styles.viewAllText, { color: colors.primary }]}>View all</Text>
+                    <Ionicons name="arrow-forward" size={12} color={colors.primary} />
+                  </Pressable>
+                ) : null}
               </View>
             </Animated.View>
           }
@@ -489,6 +486,28 @@ export default function ProfileScreen() {
                         accessibilityHint="Periodic digests of class activity"
                       />
                     </View>
+                    <View
+                      style={[styles.settingDivider, { backgroundColor: colors.surfaceBorder }]}
+                    />
+                    <Pressable
+                      onPress={() => router.push('/settings/notifications')}
+                      style={({ pressed }) => [
+                        styles.settingRow,
+                        pressed && { backgroundColor: colors.surfaceLight },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open notification preferences"
+                    >
+                      <View style={styles.settingInfo}>
+                        <Text style={[styles.settingLabel, { color: colors.text }]}>
+                          Notification preferences
+                        </Text>
+                        <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
+                          Frequency, digests, and per-class overrides
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    </Pressable>
                   </View>
                 </View>
               </View>
@@ -552,33 +571,39 @@ export default function ProfileScreen() {
                     <Ionicons name="log-out-outline" size={16} color={colors.text} />
                     <Text style={[styles.actionButtonText, { color: colors.text }]}>Log out</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={handleDelete}
-                    disabled={deleting}
-                    style={({ pressed }) => [
-                      styles.actionButton,
-                      styles.actionButtonDanger,
-                      {
-                        backgroundColor: deleting ? `${colors.error}30` : `${colors.error}1F`,
-                        borderColor: `${colors.error}66`,
-                      },
-                      pressed && { backgroundColor: `${colors.error}33` },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Delete account"
-                    accessibilityState={{ disabled: deleting, busy: deleting }}
-                  >
-                    {deleting ? (
-                      <ActivityIndicator size="small" color={colors.error} />
-                    ) : (
-                      <Ionicons name="trash-outline" size={16} color={colors.error} />
-                    )}
-                    <Text style={[styles.actionButtonText, { color: colors.error }]}>
-                      Delete account
-                    </Text>
-                  </Pressable>
                 </View>
-                <Text style={[styles.versionText, { color: colors.textMuted }]}>Ghost v1.0.0</Text>
+                <GhostWordmark version="v1.0.0" />
+              </View>
+
+              <View style={styles.settingsBlock}>
+                <Text style={[styles.blockEyebrow, { color: colors.error }]}>DANGER ZONE</Text>
+                <Pressable
+                  onLongPress={handleDelete}
+                  disabled={deleting}
+                  delayLongPress={900}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    styles.dangerZoneButton,
+                    {
+                      backgroundColor: deleting ? `${colors.error}30` : `${colors.error}1F`,
+                      borderColor: `${colors.error}66`,
+                    },
+                    pressed && { backgroundColor: `${colors.error}33` },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete account"
+                  accessibilityHint="Long press to start account deletion confirmation"
+                  accessibilityState={{ disabled: deleting, busy: deleting }}
+                >
+                  {deleting ? (
+                    <ActivityIndicator size="small" color={colors.error} />
+                  ) : (
+                    <Ionicons name="trash-outline" size={16} color={colors.error} />
+                  )}
+                  <Text style={[styles.actionButtonText, { color: colors.error }]}>
+                    Long-press to delete account
+                  </Text>
+                </Pressable>
                 <View style={styles.tabBarSpacer} />
               </View>
             </>
@@ -633,8 +658,8 @@ function QuestionRow({
   onPress: () => void;
   colors: AppColors;
 }) {
-  const isClosed = question.status === 'CLOSED';
-  const statusColor = isClosed ? colors.primary : colors.openStatus;
+  const displayStatus = getQuestionDisplayStatus(question);
+  const statusColor = STATUS_COLORS[displayStatus].fg;
   const wasEdited = isQuestionEdited(question);
   return (
     <Animated.View
@@ -658,20 +683,7 @@ function QuestionRow({
         <View style={[styles.questionStatusEdge, { backgroundColor: statusColor }]} />
         <View style={styles.questionBody}>
           <View style={styles.questionTopRow}>
-            <View
-              style={[
-                styles.questionStatusChip,
-                {
-                  backgroundColor: `${statusColor}26`,
-                  borderColor: `${statusColor}59`,
-                },
-              ]}
-            >
-              <View style={[styles.questionStatusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.questionStatusText, { color: statusColor }]}>
-                {question.status}
-              </Text>
-            </View>
+            <StatusBadge status={displayStatus} />
             {question.topicName ? (
               <Text style={[styles.questionTopic, { color: colors.textMuted }]} numberOfLines={1}>
                 {question.topicName}
@@ -679,7 +691,7 @@ function QuestionRow({
             ) : null}
             <View style={styles.questionTimeRow}>
               <Text style={[styles.questionTime, { color: colors.textMuted }]}>
-                {relativeTime(question.createdAt)}
+                {formatTimestamp(question.createdAt)}
               </Text>
             </View>
           </View>
@@ -708,7 +720,7 @@ function QuestionRow({
               >
                 <Ionicons name="checkmark-circle" size={11} color={colors.verifiedAnswer} />
                 <Text style={[styles.verifiedText, { color: colors.verifiedAnswer }]}>
-                  ANSWERED
+                  VERIFIED
                 </Text>
               </View>
             ) : null}
@@ -902,6 +914,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   actionButtonDanger: {},
+  dangerZoneButton: { flex: 0 },
   actionButtonText: {
     fontSize: 13,
     fontWeight: '900',

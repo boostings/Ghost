@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Modal,
@@ -10,8 +10,15 @@ import {
   Platform,
   Dimensions,
   useColorScheme,
+  PanResponder,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -24,24 +31,61 @@ interface GlassModalProps {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  presentation?: 'sheet' | 'dialog';
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, children, footer }) => {
+const GlassModal: React.FC<GlassModalProps> = ({
+  visible,
+  onClose,
+  title,
+  children,
+  footer,
+  presentation = 'sheet',
+}) => {
   const colors = useThemeColors();
   const colorScheme = useColorScheme();
+  const isSheet = presentation === 'sheet';
+  const translateY = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
       haptic.soft();
+      translateY.value = 0;
     }
-  }, [visible]);
+  }, [translateY, visible]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     haptic.light();
     onClose();
-  };
+  }, [onClose]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => isSheet,
+        onMoveShouldSetPanResponder: (_event, gesture) => isSheet && gesture.dy > 8,
+        onPanResponderMove: (_event, gesture) => {
+          translateY.value = Math.max(0, gesture.dy);
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy > 80 || gesture.vy > 0.9) {
+            handleClose();
+            return;
+          }
+          translateY.value = withSpring(0, { damping: 22, stiffness: 240 });
+        },
+        onPanResponderTerminate: () => {
+          translateY.value = withSpring(0, { damping: 22, stiffness: 240 });
+        },
+      }),
+    [handleClose, isSheet, translateY]
+  );
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: isSheet ? translateY.value : 0 }],
+  }));
 
   return (
     <Modal
@@ -58,7 +102,11 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
         <Animated.View
           entering={FadeIn.duration(Duration.normal)}
           exiting={FadeOut.duration(Duration.fast)}
-          style={[styles.overlay, { backgroundColor: colors.overlay }]}
+          style={[
+            styles.overlay,
+            isSheet ? styles.sheetOverlay : styles.dialogOverlay,
+            { backgroundColor: 'rgba(0, 0, 0, 0.6)' },
+          ]}
         >
           <TouchableOpacity
             style={styles.overlayTouchable}
@@ -70,15 +118,30 @@ const GlassModal: React.FC<GlassModalProps> = ({ visible, onClose, title, childr
           <Animated.View
             entering={FadeIn.duration(Duration.normal).easing(Ease.out)}
             exiting={FadeOut.duration(Duration.fast)}
-            style={styles.modalContainer}
+            style={[
+              isSheet ? styles.sheetContainer : styles.dialogContainer,
+              isSheet && sheetAnimatedStyle,
+            ]}
+            {...(isSheet ? panResponder.panHandlers : {})}
           >
-            <View style={[styles.cardWrapper, { borderColor: colors.cardBorder }]}>
+            <View
+              style={[
+                styles.cardWrapper,
+                isSheet ? styles.sheetCardWrapper : styles.dialogCardWrapper,
+                { borderColor: colors.cardBorder },
+              ]}
+            >
               <BlurView
                 intensity={80}
                 tint={colorScheme === 'dark' ? 'dark' : 'light'}
                 style={styles.blur}
               >
                 <View style={[styles.cardInner, { backgroundColor: colors.cardBg }]}>
+                  {isSheet ? (
+                    <View style={styles.handleWrap} accessible={false}>
+                      <View style={[styles.handle, { backgroundColor: colors.surfaceBorder }]} />
+                    </View>
+                  ) : null}
                   {/* Title Bar */}
                   <View style={[styles.titleBar, { borderBottomColor: colors.surfaceBorder }]}>
                     <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
@@ -126,25 +189,53 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+  },
+  sheetOverlay: {
+    justifyContent: 'flex-end',
+  },
+  dialogOverlay: {
+    justifyContent: 'center',
   },
   overlayTouchable: {
     ...StyleSheet.absoluteFillObject,
   },
-  modalContainer: {
+  sheetContainer: {
+    width: '100%',
+    maxHeight: SCREEN_HEIGHT * 0.82,
+  },
+  dialogContainer: {
     width: '90%',
     maxHeight: SCREEN_HEIGHT * 0.75,
   },
   cardWrapper: {
-    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
+  },
+  sheetCardWrapper: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+  },
+  dialogCardWrapper: {
+    borderRadius: 20,
   },
   blur: {
     overflow: 'hidden',
   },
   cardInner: {},
+  handleWrap: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+  },
   titleBar: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -31,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -222,6 +223,48 @@ class SearchServiceTest {
 
         assertThat(result.getContent()).containsExactly(response);
         verify(questionResponseAssembler).toResponse(question, userId, false);
+    }
+
+    @Test
+    void searchShouldCacheEquivalentQueriesForThirtySeconds() {
+        QuestionResponse response = QuestionResponse.builder().id(question.getId()).build();
+        when(whiteboardMembershipRepository.findByUserId(userId)).thenReturn(List.of(membership(Role.STUDENT)));
+        when(questionRepository.searchWithFilters(
+                eq(List.of(whiteboardId)),
+                eq("search"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(pageable)
+        )).thenReturn(new PageImpl<>(List.of(question), pageable, 1));
+        when(questionResponseAssembler.toResponse(question, userId, false)).thenReturn(response);
+
+        Page<QuestionResponse> firstResult = searchService.search(
+                userId,
+                "search",
+                null,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        );
+        Page<QuestionResponse> secondResult = searchService.search(
+                userId,
+                " search ",
+                null,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        );
+
+        assertThat(firstResult.getContent()).containsExactly(response);
+        assertThat(secondResult.getContent()).containsExactly(response);
+        verify(questionRepository, times(1)).searchWithFilters(any(), any(), any(), any(), any(), any(), any());
+        verify(questionResponseAssembler, times(1)).toResponse(question, userId, false);
     }
 
     private WhiteboardMembership membership(Role role) {

@@ -13,6 +13,8 @@ import com.ghost.dto.request.JoinWhiteboardRequest;
 import com.ghost.dto.request.ReportRequest;
 import com.ghost.dto.request.ReviewReportRequest;
 import com.ghost.dto.request.TransferOwnershipRequest;
+import com.ghost.dto.request.UpdateClassNotificationOverrideRequest;
+import com.ghost.dto.request.UpdateNotificationPreferencesRequest;
 import com.ghost.dto.request.UpdatePushTokenRequest;
 import com.ghost.dto.request.UpdateUserRequest;
 import com.ghost.dto.request.VoteRequest;
@@ -21,6 +23,7 @@ import com.ghost.dto.response.CommentResponse;
 import com.ghost.dto.response.InviteInfoResponse;
 import com.ghost.dto.response.JoinRequestResponse;
 import com.ghost.dto.response.MemberResponse;
+import com.ghost.dto.response.NotificationPreferencesResponse;
 import com.ghost.dto.response.NotificationResponse;
 import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.QuestionResponse;
@@ -37,6 +40,7 @@ import com.ghost.model.enums.VoteType;
 import com.ghost.service.AuditLogService;
 import com.ghost.service.BookmarkService;
 import com.ghost.service.KarmaService;
+import com.ghost.service.NotificationPreferenceService;
 import com.ghost.service.NotificationService;
 import com.ghost.service.QuestionService;
 import com.ghost.service.ReportService;
@@ -97,6 +101,9 @@ class ControllerCoverageExpansionTest {
     private NotificationService notificationService;
 
     @Mock
+    private NotificationPreferenceService notificationPreferenceService;
+
+    @Mock
     private SearchService searchService;
 
     @Mock
@@ -137,7 +144,10 @@ class ControllerCoverageExpansionTest {
         );
         questionController = new QuestionController(questionService);
         topicController = new TopicController(topicService);
-        notificationController = new NotificationController(notificationService);
+        notificationController = new NotificationController(
+                notificationService,
+                notificationPreferenceService
+        );
         bookmarkController = new BookmarkController(bookmarkService);
         karmaController = new KarmaController(karmaService);
         searchController = new SearchController(searchService);
@@ -534,6 +544,15 @@ class ControllerCoverageExpansionTest {
         UpdatePushTokenRequest pushTokenRequest = UpdatePushTokenRequest.builder()
                 .token("ExponentPushToken[abc]")
                 .build();
+        UpdateNotificationPreferencesRequest notificationPreferencesRequest =
+                UpdateNotificationPreferencesRequest.builder()
+                        .pushFrequency("HOURLY")
+                        .emailDigest("WEEKLY_MON_7AM")
+                        .build();
+        UpdateClassNotificationOverrideRequest classOverrideRequest =
+                UpdateClassNotificationOverrideRequest.builder()
+                        .mutedFor24h(true)
+                        .build();
         ReviewReportRequest reviewReportRequest = ReviewReportRequest.builder()
                 .status(ReportStatus.DISMISSED)
                 .build();
@@ -554,6 +573,11 @@ class ControllerCoverageExpansionTest {
                 .id(notificationId)
                 .type(NotificationType.COMMENT_ADDED)
                 .build();
+        NotificationPreferencesResponse preferencesResponse = NotificationPreferencesResponse.builder()
+                .pushFrequency("HOURLY")
+                .emailDigest("WEEKLY_MON_7AM")
+                .classOverrides(List.of())
+                .build();
         BookmarkResponse bookmarkResponse = BookmarkResponse.builder()
                 .id(UUID.randomUUID())
                 .question(QuestionResponse.builder().id(questionId).title("Bookmarked").build())
@@ -572,6 +596,11 @@ class ControllerCoverageExpansionTest {
         when(topicService.createTopic(userId, whiteboardId, "Homework")).thenReturn(topicResponse);
         when(notificationService.getNotifications(eq(userId), any(Pageable.class))).thenReturn(pageOf(notificationResponse));
         when(notificationService.getUnreadCount(userId)).thenReturn(3L);
+        when(notificationPreferenceService.getPreferences(userId)).thenReturn(preferencesResponse);
+        when(notificationPreferenceService.updatePreferences(userId, notificationPreferencesRequest))
+                .thenReturn(preferencesResponse);
+        when(notificationPreferenceService.updateClassOverride(userId, whiteboardId, classOverrideRequest))
+                .thenReturn(preferencesResponse);
         when(bookmarkService.getBookmarks(eq(userId), any(Pageable.class))).thenReturn(pageOf(bookmarkResponse));
         when(bookmarkService.bookmark(userId, questionId)).thenReturn(bookmarkResponse);
         when(searchService.search(eq(userId), eq("ghost"), eq(whiteboardId), eq(topicId), eq("OPEN"), any(), any(), any(Pageable.class)))
@@ -597,6 +626,16 @@ class ControllerCoverageExpansionTest {
         ResponseEntity<Void> markedRead = notificationController.markAsRead(userId.toString(), notificationId);
         ResponseEntity<Void> markedAllRead = notificationController.markAllAsRead(userId.toString());
         ResponseEntity<Void> clearedAll = notificationController.clearAll(userId.toString());
+        ResponseEntity<NotificationPreferencesResponse> preferences =
+                notificationController.getPreferences(userId.toString());
+        ResponseEntity<NotificationPreferencesResponse> updatedPreferences =
+                notificationController.updatePreferences(userId.toString(), notificationPreferencesRequest);
+        ResponseEntity<NotificationPreferencesResponse> updatedClassOverride =
+                notificationController.updateClassOverride(
+                        userId.toString(),
+                        whiteboardId,
+                        classOverrideRequest
+                );
 
         ResponseEntity<PageResponse<BookmarkResponse>> bookmarks = bookmarkController.getBookmarks(userId.toString(), 0, 20);
         ResponseEntity<Void> createdBookmark = bookmarkController.bookmarkQuestion(userId.toString(), questionId);
@@ -656,6 +695,9 @@ class ControllerCoverageExpansionTest {
         verify(notificationService).markAsRead(userId, notificationId);
         verify(notificationService).markAllAsRead(userId);
         verify(notificationService).clearAll(userId);
+        verify(notificationPreferenceService).getPreferences(userId);
+        verify(notificationPreferenceService).updatePreferences(userId, notificationPreferencesRequest);
+        verify(notificationPreferenceService).updateClassOverride(userId, whiteboardId, classOverrideRequest);
         verify(bookmarkService).getBookmarks(eq(userId), any(Pageable.class));
         verify(bookmarkService, times(2)).bookmark(userId, questionId);
         verify(bookmarkService, times(2)).removeBookmark(userId, questionId);
@@ -696,6 +738,9 @@ class ControllerCoverageExpansionTest {
         assertThat(markedRead.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(markedAllRead.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(clearedAll.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(preferences.getBody()).isEqualTo(preferencesResponse);
+        assertThat(updatedPreferences.getBody()).isEqualTo(preferencesResponse);
+        assertThat(updatedClassOverride.getBody()).isEqualTo(preferencesResponse);
         assertThat(bookmarks.getBody()).isNotNull();
         assertThat(bookmarks.getBody().getContent()).containsExactly(bookmarkResponse);
         assertThat(createdBookmark.getStatusCode()).isEqualTo(HttpStatus.CREATED);

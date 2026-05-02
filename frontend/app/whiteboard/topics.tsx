@@ -17,12 +17,13 @@ import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
 import EmptyState from '../../components/ui/EmptyState';
-import SettingsHeader from '../../components/whiteboard/SettingsHeader';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { topicService } from '../../services/topicService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { sanitizeSingleLine } from '../../utils/sanitize';
+import { sortTopics } from '../../utils/topicOrder';
 import type { TopicResponse } from '../../types';
 
 export default function TopicsScreen() {
@@ -100,8 +101,8 @@ export default function TopicsScreen() {
     );
   };
 
-  const defaultTopics = topics.filter((t) => t.isDefault);
-  const customTopics = topics.filter((t) => !t.isDefault);
+  const defaultTopics = sortTopics(topics.filter((t) => t.isDefault));
+  const customTopics = sortTopics(topics.filter((t) => !t.isDefault));
 
   const renderTopicItem = ({ item }: { item: TopicResponse }) => (
     <View style={styles.topicRow}>
@@ -156,7 +157,7 @@ export default function TopicsScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <SettingsHeader
+        <ScreenHeader
           title="Topics"
           subtitle="Question organization"
           rightElement={<Text style={styles.topicCount}>{topics.length}</Text>}
@@ -179,7 +180,6 @@ export default function TopicsScreen() {
                       Create class-specific labels for questions
                     </Text>
                   </View>
-                  <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
                 </View>
                 <View style={styles.addRow}>
                   <View style={styles.addInputContainer}>

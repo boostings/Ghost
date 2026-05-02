@@ -8,6 +8,8 @@ import { enterList } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 import { haptic } from '../utils/haptics';
 import { isQuestionEdited } from '../utils/questionMeta';
+import { formatTimestamp } from '../utils/formatTimestamp';
+import { getQuestionDisplayStatus } from '../utils/questionStatus';
 import { QuestionResponse } from '../types';
 import GlassCard from './ui/GlassCard';
 import Avatar from './ui/Avatar';
@@ -24,25 +26,6 @@ interface QuestionCardProps {
   onReport?: () => void;
   currentUserId?: string;
   index?: number;
-}
-
-function formatTimestamp(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHour = Math.floor(diffMs / 3600000);
-  const diffDay = Math.floor(diffMs / 86400000);
-
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m`;
-  if (diffHour < 24) return `${diffHour}h`;
-  if (diffDay < 7) return `${diffDay}d`;
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function parseAuthorName(authorName: string): { firstName: string; lastName: string } {
@@ -66,10 +49,13 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const { firstName, lastName } = parseAuthorName(question.authorName);
   const canReport = Boolean(onReport && question.authorId !== currentUserId);
   const wasEdited = isQuestionEdited(question);
+  const displayStatus = getQuestionDisplayStatus(question);
+  const displayStatusLabel =
+    displayStatus === 'ANSWERED' ? 'Answered' : displayStatus === 'CLOSED' ? 'Closed' : 'Open';
   const questionAccessibilityLabel = [
-    `Open question: ${question.title}`,
+    `${displayStatusLabel} question: ${question.title}`,
     `By ${question.authorName}`,
-    question.status === 'CLOSED' ? 'Closed' : 'Open',
+    displayStatusLabel,
     `${question.karmaScore} karma`,
     `${question.commentCount} ${question.commentCount === 1 ? 'comment' : 'comments'}`,
   ].join('. ');
@@ -92,7 +78,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
             {question.topicName && (
               <TopicBadge name={question.topicName} style={styles.topicBadge} />
             )}
-            <StatusBadge status={question.status} />
+            <StatusBadge status={displayStatus} />
           </View>
           {question.isPinned && (
             <View

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   SectionList,
   TextInput,
+  Alert,
   type GestureResponderEvent,
 } from 'react-native';
 import Animated, {
@@ -28,22 +29,37 @@ import TopicBadge from '../../components/ui/TopicBadge';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
+import NoiseOverlay from '../../components/ui/NoiseOverlay';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import ReportModal from '../../components/ReportModal';
 import ContactFacultySheet from '../../components/whiteboard/ContactFacultySheet';
 import { AnimatedIcon } from '../../components/AnimatedIcon';
-import { Colors, useThemeColors } from '../../constants/colors';
+import { GhostMark } from '../../components/brand/GhostBrand';
+import { accentForWhiteboard, Colors, STATUS_COLORS, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Ease, enterList } from '../../constants/motion';
+import { commentService } from '../../services/commentService';
 import { haptic } from '../../utils/haptics';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
+import { smartTitleCase } from '../../utils/titleCase';
 import {
   SORT_OPTIONS,
   useWhiteboardDetailModel,
   type SortMode,
 } from '../../hooks/useWhiteboardDetailModel';
-import { formatDate } from '../../utils/formatDate';
+import { formatTimestamp } from '../../utils/formatTimestamp';
 import { isQuestionEdited } from '../../utils/questionMeta';
-import type { QuestionResponse } from '../../types';
+import { getQuestionDisplayStatus } from '../../utils/questionStatus';
+import type { CommentResponse, QuestionResponse } from '../../types';
+
+type GroupMode = 'status' | 'topic' | 'chronological';
+type QuestionSection = { key: string; title: string; data: QuestionResponse[] };
+
+const GROUP_OPTIONS: Array<{ value: GroupMode; label: string }> = [
+  { value: 'status', label: 'Status' },
+  { value: 'topic', label: 'Topic' },
+  { value: 'chronological', label: 'Recent' },
+];
 
 export default function WhiteboardDetailScreen() {
   const router = useRouter();
@@ -71,6 +87,8 @@ export default function WhiteboardDetailScreen() {
     handleRefresh,
     handleLoadMore,
     handleToggleBookmark,
+    handleTogglePin,
+    handleVerifyComment,
     handleTopicFilter,
     clearFilters,
     setSearchQuery,
@@ -81,6 +99,19 @@ export default function WhiteboardDetailScreen() {
 
   const [sortSheetVisible, setSortSheetVisible] = useState(false);
   const [contactSheetVisible, setContactSheetVisible] = useState(false);
+  const [viewMode, setViewMode] = useState<'questions' | 'triage'>('questions');
+  const [groupMode, setGroupMode] = useState<GroupMode>('status');
+  const [triageVerifyQuestion, setTriageVerifyQuestion] = useState<QuestionResponse | null>(null);
+  const [triageComments, setTriageComments] = useState<CommentResponse[]>([]);
+  const [loadingTriageComments, setLoadingTriageComments] = useState(false);
+  const whiteboardAccent = useMemo(() => accentForWhiteboard(id ?? ''), [id]);
+  const triageOnly = isFaculty && viewMode === 'triage';
+
+  useEffect(() => {
+    if (isFaculty) {
+      setViewMode('triage');
+    }
+  }, [isFaculty]);
 
   const stopCardPress = (event: GestureResponderEvent) => {
     event.stopPropagation();
@@ -104,10 +135,106 @@ export default function WhiteboardDetailScreen() {
     ? FadeIn.duration(Duration.fast)
     : FadeIn.duration(Duration.normal).delay(100).easing(Ease.out);
 
+  const activeTopicName =
+    topicFilter === 'ALL'
+      ? null
+      : (topicFilters.find((topic) => topic.id === topicFilter)?.name ?? null);
+
+  const triageQuestions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return questions
+      .filter((question) => {
+        const topicMatches = topicFilter === 'ALL' || question.topicId === topicFilter;
+        const searchMatches =
+          query.length === 0 ||
+          question.title.toLowerCase().includes(query) ||
+          question.body.toLowerCase().includes(query);
+        return topicMatches && searchMatches && question.status === 'OPEN';
+      })
+      .sort((a, b) => {
+        if (b.karmaScore !== a.karmaScore) return b.karmaScore - a.karmaScore;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+  }, [questions, searchQuery, topicFilter]);
+
+  const questionSections = useMemo<QuestionSection[]>(() => {
+    if (groupMode === 'status') {
+      return sections;
+    }
+
+    if (groupMode === 'chronological') {
+      return questions.length > 0
+        ? [
+            {
+              key: 'all',
+              title: `All questions · ${questions.length}`,
+              data: questions,
+            },
+          ]
+        : [];
+    }
+
+    const topicGroups = new Map<string, QuestionResponse[]>();
+    questions.forEach((question) => {
+      const topic = question.topicName || 'Untagged';
+      const group = topicGroups.get(topic) ?? [];
+      group.push(question);
+      topicGroups.set(topic, group);
+    });
+
+    return Array.from(topicGroups.entries()).map(([topic, data]) => ({
+      key: `topic-${topic}`,
+      title: `${topic} · ${data.length}`,
+      data,
+    }));
+  }, [groupMode, questions, sections]);
+
+  const displaySections = triageOnly
+    ? [
+        {
+          key: 'open' as const,
+          title: `Needs triage · ${triageQuestions.length}`,
+          data: triageQuestions,
+        },
+      ].filter((section) => section.data.length > 0)
+    : questionSections;
+
+  const openTriageVerifyPicker = useCallback(
+    async (question: QuestionResponse) => {
+      if (!id) {
+        return;
+      }
+
+      setTriageVerifyQuestion(question);
+      setTriageComments([]);
+      setLoadingTriageComments(true);
+
+      try {
+        const comments = await commentService.getComments(id, question.id, { page: 0, size: 50 });
+        setTriageComments(comments.filter((comment) => !comment.isVerifiedAnswer));
+      } catch {
+        Alert.alert('Error', 'Could not load comments for this question.');
+        setTriageVerifyQuestion(null);
+      } finally {
+        setLoadingTriageComments(false);
+      }
+    },
+    [id]
+  );
+
+  const closeTriageVerifyPicker = useCallback(() => {
+    setTriageVerifyQuestion(null);
+    setTriageComments([]);
+    setLoadingTriageComments(false);
+  }, []);
+
   const renderQuestionCard = useCallback(
     ({ item, index }: { item: QuestionResponse; index: number }) => {
       const cardEntering = reduceMotion ? FadeIn.duration(Duration.fast) : enterList(index);
       const wasEdited = isQuestionEdited(item);
+      const displayStatus = getQuestionDisplayStatus(item);
+      const displayStatusLabel =
+        displayStatus === 'ANSWERED' ? 'Answered' : displayStatus === 'CLOSED' ? 'Closed' : 'Open';
       return (
         <GlassCard
           style={[styles.questionCard, item.isPinned && styles.pinnedCard]}
@@ -115,11 +242,11 @@ export default function WhiteboardDetailScreen() {
           layout={
             reduceMotion ? undefined : LinearTransition.duration(Duration.fast).easing(Ease.out)
           }
-          accessibilityLabel={`Open question: ${item.title}`}
+          accessibilityLabel={`${displayStatusLabel} question: ${item.title}`}
           onPress={() =>
             router.push({
               pathname: '/question/[id]',
-              params: { id: item.id, whiteboardId: id },
+              params: { id: item.id, whiteboardId: id, fromCard: '1' },
             })
           }
         >
@@ -131,8 +258,8 @@ export default function WhiteboardDetailScreen() {
           )}
 
           <View style={styles.questionHeader}>
-            {item.topicName && <TopicBadge name={item.topicName} style={styles.topicBadge} />}
-            <StatusBadge status={item.status} />
+            <TopicBadge name={item.topicName || 'Untagged'} style={styles.topicBadge} />
+            <StatusBadge status={displayStatus} />
           </View>
 
           <Text style={styles.questionTitle} numberOfLines={2}>
@@ -170,7 +297,7 @@ export default function WhiteboardDetailScreen() {
               {item.authorName}
             </Text>
             <Text style={styles.dotSep}>{' · '}</Text>
-            <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+            <Text style={styles.dateText}>{formatTimestamp(item.createdAt)}</Text>
             <View style={styles.footerRight}>
               <TouchableOpacity
                 onPress={(event) => {
@@ -242,16 +369,106 @@ export default function WhiteboardDetailScreen() {
               </View>
             </View>
           </View>
+
+          {triageOnly ? (
+            <View style={[styles.triageActionRow, { borderTopColor: colors.surfaceBorder }]}>
+              {item.commentCount > 0 ? (
+                <Pressable
+                  onPress={(event) => {
+                    stopCardPress(event);
+                    haptic.success();
+                    openTriageVerifyPicker(item);
+                  }}
+                  style={({ pressed }) => [
+                    styles.triageInlineAction,
+                    styles.triageVerifyAction,
+                    { borderColor: `${colors.verifiedAnswer}44` },
+                    pressed && { opacity: 0.75 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mark an answer for this question"
+                >
+                  <AnimatedIcon
+                    name="checkmark"
+                    size={14}
+                    color={colors.verifiedAnswer}
+                    motion="none"
+                  />
+                  <Text style={[styles.triageVerifyText, { color: colors.verifiedAnswer }]}>
+                    Mark as Answer
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={(event) => {
+                  stopCardPress(event);
+                  haptic.selection();
+                  handleTogglePin(item.id);
+                }}
+                style={({ pressed }) => [
+                  styles.triageInlineAction,
+                  { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+                  pressed && { opacity: 0.75 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={item.isPinned ? 'Unpin question' : 'Pin question'}
+              >
+                <AnimatedIcon
+                  name={item.isPinned ? 'pin' : 'pin-outline'}
+                  size={14}
+                  color={item.isPinned ? Colors.warning : colors.textSecondary}
+                  motion="none"
+                />
+                <Text style={[styles.triageActionText, { color: colors.textSecondary }]}>
+                  {item.isPinned ? 'Unpin' : 'Pin'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={(event) => {
+                  stopCardPress(event);
+                  haptic.selection();
+                  router.push({
+                    pathname: '/question/[id]',
+                    params: { id: item.id, whiteboardId: id, reply: '1', fromCard: '1' },
+                  });
+                }}
+                style={({ pressed }) => [
+                  styles.triageInlineAction,
+                  { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+                  pressed && { opacity: 0.75 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Reply to question"
+              >
+                <AnimatedIcon name="chatbubble-outline" size={14} color={colors.textSecondary} motion="none" />
+                <Text style={[styles.triageActionText, { color: colors.textSecondary }]}>Reply</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </GlassCard>
       );
     },
-    [currentUserId, handleToggleBookmark, id, openReportModal, reduceMotion, router]
+    [
+      colors.surfaceBorder,
+      colors.surfaceLight,
+      colors.textSecondary,
+      colors.verifiedAnswer,
+      currentUserId,
+      handleToggleBookmark,
+      handleTogglePin,
+      id,
+      openReportModal,
+      openTriageVerifyPicker,
+      reduceMotion,
+      router,
+      triageOnly,
+    ]
   );
 
   const renderSectionHeader = ({
     section,
   }: {
-    section: { key: 'pinned' | 'open' | 'answered'; title: string };
+    section: QuestionSection;
   }) => {
     if (isSearching) return null;
     const sectionIcon =
@@ -259,13 +476,23 @@ export default function WhiteboardDetailScreen() {
         ? 'pin'
         : section.key === 'answered'
           ? 'checkmark-circle'
-          : 'ellipse-outline';
+        : section.key === 'closed'
+            ? 'lock-closed'
+            : section.key === 'all'
+              ? 'time-outline'
+              : section.key.startsWith('topic-')
+                ? 'pricetag-outline'
+                : 'ellipse-outline';
     const sectionColor =
       section.key === 'pinned'
         ? Colors.warning
         : section.key === 'answered'
-          ? Colors.verifiedAnswer
-          : Colors.textMuted;
+          ? STATUS_COLORS.ANSWERED.fg
+          : section.key === 'closed'
+            ? STATUS_COLORS.CLOSED.fg
+            : section.key.startsWith('topic-')
+              ? colors.primary
+              : Colors.textMuted;
     return (
       <Animated.View
         entering={reduceMotion ? FadeIn.duration(Duration.fast) : FadeIn.duration(Duration.normal)}
@@ -281,15 +508,14 @@ export default function WhiteboardDetailScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <LinearGradient
-          colors={[`${colors.primary}24`, colors.background, colors.background] as const}
+          colors={[whiteboardAccent.soft, colors.background, colors.background] as const}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 0.45 }}
         />
+        <NoiseOverlay />
         <SafeAreaView style={styles.safe} edges={['top']}>
-          <View style={styles.topRow}>
-            <BackButton onPress={() => router.back()} />
-          </View>
+          <ScreenHeader onBack={() => router.back()} border={false} style={styles.topRow} />
           <View style={styles.heroSkeleton}>
             <View style={[styles.skeletonChip, { backgroundColor: colors.surfaceLight }]} />
             <View style={[styles.skeletonHeading, { backgroundColor: colors.surfaceLight }]} />
@@ -304,26 +530,30 @@ export default function WhiteboardDetailScreen() {
   }
 
   const ownerName = whiteboard?.ownerName?.trim();
+  const instructorSummary = whiteboard?.instructorSummary?.trim();
   const semester = whiteboard?.semester?.trim();
   const memberCount = whiteboard?.memberCount ?? 0;
+  const sectionCount = whiteboard?.sectionCount ?? 0;
   const metaParts = [
     semester || null,
+    sectionCount > 1 ? `${sectionCount} sections` : null,
     `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`,
-    ownerName || null,
+    instructorSummary || ownerName || null,
   ].filter(Boolean) as string[];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <LinearGradient
-        colors={[`${colors.primary}24`, colors.background, colors.background] as const}
+        colors={[whiteboardAccent.soft, colors.background, colors.background] as const}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 0.45 }}
       />
+      <NoiseOverlay />
       <SafeAreaView style={styles.safe} edges={['top']}>
         {/* Top row: back + class actions (icon-only) */}
         <Animated.View entering={heroEntering} style={styles.topRow}>
-          <BackButton onPress={() => router.back()} />
+          <ScreenHeader onBack={() => router.back()} border={false} style={styles.inlineHeader} />
           <View style={styles.topActions}>
             {!whiteboard?.isDemo ? (
               <IconAction
@@ -374,7 +604,13 @@ export default function WhiteboardDetailScreen() {
         </Animated.View>
 
         {/* Hero */}
-        <Animated.View entering={heroEntering} style={styles.hero}>
+        <Animated.View
+          entering={heroEntering}
+          style={[
+            styles.hero,
+            { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+          ]}
+        >
           <View style={styles.heroTitleRow}>
             <View
               style={[
@@ -390,7 +626,7 @@ export default function WhiteboardDetailScreen() {
               />
             </View>
             <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
-              {whiteboard?.courseName || 'Whiteboard'}
+              {whiteboard?.courseName ? smartTitleCase(whiteboard.courseName) : 'Whiteboard'}
             </Text>
           </View>
 
@@ -413,7 +649,7 @@ export default function WhiteboardDetailScreen() {
                 label="Open"
                 value={stats.open}
                 color={colors.text}
-                accent={Colors.openStatus}
+                accent={STATUS_COLORS.OPEN.fg}
               />
             ) : null}
             {stats.answered > 0 ? (
@@ -421,7 +657,7 @@ export default function WhiteboardDetailScreen() {
                 label="Answered"
                 value={stats.answered}
                 color={colors.text}
-                accent={Colors.verifiedAnswer}
+                accent={STATUS_COLORS.ANSWERED.fg}
               />
             ) : null}
             {stats.pinned > 0 ? (
@@ -436,6 +672,76 @@ export default function WhiteboardDetailScreen() {
         </Animated.View>
 
         {/* Search + sort row */}
+        {isFaculty ? (
+          <Animated.View entering={controlsEntering} style={styles.facultyTabs}>
+            <Pressable
+              onPress={() => setViewMode('questions')}
+              style={({ pressed }) => [
+                styles.facultyTab,
+                { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+                viewMode === 'questions' && {
+                  borderColor: colors.primary,
+                  backgroundColor: `${colors.primary}26`,
+                },
+                pressed && { opacity: 0.75 },
+              ]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: viewMode === 'questions' }}
+              accessibilityLabel="Question list tab"
+            >
+              <Text
+                style={[
+                  styles.facultyTabText,
+                  { color: viewMode === 'questions' ? colors.primary : colors.textSecondary },
+                ]}
+              >
+                Questions
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setViewMode('triage')}
+              style={({ pressed }) => [
+                styles.facultyTab,
+                { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+                viewMode === 'triage' && {
+                  borderColor: STATUS_COLORS.OPEN.fg,
+                  backgroundColor: STATUS_COLORS.OPEN.bg,
+                },
+                pressed && { opacity: 0.75 },
+              ]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: viewMode === 'triage' }}
+              accessibilityLabel="Triage tab"
+            >
+              <Text
+                style={[
+                  styles.facultyTabText,
+                  { color: viewMode === 'triage' ? STATUS_COLORS.OPEN.fg : colors.textSecondary },
+                ]}
+              >
+                Triage
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/whiteboard/members',
+                  params: { whiteboardId: id },
+                })
+              }
+              style={({ pressed }) => [
+                styles.facultyTab,
+                { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+                pressed && { opacity: 0.75 },
+              ]}
+              accessibilityRole="tab"
+              accessibilityLabel="Members tab"
+            >
+              <Text style={[styles.facultyTabText, { color: colors.textSecondary }]}>Members</Text>
+            </Pressable>
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={controlsEntering} style={styles.controlsRow}>
           <View
             style={[
@@ -493,7 +799,7 @@ export default function WhiteboardDetailScreen() {
 
         {/* Topic filter */}
         {topicFilters.length > 0 ? (
-          <Animated.View entering={filtersEntering}>
+          <Animated.View entering={filtersEntering} style={styles.filterScroller}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -513,19 +819,126 @@ export default function WhiteboardDetailScreen() {
                 />
               ))}
             </ScrollView>
+            <View pointerEvents="none" style={styles.filterFade}>
+              <LinearGradient
+                colors={['rgba(10,12,20,0)', Colors.background]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <AnimatedIcon
+                name="chevron-forward"
+                size={12}
+                color={colors.textMuted}
+                motion="none"
+              />
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {isFaculty ? (
+          <Animated.View
+            entering={filtersEntering}
+            style={[
+              styles.facultyToolbar,
+              { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+            ]}
+          >
+            <View style={styles.facultyToolbarCopy}>
+              <Text style={[styles.facultyToolbarTitle, { color: colors.text }]}>
+                {stats.open} unanswered
+              </Text>
+              <Text style={[styles.facultyToolbarMeta, { color: colors.textMuted }]}>
+                {triageQuestions.length} in triage ·{' '}
+                {triageQuestions.filter((question) => question.commentCount === 0).length} without replies
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                haptic.selection();
+                setViewMode((value) => (value === 'triage' ? 'questions' : 'triage'));
+              }}
+              style={({ pressed }) => [
+                styles.triageButton,
+                {
+                  backgroundColor: triageOnly ? STATUS_COLORS.OPEN.bg : colors.surfaceLight,
+                  borderColor: triageOnly ? STATUS_COLORS.OPEN.fg : colors.surfaceBorder,
+                },
+                pressed && { opacity: 0.75 },
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: triageOnly }}
+              accessibilityLabel="Show questions without replies"
+            >
+              <AnimatedIcon
+                name="filter"
+                size={14}
+                color={triageOnly ? STATUS_COLORS.OPEN.fg : colors.text}
+                motion="none"
+              />
+              <Text
+                style={[
+                  styles.triageButtonText,
+                  { color: triageOnly ? STATUS_COLORS.OPEN.fg : colors.text },
+                ]}
+              >
+                Triage
+              </Text>
+            </Pressable>
+          </Animated.View>
+        ) : null}
+
+        {!triageOnly ? (
+          <Animated.View entering={filtersEntering} style={styles.groupModeRow}>
+            {GROUP_OPTIONS.map((option) => {
+              const selected = groupMode === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    haptic.selection();
+                    setGroupMode(option.value);
+                  }}
+                  style={({ pressed }) => [
+                    styles.groupModeChip,
+                    { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                    selected && {
+                      backgroundColor: `${colors.primary}24`,
+                      borderColor: colors.primary,
+                    },
+                    pressed && { opacity: 0.75 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`Group by ${option.label}`}
+                >
+                  <Text
+                    style={[
+                      styles.groupModeText,
+                      { color: selected ? colors.primary : colors.textSecondary },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </Animated.View>
         ) : null}
 
         {/* Question Feed */}
         <SectionList
-          sections={sections}
+          sections={displaySections}
           keyExtractor={(item) => item.id}
           renderItem={renderQuestionCard}
           renderSectionHeader={renderSectionHeader}
           stickySectionHeadersEnabled={false}
+          windowSize={5}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
           contentContainerStyle={[
             styles.listContent,
-            sections.every((s) => s.data.length === 0) && styles.emptyList,
+            displaySections.every((s) => s.data.length === 0) && styles.emptyList,
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -536,7 +949,19 @@ export default function WhiteboardDetailScreen() {
             />
           }
           ListEmptyComponent={
-            isSearching ? (
+            triageOnly ? (
+              <EmptyState
+                ionIcon="checkmark-circle-outline"
+                title={
+                  activeTopicName
+                    ? `No triage questions in ${activeTopicName}`
+                    : 'No triage questions'
+                }
+                subtitle="Everything in this view is already answered or closed."
+                actionLabel="View all questions"
+                onAction={() => setViewMode('questions')}
+              />
+            ) : isSearching ? (
               <EmptyState
                 ionIcon="search-outline"
                 title="No matches"
@@ -574,6 +999,24 @@ export default function WhiteboardDetailScreen() {
                 }
               />
             )
+          }
+          ListHeaderComponent={
+            refreshing ? (
+              <Animated.View
+                entering={reduceMotion ? undefined : FadeIn.duration(Duration.fast)}
+                style={[
+                  styles.refreshGhost,
+                  { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+                ]}
+                accessibilityRole="text"
+                accessibilityLabel="Refreshing questions"
+              >
+                <GhostMark size={34} animated />
+                <Text style={[styles.refreshGhostText, { color: colors.textSecondary }]}>
+                  Refreshing
+                </Text>
+              </Animated.View>
+            ) : null
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
@@ -627,6 +1070,78 @@ export default function WhiteboardDetailScreen() {
           })}
         </GlassModal>
 
+        <GlassModal
+          visible={triageVerifyQuestion !== null}
+          onClose={closeTriageVerifyPicker}
+          title="Mark as Answer"
+        >
+          {triageVerifyQuestion ? (
+            <View style={styles.verifySheetIntro}>
+              <Text style={[styles.verifySheetQuestion, { color: colors.text }]} numberOfLines={2}>
+                {triageVerifyQuestion.title}
+              </Text>
+              <Text style={[styles.verifySheetMeta, { color: colors.textMuted }]}>
+                Choose the comment that answers this question. The question will close.
+              </Text>
+            </View>
+          ) : null}
+
+          {loadingTriageComments ? (
+            <View style={styles.verifySheetLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : triageComments.length > 0 ? (
+            triageComments.map((comment) => (
+              <Pressable
+                key={comment.id}
+                onPress={() => {
+                  if (!triageVerifyQuestion) {
+                    return;
+                  }
+                  Alert.alert(
+                    'Mark this comment as the verified answer?',
+                    'The question will be closed.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Mark Answer',
+                        onPress: () => {
+                          haptic.success();
+                          handleVerifyComment(triageVerifyQuestion.id, comment);
+                          closeTriageVerifyPicker();
+                        },
+                      },
+                    ]
+                  );
+                }}
+                style={({ pressed }) => [
+                  styles.verifyCommentOption,
+                  { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+                  pressed && { opacity: 0.75 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Mark comment by ${comment.authorName} as answer`}
+              >
+                <View style={styles.verifyCommentHeader}>
+                  <Text style={[styles.verifyCommentAuthor, { color: colors.text }]} numberOfLines={1}>
+                    {comment.authorName}
+                  </Text>
+                  <Text style={[styles.verifyCommentDate, { color: colors.textMuted }]}>
+                    {formatTimestamp(comment.createdAt)}
+                  </Text>
+                </View>
+                <Text style={[styles.verifyCommentBody, { color: colors.textSecondary }]} numberOfLines={4}>
+                  {comment.body}
+                </Text>
+              </Pressable>
+            ))
+          ) : (
+            <Text style={[styles.verifySheetMeta, { color: colors.textMuted }]}>
+              No comments are available to mark as the answer.
+            </Text>
+          )}
+        </GlassModal>
+
         <ContactFacultySheet
           visible={contactSheetVisible}
           onClose={() => setContactSheetVisible(false)}
@@ -634,21 +1149,6 @@ export default function WhiteboardDetailScreen() {
         />
       </SafeAreaView>
     </View>
-  );
-}
-
-function BackButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Go back"
-      hitSlop={8}
-    >
-      <AnimatedIcon name="chevron-back" size={18} color={Colors.text} motion="none" />
-      <Text style={styles.backButtonLabel}>Back</Text>
-    </Pressable>
   );
 }
 
@@ -672,7 +1172,7 @@ function IconAction({
       ]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      hitSlop={4}
+      hitSlop={6}
     >
       <AnimatedIcon name={icon} size={16} color={themeColors.text} motion="none" />
     </Pressable>
@@ -756,9 +1256,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
 
   topRow: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -766,12 +1266,17 @@ const styles = StyleSheet.create({
   topActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+  },
+  inlineHeader: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   iconAction: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
@@ -780,7 +1285,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 6,
+    minHeight: 44,
+    paddingVertical: 8,
     paddingLeft: 4,
     paddingRight: 12,
     borderRadius: 12,
@@ -795,51 +1301,74 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-    paddingHorizontal: 24,
-    paddingTop: 4,
-    paddingBottom: 12,
+    marginHorizontal: 18,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   heroTitleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 6,
+    alignItems: 'flex-start',
+    gap: 11,
+    marginBottom: 8,
   },
   iconDisc: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
   heroTitle: {
     flex: 1,
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 25,
+    lineHeight: 29,
     fontWeight: '900',
-    letterSpacing: -0.6,
+    letterSpacing: 0,
   },
   heroMeta: {
     fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontWeight: '800',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 12,
+    marginBottom: 14,
   },
 
   statsStrip: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
     flexWrap: 'wrap',
+  },
+  facultyTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingBottom: 10,
+  },
+  facultyTab: {
+    minHeight: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  facultyTabText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '900',
+    letterSpacing: 0,
   },
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 10,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   statDot: {
@@ -848,33 +1377,33 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   statValue: {
-    fontSize: Fonts.sizes.md,
+    fontSize: Fonts.sizes.sm,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
-    letterSpacing: -0.3,
+    letterSpacing: 0,
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
 
   controlsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingBottom: 8,
+    paddingHorizontal: 18,
+    paddingBottom: 10,
     gap: 8,
   },
   searchField: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
     paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   searchInput: {
     flex: 1,
@@ -886,41 +1415,143 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    maxWidth: 156,
   },
   sortChipText: {
-    fontSize: Fonts.sizes.sm,
-    fontWeight: '600',
-    maxWidth: 130,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0,
+    maxWidth: 118,
   },
 
   filterRow: {
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingRight: 48,
-    paddingBottom: 8,
+    gap: 7,
+    paddingHorizontal: 18,
+    paddingRight: 36,
+    paddingBottom: 9,
     alignItems: 'center',
   },
+  filterScroller: {
+    position: 'relative',
+  },
+  filterFade: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 9,
+    width: 30,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 8,
+  },
   filterChip: {
-    paddingHorizontal: 14,
-    height: 36,
+    paddingHorizontal: 13,
+    height: 34,
     flexShrink: 0,
     alignSelf: 'center',
-    borderRadius: 18,
+    borderRadius: 17,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterChipText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: Colors.textSecondary,
-    letterSpacing: 0.4,
+    letterSpacing: 0,
   },
   filterChipTextActive: {
     color: Colors.text,
+  },
+  groupModeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+    gap: 7,
+  },
+  groupModeChip: {
+    minHeight: 32,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupModeText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '800',
+    letterSpacing: 0.35,
+  },
+  facultyToolbar: {
+    marginHorizontal: 24,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  facultyToolbarCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  facultyToolbarTitle: {
+    fontSize: Fonts.sizes.md,
+    fontWeight: '900',
+    letterSpacing: -0.1,
+  },
+  facultyToolbarMeta: {
+    fontSize: Fonts.sizes.xs,
+    marginTop: 2,
+    fontWeight: '700',
+  },
+  triageButton: {
+    minHeight: 36,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  triageButtonText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  triageActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 12,
+    marginTop: 2,
+  },
+  triageInlineAction: {
+    minHeight: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  triageVerifyAction: {
+    backgroundColor: 'rgba(34,197,94,0.08)',
+  },
+  triageActionText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '800',
+  },
+  triageVerifyText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '900',
   },
 
   sectionHeader: {
@@ -943,6 +1574,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 72,
+  },
+  refreshGhost: {
+    alignSelf: 'center',
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshGhostText: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '800',
+    letterSpacing: 0.35,
+    textTransform: 'uppercase',
   },
   emptyList: {
     flexGrow: 1,
@@ -1138,5 +1786,49 @@ const styles = StyleSheet.create({
   },
   sortOptionLabelSelected: {
     color: Colors.primary,
+  },
+  verifySheetIntro: {
+    marginBottom: 14,
+  },
+  verifySheetQuestion: {
+    fontSize: Fonts.sizes.lg,
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  verifySheetMeta: {
+    fontSize: Fonts.sizes.sm,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  verifySheetLoading: {
+    minHeight: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyCommentOption: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    marginBottom: 10,
+  },
+  verifyCommentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 8,
+  },
+  verifyCommentAuthor: {
+    flex: 1,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '800',
+  },
+  verifyCommentDate: {
+    fontSize: Fonts.sizes.xs,
+    fontWeight: '700',
+  },
+  verifyCommentBody: {
+    fontSize: Fonts.sizes.md,
+    lineHeight: 20,
   },
 });

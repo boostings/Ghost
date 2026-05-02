@@ -3,8 +3,11 @@ import { Config } from '../constants/config';
 import { useAuthStore } from '../stores/authStore';
 import type {
   NotificationResponse,
+  NotificationPreferencesResponse,
   PageResponse,
   PaginationParams,
+  PushFrequency,
+  EmailDigest,
   UnreadCountResponse,
 } from '../types';
 
@@ -130,6 +133,33 @@ export const notificationService = {
   clearAll: async (): Promise<void> => {
     await api.delete('/notifications');
     resetUnreadCountCache();
+  },
+
+  getPreferences: async (): Promise<NotificationPreferencesResponse> => {
+    const response = await api.get<NotificationPreferencesResponse>('/notifications/preferences');
+    return response.data;
+  },
+
+  updatePreferences: async (
+    pushFrequency: PushFrequency,
+    emailDigest: EmailDigest
+  ): Promise<NotificationPreferencesResponse> => {
+    const response = await api.put<NotificationPreferencesResponse>('/notifications/preferences', {
+      pushFrequency,
+      emailDigest,
+    });
+    return response.data;
+  },
+
+  updateClassOverride: async (
+    whiteboardId: string,
+    mutedFor24h: boolean
+  ): Promise<NotificationPreferencesResponse> => {
+    const response = await api.put<NotificationPreferencesResponse>(
+      `/notifications/preferences/classes/${whiteboardId}`,
+      { mutedFor24h }
+    );
+    return response.data;
   },
 
   /**

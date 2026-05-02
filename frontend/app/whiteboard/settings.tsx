@@ -20,13 +20,14 @@ import GlassButton from '../../components/ui/GlassButton';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassModal from '../../components/ui/GlassModal';
 import QRCodeModal from '../../components/QRCodeModal';
-import SettingsHeader from '../../components/whiteboard/SettingsHeader';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { getEmailFieldState, isValidEmail } from '../../utils/validators';
+import { smartTitleCase } from '../../utils/titleCase';
 import type { WhiteboardResponse } from '../../types';
 
 type InviteInfo = {
@@ -49,17 +50,21 @@ export default function WhiteboardSettingsScreen() {
   const [transferEmailError, setTransferEmailError] = useState<string | undefined>();
   const [transferring, setTransferring] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copiedInviteCode, setCopiedInviteCode] = useState(false);
+  const [showInstructorDetails, setShowInstructorDetails] = useState(false);
 
   const isOwner = whiteboard?.ownerId === user?.id;
   const inviteCode = inviteInfo?.inviteCode || whiteboard?.inviteCode || '';
   const qrValue =
     inviteInfo?.qrData || inviteInfo?.inviteUrl || (inviteCode ? `ghost://join/${inviteCode}` : '');
+  const instructorSummary = whiteboard?.instructorSummary?.trim() || whiteboard?.ownerName;
+  const sectionCount = whiteboard?.sectionCount ?? 1;
 
   const fetchWhiteboard = useCallback(async () => {
     if (!whiteboardId) return;
     try {
       const [wb, invite] = await Promise.all([
-        whiteboardService.getById(whiteboardId),
+        whiteboardService.getWhiteboard(whiteboardId),
         whiteboardService.getInviteInfo(whiteboardId).catch(() => null),
       ]);
       setWhiteboard(wb);
@@ -79,7 +84,8 @@ export default function WhiteboardSettingsScreen() {
     if (inviteCode) {
       Clipboard.setStringAsync(inviteCode)
         .then(() => {
-          Alert.alert('Copied', 'Invite code copied to clipboard.');
+          setCopiedInviteCode(true);
+          setTimeout(() => setCopiedInviteCode(false), 1600);
         })
         .catch(() => {
           Alert.alert('Invite Code', `The invite code is: ${inviteCode}`, [{ text: 'OK' }]);
@@ -137,7 +143,7 @@ export default function WhiteboardSettingsScreen() {
             if (!whiteboardId) return;
             setDeleting(true);
             try {
-              await whiteboardService.delete(whiteboardId);
+              await whiteboardService.deleteWhiteboard(whiteboardId);
               Alert.alert('Deleted', 'The whiteboard has been deleted.');
               router.replace('/(tabs)/home');
             } catch (error: unknown) {
@@ -172,9 +178,8 @@ export default function WhiteboardSettingsScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <SettingsHeader
+        <ScreenHeader
           title="Whiteboard Settings"
-          subtitle={whiteboard?.courseCode ? `${whiteboard.courseCode} settings` : undefined}
         />
 
         <ScrollView
@@ -198,7 +203,9 @@ export default function WhiteboardSettingsScreen() {
               </View>
             </View>
             <Text style={styles.courseTitle}>
-              {whiteboard?.courseName || 'Untitled whiteboard'}
+              {whiteboard?.courseName
+                ? smartTitleCase(whiteboard.courseName)
+                : 'Untitled whiteboard'}
             </Text>
             <View style={styles.metaGrid}>
               <View style={styles.metaItem}>
@@ -216,6 +223,46 @@ export default function WhiteboardSettingsScreen() {
             </View>
           </GlassCard>
 
+          {instructorSummary ? (
+            <GlassCard style={styles.card}>
+              <TouchableOpacity
+                style={styles.disclosureHeader}
+                onPress={() => setShowInstructorDetails((current) => !current)}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showInstructorDetails }}
+                accessibilityLabel="Who else teaches this"
+              >
+                <View style={styles.menuIconBubble}>
+                  <Ionicons name="school-outline" size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.menuContent}>
+                  <Text style={styles.menuLabel}>Who else teaches this?</Text>
+                  <Text style={styles.menuDescription}>
+                    {sectionCount > 1
+                      ? `${sectionCount} sections share this whiteboard`
+                      : 'One section is attached to this whiteboard'}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={showInstructorDetails ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={Colors.textMuted}
+                />
+              </TouchableOpacity>
+
+              {showInstructorDetails ? (
+                <View style={styles.instructorDisclosureBody}>
+                  <Text style={styles.infoLabel}>Faculty</Text>
+                  <Text style={styles.instructorSummary}>{instructorSummary}</Text>
+                  <Text style={styles.sectionDescription}>
+                    Cross-section visibility is based on matching course and semester catalog data.
+                  </Text>
+                </View>
+              ) : null}
+            </GlassCard>
+          ) : null}
+
           {/* Invite Code — hidden for demo classes */}
           {whiteboard?.isDemo ? null : (
             <GlassCard style={styles.card}>
@@ -224,7 +271,6 @@ export default function WhiteboardSettingsScreen() {
                   <Text style={styles.sectionTitle}>Invite Access</Text>
                   <Text style={styles.sectionDescription}>Code and QR for student enrollment</Text>
                 </View>
-                <Ionicons name="qr-code-outline" size={24} color={Colors.primary} />
               </View>
 
               <TouchableOpacity
@@ -234,9 +280,18 @@ export default function WhiteboardSettingsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Copy invite code"
               >
-                <Text style={styles.inviteCodeText}>{inviteCode || 'Unavailable'}</Text>
+                <View style={styles.inviteCodeRow}>
+                  <Text style={styles.inviteCodeText}>{inviteCode || 'Unavailable'}</Text>
+                  {inviteCode ? (
+                    <Ionicons name="copy-outline" size={18} color={Colors.primary} />
+                  ) : null}
+                </View>
                 <Text style={styles.copyText}>
-                  {inviteCode ? 'Tap to copy' : 'Unable to load code'}
+                  {copiedInviteCode
+                    ? 'Copied!'
+                    : inviteCode
+                      ? 'Tap to copy'
+                      : 'Unable to load code'}
                 </Text>
               </TouchableOpacity>
 
@@ -396,6 +451,7 @@ export default function WhiteboardSettingsScreen() {
           visible={showTransferModal}
           onClose={() => setShowTransferModal(false)}
           title="Transfer Ownership"
+          presentation="dialog"
         >
           <Text style={styles.modalDescription}>
             Enter the email of the faculty member you want to transfer ownership to. You will be
@@ -431,7 +487,7 @@ export default function WhiteboardSettingsScreen() {
           onClose={() => setShowQrModal(false)}
           inviteCode={inviteCode}
           whiteboardName={whiteboard?.courseCode || 'Whiteboard'}
-          subtitle={whiteboard?.courseName}
+          subtitle={whiteboard?.courseName ? smartTitleCase(whiteboard.courseName) : undefined}
         />
       </SafeAreaView>
     </LinearGradient>
@@ -565,6 +621,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
+  disclosureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  instructorDisclosureBody: {
+    marginTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    paddingTop: 14,
+  },
+  instructorSummary: {
+    color: Colors.text,
+    fontSize: Fonts.sizes.md,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginTop: 4,
+    marginBottom: 8,
+  },
   inviteCodeBox: {
     backgroundColor: 'rgba(187,39,68,0.15)',
     borderRadius: 12,
@@ -573,6 +648,12 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
+  },
+  inviteCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
   inviteCodeText: {
     fontSize: Fonts.sizes.xxxl,

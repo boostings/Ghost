@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Ease, Stagger } from '../../constants/motion';
@@ -23,10 +24,10 @@ import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import {
-  getEmailError,
   getNameError,
   getPasswordError,
   getConfirmPasswordError,
+  getEmailFieldState,
 } from '../../utils/validators';
 
 interface FormErrors {
@@ -49,10 +50,17 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [emailBlurred, setEmailBlurred] = useState(false);
+  const emailField = getEmailFieldState({
+    value: email,
+    active: emailBlurred,
+    manualError: errors.email,
+    invalidMessage: 'Use your @ilstu.edu address',
+  });
   const canSubmit =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
-    email.trim().length > 0 &&
+    emailField.valid &&
     password.length > 0 &&
     confirmPassword.length > 0;
 
@@ -65,8 +73,7 @@ export default function RegisterScreen() {
     const lastNameErr = getNameError(lastName, 'Last name');
     if (lastNameErr) newErrors.lastName = lastNameErr;
 
-    const emailErr = getEmailError(email);
-    if (emailErr) newErrors.email = emailErr;
+    if (!emailField.valid) newErrors.email = 'Use your @ilstu.edu address';
 
     const passwordErr = getPasswordError(password);
     if (passwordErr) newErrors.password = passwordErr;
@@ -90,12 +97,12 @@ export default function RegisterScreen() {
       await authService.register({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        email: email.trim().toLowerCase(),
+        email: emailField.normalized,
         password,
       });
       router.push({
         pathname: '/(auth)/verify-email',
-        params: { email: email.trim().toLowerCase() },
+        params: { email: emailField.normalized },
       });
     } catch (error: unknown) {
       const errorMessage = extractErrorMessage(error);
@@ -132,6 +139,7 @@ export default function RegisterScreen() {
         pointerEvents="none"
       />
       <SafeAreaView style={styles.container}>
+        <ScreenHeader title="Create Account" onBack={() => router.back()} border={false} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -197,8 +205,9 @@ export default function RegisterScreen() {
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                error={errors.email}
+                error={emailField.visibleError}
                 returnKeyType="next"
+                onBlur={() => setEmailBlurred(true)}
               />
 
               <GlassInput

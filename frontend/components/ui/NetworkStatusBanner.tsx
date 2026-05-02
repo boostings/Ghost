@@ -21,6 +21,8 @@ export default function NetworkStatusBanner() {
     <Animated.View
       entering={FadeInDown.duration(Duration.normal).springify().damping(18)}
       exiting={FadeOutUp.duration(Duration.fast)}
+      accessibilityRole="alert"
+      accessibilityLabel="No internet connection"
       style={[
         styles.container,
         {

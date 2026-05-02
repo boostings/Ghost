@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,13 @@ import {
   Alert,
   InteractionManager,
 } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  LinearTransition,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -21,10 +27,11 @@ import GlassModal from '../../components/ui/GlassModal';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
+import NoiseOverlay from '../../components/ui/NoiseOverlay';
 import { AnimatedIcon } from '../../components/AnimatedIcon';
-import { useThemeColors } from '../../constants/colors';
+import { accentForWhiteboard, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Ease, Stagger, enterList } from '../../constants/motion';
+import { Duration, Ease, Stagger } from '../../constants/motion';
 import { Spacing, Shadow } from '../../constants/spacing';
 import { haptic } from '../../utils/haptics';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
@@ -33,8 +40,10 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { questionService } from '../../services/questionService';
 import { extractErrorMessage } from '../../hooks/useApi';
+import { formatTimestamp } from '../../utils/formatTimestamp';
 import { parseInviteCode } from '../../utils/inviteCode';
 import { getCourseVisual, visualColors } from '../../utils/courseIcon';
+import { smartTitleCase } from '../../utils/titleCase';
 import type { QuestionResponse, WhiteboardResponse } from '../../types';
 
 const WHITEBOARD_PAGE_SIZE = 20;
@@ -43,6 +52,7 @@ const MY_QUESTIONS_STRIP_SIZE = 10;
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useThemeColors();
+  const reduceMotion = useReducedMotion();
   const whiteboards = useWhiteboardStore((state) => state.whiteboards);
   const setWhiteboards = useWhiteboardStore((state) => state.setWhiteboards);
   const setLoading = useWhiteboardStore((state) => state.setLoading);
@@ -100,7 +110,10 @@ export default function HomeScreen() {
           setLoadingMore(true);
         }
 
-        const response = await whiteboardService.list(nextPage, WHITEBOARD_PAGE_SIZE);
+        const response = await whiteboardService.getWhiteboards({
+          page: nextPage,
+          size: WHITEBOARD_PAGE_SIZE,
+        });
         const current = replace ? [] : useWhiteboardStore.getState().whiteboards;
         const merged = [...current, ...response.content];
         setWhiteboards(merged);
@@ -269,131 +282,204 @@ export default function HomeScreen() {
     setScannerLocked(false);
   };
 
+  const latestOpenByWhiteboard = useMemo(() => {
+    const byWhiteboard = new Map<string, QuestionResponse>();
+    for (const question of awaitingQuestions) {
+      if (!question.whiteboardId || byWhiteboard.has(question.whiteboardId)) continue;
+      byWhiteboard.set(question.whiteboardId, question);
+    }
+    return byWhiteboard;
+  }, [awaitingQuestions]);
+
   const renderWhiteboardCard = useCallback(
-    ({ item, index }: { item: WhiteboardResponse; index: number }) => (
-      <Animated.View
-        entering={enterList(index)}
-        layout={LinearTransition.duration(Duration.normal).easing(Ease.out)}
-      >
-        <GlassCard
-          style={styles.whiteboardCard}
-          highlight={false}
-          accessibilityLabel={`Open ${item.courseCode} whiteboard`}
-          onPress={() =>
-            router.push({
-              pathname: '/whiteboard/[id]',
-              params: { id: item.id },
-            })
+    ({ item, index }: { item: WhiteboardResponse; index: number }) => {
+      const accent = accentForWhiteboard(item.id);
+      const latestOpenQuestion = latestOpenByWhiteboard.get(item.id);
+      return (
+        <Animated.View
+          entering={
+            reduceMotion
+              ? FadeIn.duration(Duration.fast)
+              : FadeInUp.duration(220)
+                  .delay(index * 40)
+                  .easing(Ease.out)
           }
+          layout={LinearTransition.duration(Duration.normal).easing(Ease.out)}
         >
-          {(() => {
-            const visual = getCourseVisual(item.courseCode);
-            const tint = visualColors(visual);
-            return (
-              <View style={styles.cardHeader}>
-                <View
-                  style={[
-                    styles.iconDisc,
-                    { backgroundColor: tint.background, borderColor: tint.border },
-                  ]}
+          <GlassCard
+            style={[styles.whiteboardCard, { borderColor: `${accent.primary}66` }]}
+            highlight={false}
+            accessibilityLabel={`Open ${item.courseCode} whiteboard`}
+            onPress={() =>
+              router.push({
+                pathname: '/whiteboard/[id]',
+                params: { id: item.id },
+              })
+            }
+          >
+            {(() => {
+              const visual = getCourseVisual(item.courseCode);
+              const tint = visualColors(visual);
+              return (
+                <View style={styles.cardHeader}>
+                  <View
+                    style={[
+                      styles.iconDisc,
+                      { backgroundColor: tint.background, borderColor: tint.border },
+                    ]}
+                  >
+                    <AnimatedIcon
+                      name={visual.icon}
+                      size={18}
+                      color={tint.foreground}
+                      motion="none"
+                    />
+                  </View>
+                  {item.isDemo ? (
+                    <View
+                      style={[
+                        styles.demoBadge,
+                        {
+                          backgroundColor: `${colors.warning}26`,
+                          borderColor: `${colors.warning}40`,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.demoBadgeText, { color: colors.warning }]}>DEMO</Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.codeContainer,
+                        { backgroundColor: accent.soft, borderColor: `${accent.primary}40` },
+                      ]}
+                    >
+                      <Text style={[styles.courseCode, { color: accent.primary }]}>
+                        {item.courseCode}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.chevronWrap}>
+                    <AnimatedIcon
+                      name="chevron-forward"
+                      size={18}
+                      color={colors.textMuted}
+                      motion="none"
+                    />
+                  </View>
+                </View>
+              );
+            })()}
+
+            <Text style={[styles.courseName, { color: colors.text }]} numberOfLines={2}>
+              {smartTitleCase(item.courseName)}
+            </Text>
+
+            {item.ownerName ? (
+              <View style={styles.teacherRow}>
+                <AnimatedIcon
+                  name="school-outline"
+                  size={14}
+                  color={colors.textMuted}
+                  motion="none"
+                />
+                <Text
+                  style={[styles.teacherText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
                 >
-                  <AnimatedIcon
-                    name={visual.icon}
-                    size={18}
-                    color={tint.foreground}
-                    motion="none"
-                  />
-                </View>
-                {item.isDemo ? (
-                  <View
-                    style={[
-                      styles.demoBadge,
-                      {
-                        backgroundColor: `${colors.warning}26`,
-                        borderColor: `${colors.warning}40`,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.demoBadgeText, { color: colors.warning }]}>DEMO</Text>
-                  </View>
-                ) : (
-                  <View
-                    style={[
-                      styles.codeContainer,
-                      { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
-                    ]}
-                  >
-                    <Text style={[styles.courseCode, { color: colors.primary }]}>
-                      {item.courseCode}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.chevronWrap}>
-                  <AnimatedIcon
-                    name="chevron-forward"
-                    size={18}
-                    color={colors.textMuted}
-                    motion="none"
-                  />
-                </View>
+                  {item.ownerName}
+                </Text>
               </View>
-            );
-          })()}
+            ) : null}
 
-          <Text style={[styles.courseName, { color: colors.text }]} numberOfLines={2}>
-            {item.courseName}
-          </Text>
+            {latestOpenQuestion ? (
+              <View
+                style={[
+                  styles.recentQuestion,
+                  { backgroundColor: colors.surface, borderColor: `${accent.primary}33` },
+                ]}
+              >
+                <Text style={[styles.recentQuestionLabel, { color: accent.primary }]}>
+                  Latest open
+                </Text>
+                <Text
+                  style={[styles.recentQuestionTitle, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {latestOpenQuestion.title}
+                </Text>
+                <Text
+                  style={[styles.recentQuestionMeta, { color: colors.textMuted }]}
+                  numberOfLines={1}
+                >
+                  {latestOpenQuestion.authorName} · {formatTimestamp(latestOpenQuestion.createdAt)}
+                </Text>
+              </View>
+            ) : null}
 
-          {item.ownerName ? (
-            <View style={styles.teacherRow}>
-              <AnimatedIcon
-                name="school-outline"
-                size={14}
-                color={colors.textMuted}
-                motion="none"
-              />
-              <Text style={[styles.teacherText, { color: colors.textSecondary }]} numberOfLines={1}>
-                {item.ownerName}
-              </Text>
+            <View style={[styles.cardFooter, { borderTopColor: colors.surfaceBorder }]}>
+              <View style={styles.metaItem}>
+                <AnimatedIcon
+                  name="calendar-outline"
+                  size={14}
+                  color={colors.textMuted}
+                  motion="none"
+                />
+                <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                  {item.semester}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <AnimatedIcon
+                  name="people-outline"
+                  size={14}
+                  color={colors.textMuted}
+                  motion="none"
+                />
+                <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                  {item.memberCount} {item.memberCount === 1 ? 'member' : 'members'}
+                </Text>
+              </View>
             </View>
-          ) : null}
-
-          <View style={[styles.cardFooter, { borderTopColor: colors.surfaceBorder }]}>
-            <View style={styles.metaItem}>
-              <AnimatedIcon
-                name="calendar-outline"
-                size={14}
-                color={colors.textMuted}
-                motion="none"
-              />
-              <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                {item.semester}
-              </Text>
-            </View>
-            <View style={styles.metaItem}>
-              <AnimatedIcon
-                name="people-outline"
-                size={14}
-                color={colors.textMuted}
-                motion="none"
-              />
-              <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                {item.memberCount} {item.memberCount === 1 ? 'member' : 'members'}
-              </Text>
-            </View>
-          </View>
-        </GlassCard>
-      </Animated.View>
-    ),
-    [colors, router]
+          </GlassCard>
+        </Animated.View>
+      );
+    },
+    [colors, latestOpenByWhiteboard, reduceMotion, router]
   );
 
   const navigateToQuestion = useCallback(
     (question: QuestionResponse) => {
-      router.push({ pathname: '/question/[id]', params: { id: question.id } });
+      router.push({ pathname: '/question/[id]', params: { id: question.id, fromCard: '1' } });
     },
     [router]
   );
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    const period = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const firstName = user?.firstName?.trim();
+    return `Good ${period}${firstName ? `, ${firstName}` : ''}`;
+  }, [user?.firstName]);
+
+  const homeStats = useMemo(() => {
+    const today = new Date();
+    const isToday = (input: string) => {
+      const date = new Date(input);
+      return (
+        date.getFullYear() === today.getFullYear() &&
+        date.getMonth() === today.getMonth() &&
+        date.getDate() === today.getDate()
+      );
+    };
+
+    return {
+      todayCount: [...awaitingQuestions, ...answeredQuestions].filter((question) =>
+        isToday(question.createdAt)
+      ).length,
+      unansweredCount: awaitingQuestions.length,
+    };
+  }, [answeredQuestions, awaitingQuestions]);
 
   const renderMyQuestionStrip = (
     title: string,
@@ -505,6 +591,7 @@ export default function HomeScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 0.45 }}
       />
+      <NoiseOverlay />
       <SafeAreaView style={styles.safe} edges={['top']}>
         <Animated.View
           style={styles.header}
@@ -514,7 +601,11 @@ export default function HomeScreen() {
             <Text style={[styles.eyebrow, { color: colors.primary }]}>
               {user ? `WELCOME BACK, ${user.firstName.toUpperCase()}` : 'WELCOME BACK'}
             </Text>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{greeting}</Text>
+            <Text style={[styles.statStrip, { color: colors.textSecondary }]}>
+              {homeStats.todayCount} questions in your classes today · {homeStats.unansweredCount}{' '}
+              unanswered
+            </Text>
           </View>
           <Pressable
             onPress={() => {
@@ -567,11 +658,13 @@ export default function HomeScreen() {
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.3}
             ListFooterComponent={
-              loadingMore ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              ) : null
+              <View style={styles.listFooter}>
+                {loadingMore ? (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : null}
+              </View>
             }
           />
         )}
@@ -674,9 +767,15 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 36,
-    lineHeight: 38,
+    lineHeight: 40,
     fontWeight: '900',
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
+  },
+  statStrip: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
+    marginTop: 8,
+    lineHeight: 18,
   },
   headerFab: {
     width: 48,
@@ -816,6 +915,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flexShrink: 1,
   },
+  recentQuestion: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  recentQuestionLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  recentQuestionTitle: {
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '800',
+    letterSpacing: -0.1,
+  },
+  recentQuestionMeta: {
+    fontSize: Fonts.sizes.xs,
+    marginTop: 3,
+  },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -835,6 +957,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listFooter: {
+    gap: 12,
+    paddingBottom: 8,
   },
   modalDivider: {
     flexDirection: 'row',

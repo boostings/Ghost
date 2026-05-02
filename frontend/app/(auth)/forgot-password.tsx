@@ -18,12 +18,14 @@ import { isAxiosError } from 'axios';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Ease, Stagger } from '../../constants/motion';
 import { Spacing } from '../../constants/spacing';
 import { authService } from '../../services/authService';
 import { extractErrorMessage } from '../../hooks/useApi';
+import { getEmailFieldState } from '../../utils/validators';
 
 const UNVERIFIED_EMAIL_MESSAGE = 'email is not verified';
 
@@ -33,22 +35,25 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const canSubmit = email.trim().length > 0;
+  const [emailBlurred, setEmailBlurred] = useState(false);
+  const emailField = getEmailFieldState({
+    value: email,
+    active: emailBlurred,
+    manualError: error,
+    invalidMessage: 'Use your @ilstu.edu address',
+  });
+  const canSubmit = emailField.valid;
 
   const validate = (): boolean => {
-    if (!email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-
-    setError(undefined);
-    return true;
+    const nextError = emailField.valid ? undefined : 'Use your @ilstu.edu address';
+    setError(nextError);
+    return nextError == null;
   };
 
   const handleSendCode = async () => {
     if (!validate()) return;
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = emailField.normalized;
     setLoading(true);
     try {
       const response = await authService.forgotPassword(normalizedEmail);
@@ -64,7 +69,12 @@ export default function ForgotPasswordScreen() {
         return;
       }
 
-      Alert.alert('Reset Code Ready', 'Use the 6-digit reset code from the backend logs.');
+      Alert.alert(
+        'Reset Code Sent',
+        __DEV__
+          ? 'Use the 6-digit reset code printed in the backend logs.'
+          : 'We sent a 6-digit reset code to your email.'
+      );
       router.push({
         pathname: '/(auth)/verify-reset-code',
         params: { email: normalizedEmail },
@@ -105,6 +115,7 @@ export default function ForgotPasswordScreen() {
         pointerEvents="none"
       />
       <SafeAreaView style={styles.container}>
+        <ScreenHeader title="Forgot Password" onBack={() => router.replace('/(auth)/login')} border={false} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -148,9 +159,10 @@ export default function ForgotPasswordScreen() {
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                error={error}
+                error={emailField.visibleError}
                 returnKeyType="done"
                 onSubmitEditing={handleSendCode}
+                onBlur={() => setEmailBlurred(true)}
               />
 
               <GlassButton
@@ -162,16 +174,6 @@ export default function ForgotPasswordScreen() {
               />
             </GlassCard>
 
-            <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.replace('/(auth)/login')}
-                accessibilityRole="button"
-                accessibilityLabel="Back to login"
-              >
-                <Text style={[styles.backText, { color: colors.textMuted }]}>Back to Login</Text>
-              </TouchableOpacity>
-            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

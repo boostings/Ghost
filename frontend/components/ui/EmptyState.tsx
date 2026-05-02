@@ -1,10 +1,18 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Duration, Stagger } from '../../constants/motion';
+import { Duration, Ease, Stagger } from '../../constants/motion';
 import { Spacing } from '../../constants/spacing';
 import GlassButton from './GlassButton';
 
@@ -26,17 +34,40 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
 }) => {
   const colors = useThemeColors();
+  const reduceMotion = useReducedMotion();
+  const breathScale = useSharedValue(1);
+
+  React.useEffect(() => {
+    if (reduceMotion) {
+      breathScale.value = 1;
+      return;
+    }
+
+    breathScale.value = withRepeat(
+      withSequence(
+        withTiming(1.03, { duration: 2000, easing: Ease.inOut }),
+        withTiming(1, { duration: 2000, easing: Ease.inOut })
+      ),
+      -1,
+      false
+    );
+  }, [breathScale, reduceMotion]);
+
+  const breathingStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: breathScale.value }],
+  }));
 
   return (
     <Animated.View
-      entering={FadeIn.duration(Duration.slow).delay(Stagger.hero)}
+      entering={reduceMotion ? undefined : FadeIn.duration(Duration.slow).delay(Stagger.hero)}
       style={styles.container}
     >
       {ionIcon && (
-        <View
+        <Animated.View
           style={[
             styles.iconCircle,
             { backgroundColor: colors.primarySoft, borderColor: colors.primaryFaint },
+            breathingStyle,
           ]}
           accessible={false}
           importantForAccessibility="no"
@@ -48,12 +79,12 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             accessible={false}
             importantForAccessibility="no"
           />
-        </View>
+        </Animated.View>
       )}
       {!ionIcon && icon && (
-        <Text style={styles.emoji} accessible={false} importantForAccessibility="no">
-          {icon}
-        </Text>
+        <Animated.View style={breathingStyle} accessible={false} importantForAccessibility="no">
+          <Text style={styles.emoji}>{icon}</Text>
+        </Animated.View>
       )}
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
         {title}

@@ -19,6 +19,7 @@ import { haptic } from '../../utils/haptics';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { notificationService } from '../../services/notificationService';
 import { resolveStoredNotificationRoute } from '../../utils/notificationPayloads';
+import { formatTimestamp } from '../../utils/formatTimestamp';
 import type { NotificationResponse, NotificationType } from '../../types';
 
 const PAGE_SIZE = 20;
@@ -61,21 +62,6 @@ function bucketize(items: NotificationResponse[]): Section[] {
   if (week.length) out.push({ key: 'week', title: 'EARLIER THIS WEEK', items: week });
   if (earlier.length) out.push({ key: 'earlier', title: 'EARLIER', items: earlier });
   return out;
-}
-
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks}w`;
-  const months = Math.floor(days / 30);
-  return `${months}mo`;
 }
 
 type ListRow =
@@ -124,7 +110,10 @@ export default function AlertsScreen() {
         if (replace) setLoading(true);
         else setLoadingMore(true);
 
-        const response = await notificationService.list(nextPage, PAGE_SIZE);
+        const response = await notificationService.getNotifications({
+          page: nextPage,
+          size: PAGE_SIZE,
+        });
         const current = replace ? [] : useNotificationStore.getState().notifications;
         setNotifications([...current, ...response.content]);
         setPage(nextPage);
@@ -400,7 +389,7 @@ function AlertRow({
               {item.title}
             </Text>
             <Text style={[styles.rowTime, { color: colors.textMuted }]}>
-              {formatRelative(item.createdAt)}
+              {formatTimestamp(item.createdAt)}
             </Text>
           </View>
           {item.body ? (
@@ -455,7 +444,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headerActions: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    flexShrink: 1,
     gap: 8,
   },
   headerActionButton: {

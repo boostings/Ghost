@@ -1,9 +1,14 @@
 package com.ghost.controller;
 
+import com.ghost.dto.request.UpdateClassNotificationOverrideRequest;
+import com.ghost.dto.request.UpdateNotificationPreferencesRequest;
+import com.ghost.dto.response.NotificationPreferencesResponse;
 import com.ghost.dto.response.NotificationResponse;
 import com.ghost.dto.response.PageResponse;
 import com.ghost.dto.response.UnreadCountResponse;
+import com.ghost.service.NotificationPreferenceService;
 import com.ghost.service.NotificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +25,7 @@ import java.util.UUID;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationPreferenceService notificationPreferenceService;
 
     @GetMapping
     public ResponseEntity<PageResponse<NotificationResponse>> getNotifications(
@@ -63,5 +69,33 @@ public class NotificationController {
         UUID userId = UUID.fromString(userIdStr);
         notificationService.clearAll(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/preferences")
+    public ResponseEntity<NotificationPreferencesResponse> getPreferences(
+            @AuthenticationPrincipal String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
+        return ResponseEntity.ok(notificationPreferenceService.getPreferences(userId));
+    }
+
+    @PutMapping("/preferences")
+    public ResponseEntity<NotificationPreferencesResponse> updatePreferences(
+            @AuthenticationPrincipal String userIdStr,
+            @Valid @RequestBody UpdateNotificationPreferencesRequest request) {
+        UUID userId = UUID.fromString(userIdStr);
+        return ResponseEntity.ok(notificationPreferenceService.updatePreferences(userId, request));
+    }
+
+    @PutMapping("/preferences/classes/{whiteboardId}")
+    public ResponseEntity<NotificationPreferencesResponse> updateClassOverride(
+            @AuthenticationPrincipal String userIdStr,
+            @PathVariable UUID whiteboardId,
+            @Valid @RequestBody UpdateClassNotificationOverrideRequest request) {
+        UUID userId = UUID.fromString(userIdStr);
+        return ResponseEntity.ok(notificationPreferenceService.updateClassOverride(
+                userId,
+                whiteboardId,
+                request
+        ));
     }
 }

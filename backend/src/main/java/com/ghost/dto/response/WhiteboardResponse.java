@@ -40,6 +40,10 @@ public class WhiteboardResponse {
 
     private long memberCount;
 
+    private long sectionCount;
+
+    private String instructorSummary;
+
     private LocalDateTime createdAt;
 
     /**

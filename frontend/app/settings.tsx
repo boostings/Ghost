@@ -100,6 +100,7 @@ export default function SettingsScreen() {
         visible={logoutDialogVisible}
         onClose={() => setLogoutDialogVisible(false)}
         title="Log out"
+        presentation="dialog"
         footer={
           <View style={styles.dialogFooter}>
             <View style={styles.dialogFooterButton}>
@@ -132,6 +133,7 @@ export default function SettingsScreen() {
         visible={deleteDialogVisible}
         onClose={() => setDeleteDialogVisible(false)}
         title="Delete account"
+        presentation="dialog"
         footer={
           <View style={styles.dialogFooter}>
             <View style={styles.dialogFooterButton}>

@@ -31,7 +31,7 @@ import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GlassButton from '../../components/ui/GlassButton';
-import SettingsHeader from '../../components/whiteboard/SettingsHeader';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors } from '../../constants/colors';
 import { Duration, PRESSED_SCALE, Spring } from '../../constants/motion';
 import { haptic } from '../../utils/haptics';
@@ -46,6 +46,7 @@ import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
 import { findMatchingWhiteboard } from '../../utils/whiteboardIdentity';
 import { getEmailFieldState, isValidEmail } from '../../utils/validators';
+import { smartTitleCase } from '../../utils/titleCase';
 import { extractErrorMessage } from '../../hooks/useApi';
 import type { CourseSectionResponse } from '../../types';
 
@@ -379,7 +380,7 @@ export default function CourseCatalogScreen() {
         end={{ x: 0, y: 0.5 }}
       />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <SettingsHeader title="Find your class" subtitle="ILSTU catalog" />
+        <ScreenHeader title="Find your class" subtitle="ILSTU catalog" />
 
         <View style={styles.filters}>
           <SearchField value={search} onChangeText={setSearch} />
@@ -453,7 +454,7 @@ export default function CourseCatalogScreen() {
 
         <View style={styles.bottomBar}>
           <GlassButton
-            title="Add manually"
+            title="Can't find your class? Add manually."
             onPress={() => router.push('/whiteboard/create')}
             variant="secondary"
           />
@@ -647,7 +648,8 @@ function ResultLine({
   let text: string;
   if (error) text = 'Catalog unavailable';
   else if (loading && count === 0) text = `Searching ${semester}…`;
-  else text = `${count.toLocaleString()} class${count === 1 ? '' : 'es'} · ${semester}`;
+  else
+    text = `${new Intl.NumberFormat('en-US').format(count)} class${count === 1 ? '' : 'es'} · ${semester}`;
   return (
     <View style={styles.resultLine}>
       <View style={[styles.resultDot, error ? { backgroundColor: Colors.error } : null]} />
@@ -725,7 +727,7 @@ function CourseGroupCard({
             </View>
           </View>
           <Text style={styles.cardTitle} numberOfLines={2}>
-            {group.courseName}
+            {smartTitleCase(group.courseName)}
           </Text>
           <View style={styles.metaChips}>
             <View style={styles.metaChip}>
@@ -829,7 +831,7 @@ function SectionCard({
           </View>
 
           <Text style={styles.cardTitle} numberOfLines={2}>
-            {section.courseName}
+            {smartTitleCase(section.courseName)}
           </Text>
 
           <View style={styles.instructorRow}>
@@ -919,6 +921,7 @@ function FacultySetupSheet({
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
+          accessibilityRole="button"
           accessibilityLabel="Close faculty setup sheet"
         />
         <Animated.View
@@ -982,6 +985,7 @@ function FacultySetupSheet({
               onPress={onCreate}
               disabled={createDisabled}
               accessibilityRole="button"
+              accessibilityLabel="Create whiteboard"
             >
               {loading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1013,6 +1017,7 @@ function SetupChoice({
       style={[styles.setupChoice, selected && styles.setupChoiceSelected]}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
+      accessibilityLabel={title}
     >
       <View style={[styles.setupRadio, selected && styles.setupRadioSelected]}>
         {selected ? <View style={styles.setupRadioDot} /> : null}
@@ -1061,6 +1066,7 @@ function SortSheet({
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
+          accessibilityRole="button"
           accessibilityLabel="Close sort sheet"
         />
         <Animated.View
@@ -1104,7 +1110,12 @@ function SortSheet({
               onChoose={onChoose}
             />
 
-            <Pressable style={styles.sheetDone} onPress={onClose} accessibilityRole="button">
+            <Pressable
+              style={styles.sheetDone}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close sort sheet"
+            >
               <Text style={styles.sheetDoneText}>Done</Text>
             </Pressable>
           </BlurView>
@@ -1140,6 +1151,7 @@ function SortGroup({
               style={[styles.sortItem, active && styles.sortItemActive]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              accessibilityLabel={`Sort by ${opt.label}`}
             >
               <Text style={[styles.sortItemText, active && styles.sortItemTextActive]}>
                 {opt.label}

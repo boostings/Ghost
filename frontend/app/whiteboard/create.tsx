@@ -15,9 +15,11 @@ import { useRouter } from 'expo-router';
 import GlassButton from '../../components/ui/GlassButton';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { whiteboardService } from '../../services/whiteboardService';
+import { COURSE_CATALOG_TERMS } from '../../services/courseCatalogService';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { useWhiteboardStore } from '../../stores/whiteboardStore';
 import { sanitizeSingleLine } from '../../utils/sanitize';
@@ -41,7 +43,7 @@ export default function CreateWhiteboardScreen() {
   const [courseCode, setCourseCode] = useState('');
   const [courseName, setCourseName] = useState('');
   const [section, setSection] = useState('');
-  const [semester, setSemester] = useState('');
+  const [semester, setSemester] = useState<(typeof COURSE_CATALOG_TERMS)[number]>('Fall 2026');
   const [facultySetupMode, setFacultySetupMode] = useState<FacultySetupMode>('primary');
   const [primaryInstructorEmail, setPrimaryInstructorEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -150,18 +152,7 @@ export default function CreateWhiteboardScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backArrow}>{'\u2190'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Whiteboard</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <ScreenHeader title="Create Whiteboard" onBack={() => router.back()} />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -175,7 +166,7 @@ export default function CreateWhiteboardScreen() {
             <GlassCard>
               <Text style={styles.formTitle}>Class Details</Text>
               <Text style={styles.formSubtitle}>
-                A whiteboard is tied to one course section for a specific semester.
+                Whiteboards are shared by course and semester. Section is optional roster context.
               </Text>
 
               <GlassInput
@@ -213,18 +204,39 @@ export default function CreateWhiteboardScreen() {
                 autoCapitalize="characters"
               />
 
-              <GlassInput
-                label="Semester"
-                placeholder="Fall 2026"
-                value={semester}
-                onChangeText={(value) => {
-                  setSemester(value);
-                  if (errors.semester) {
-                    setErrors((prev) => ({ ...prev, semester: undefined }));
-                  }
-                }}
-                error={errors.semester}
-              />
+              <View style={styles.semesterGroup}>
+                <Text style={styles.semesterLabel}>Semester</Text>
+                <View style={styles.semesterOptions}>
+                  {COURSE_CATALOG_TERMS.map((term) => {
+                    const selected = semester === term;
+                    return (
+                      <TouchableOpacity
+                        key={term}
+                        style={[styles.semesterChip, selected && styles.semesterChipActive]}
+                        onPress={() => {
+                          setSemester(term);
+                          if (errors.semester) {
+                            setErrors((prev) => ({ ...prev, semester: undefined }));
+                          }
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`Use ${term}`}
+                      >
+                        <Text
+                          style={[
+                            styles.semesterChipText,
+                            selected && styles.semesterChipTextActive,
+                          ]}
+                        >
+                          {term}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {errors.semester ? <Text style={styles.fieldError}>{errors.semester}</Text> : null}
+              </View>
 
               <View style={styles.setupGroup}>
                 <Text style={styles.setupTitle}>Your role in this class</Text>
@@ -295,6 +307,7 @@ function SetupOption({
       style={[styles.setupOption, selected && styles.setupOptionSelected]}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
+      accessibilityLabel={title}
     >
       <View style={[styles.radio, selected && styles.radioSelected]}>
         {selected ? <View style={styles.radioDot} /> : null}
@@ -362,6 +375,47 @@ const styles = StyleSheet.create({
     fontSize: Fonts.sizes.sm,
     marginBottom: 18,
     lineHeight: 18,
+  },
+  semesterGroup: {
+    marginBottom: 16,
+  },
+  semesterLabel: {
+    color: Colors.textSecondary,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  semesterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  semesterChip: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  semesterChipActive: {
+    borderColor: Colors.primary,
+    backgroundColor: 'rgba(187,39,68,0.22)',
+  },
+  semesterChipText: {
+    color: Colors.textSecondary,
+    fontSize: Fonts.sizes.sm,
+    fontWeight: '700',
+  },
+  semesterChipTextActive: {
+    color: Colors.primary,
+  },
+  fieldError: {
+    color: Colors.error,
+    fontSize: Fonts.sizes.xs,
+    marginTop: 6,
   },
   setupGroup: {
     marginTop: 6,

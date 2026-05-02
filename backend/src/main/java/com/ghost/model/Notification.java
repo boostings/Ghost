@@ -47,6 +47,9 @@ public class Notification {
     @Column(name = "reference_id")
     private UUID referenceId;
 
+    @Column(name = "whiteboard_id")
+    private UUID whiteboardId;
+
     @Column(name = "is_read", nullable = false)
     @Builder.Default
     private boolean isRead = false;

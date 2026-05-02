@@ -53,6 +53,13 @@ jest.mock('../services/commentService', () => ({
   },
 }));
 
+jest.mock('../services/whiteboardService', () => ({
+  __esModule: true,
+  whiteboardService: {
+    getById: jest.fn(() => Promise.resolve(null)),
+  },
+}));
+
 jest.mock('../services/bookmarkService', () => ({
   __esModule: true,
   bookmarkService: {
@@ -425,6 +432,7 @@ describe('useQuestionDetailModel', () => {
     expect(result.current.question?.status).toBe('CLOSED');
     expect(result.current.question?.verifiedAnswerId).toBe('c-1');
     expect(result.current.comments[0].isVerifiedAnswer).toBe(true);
+    expect(result.current.isClosed).toBe(true);
 
     await act(async () => {
       await result.current.toggleBookmark();
@@ -447,6 +455,32 @@ describe('useQuestionDetailModel', () => {
     });
     expect(result.current.reportModalVisible).toBe(false);
     expect(result.current.reportTarget).toBeNull();
+  });
+
+  it('rolls back optimistic answer verification when the request fails', async () => {
+    mockCommentService.list.mockResolvedValue([makeComment()]);
+    mockCommentService.verify.mockRejectedValue(new Error('verify failed'));
+
+    const { result } = renderHook(() =>
+      useQuestionDetailModel({
+        questionId: 'q-1',
+        whiteboardId: 'wb-1',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.comments).toHaveLength(1);
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.verifyAnswer('c-1');
+      })
+    ).rejects.toThrow('verify failed');
+
+    expect(result.current.question?.status).toBe('OPEN');
+    expect(result.current.question?.verifiedAnswerId).toBeNull();
+    expect(result.current.comments[0].isVerifiedAnswer).toBe(false);
   });
 
   it('deletes the current question, refreshes closed questions, and toggles pin state', async () => {

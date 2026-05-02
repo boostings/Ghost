@@ -12,6 +12,7 @@ export type WhiteboardFilter = 'ALL' | string;
 export type TopicFilter = 'ALL' | string;
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 250;
 
 type ReportTarget = {
   questionId?: string;
@@ -187,7 +188,7 @@ export function useQuestionSearchModel() {
 
       debounceRef.current = setTimeout(() => {
         performSearch(text, statusFilter, whiteboardFilter, topicFilter, 0, true);
-      }, 400);
+      }, SEARCH_DEBOUNCE_MS);
     },
     [performSearch, statusFilter, topicFilter, whiteboardFilter]
   );

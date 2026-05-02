@@ -27,6 +27,7 @@ import { whiteboardService } from '../../services/whiteboardService';
 import { useAuthStore } from '../../stores/authStore';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { parseInviteCode } from '../../utils/inviteCode';
+import { smartTitleCase } from '../../utils/titleCase';
 import type { WhiteboardResponse } from '../../types';
 
 const DEMO_INVITE_CODE = 'DEMO2026';
@@ -54,8 +55,8 @@ export default function OnboardingScreen() {
     setLoadingClasses(true);
 
     const [joinedResult, discoverableResult] = await Promise.allSettled([
-      whiteboardService.list(0, 20),
-      whiteboardService.listDiscoverable(0, 20),
+      whiteboardService.getWhiteboards({ page: 0, size: 20 }),
+      whiteboardService.getDiscoverableWhiteboards({ page: 0, size: 20 }),
     ]);
 
     if (joinedResult.status === 'fulfilled') {
@@ -259,6 +260,8 @@ export default function OnboardingScreen() {
             <Pressable
               style={[styles.optionRow, { borderTopColor: colors.surfaceBorder }]}
               onPress={openScanner}
+              accessibilityRole="button"
+              accessibilityLabel="Scan class QR code"
             >
               <View style={[styles.optionIcon, { backgroundColor: colors.surfaceLight }]}>
                 <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
@@ -276,6 +279,8 @@ export default function OnboardingScreen() {
               <Pressable
                 style={[styles.optionRow, { borderTopColor: colors.surfaceBorder }]}
                 onPress={() => router.push('/whiteboard/catalog')}
+                accessibilityRole="button"
+                accessibilityLabel="Create from class catalog"
               >
                 <View style={[styles.optionIcon, { backgroundColor: colors.surfaceLight }]}>
                   <Ionicons name="book-outline" size={20} color={colors.primary} />
@@ -337,7 +342,7 @@ export default function OnboardingScreen() {
                         {whiteboard.courseCode}
                       </Text>
                       <Text style={[styles.className, { color: colors.text }]} numberOfLines={1}>
-                        {whiteboard.courseName}
+                        {smartTitleCase(whiteboard.courseName)}
                       </Text>
                     </View>
                     <View style={styles.classAction}>
@@ -355,6 +360,8 @@ export default function OnboardingScreen() {
                         ]}
                         onPress={() => handleRequestJoin(whiteboard)}
                         disabled={requesting || requested}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${requested ? 'Requested access to' : 'Request to join'} ${whiteboard.courseCode}`}
                       >
                         <Text
                           style={[
@@ -378,6 +385,8 @@ export default function OnboardingScreen() {
               ]}
               onPress={handleJoinDemo}
               disabled={joiningDemo || demoJoined}
+              accessibilityRole="button"
+              accessibilityLabel={demoJoined ? 'Demo class already joined' : 'Join demo class'}
             >
               <View style={[styles.optionIcon, { backgroundColor: colors.surfaceLight }]}>
                 <Ionicons name="school-outline" size={20} color={colors.primary} />
@@ -428,7 +437,7 @@ export default function OnboardingScreen() {
                       {whiteboard.courseCode}
                     </Text>
                     <Text style={[styles.className, { color: colors.text }]} numberOfLines={1}>
-                      {whiteboard.courseName}
+                      {smartTitleCase(whiteboard.courseName)}
                     </Text>
                   </View>
                   <Text style={[styles.classSemester, { color: colors.textSecondary }]}>

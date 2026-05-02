@@ -53,6 +53,9 @@ const Avatar: React.FC<AvatarProps> = ({ firstName, lastName, size = 40, style }
 
   return (
     <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Avatar for ${firstName} ${lastName}`}
       style={[
         styles.container,
         {

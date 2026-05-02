@@ -1,0 +1,11 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <path d="M390 363C390 288 443.7 235 510 235C576.3 235 630 288 630 363V625C630 639.5 613.2 647.5 602 638.3L566.8 609.5C560.5 604.3 551.3 604.3 545 609.5L521.1 629.1C514.7 634.3 505.5 634.3 499.1 629.1L475.3 609.6C469 604.3 459.8 604.3 453.5 609.5L418.2 638.5C407 647.7 390 639.7 390 625.2V363Z" fill="#111827" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M438 281L510 225L662 265L590 321L438 281Z" fill="#BB2744" stroke="#FFFFFF" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M590 321V385" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="466" cy="419" r="22" fill="#FFFFFF"/>
+  <circle cx="554" cy="419" r="22" fill="#FFFFFF"/>
+  <path d="M474 500C496 520 524 520 546 500" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+  <text x="512" y="770" text-anchor="middle" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="104" font-weight="900">Ghost</text>
+  <text x="512" y="828" text-anchor="middle" fill="#BB2744" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="8">CLASS Q&amp;A</text>
+</svg>

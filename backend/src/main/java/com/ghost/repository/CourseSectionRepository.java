@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -18,6 +19,21 @@ public interface CourseSectionRepository extends JpaRepository<CourseSection, UU
     Optional<CourseSection> findBySourceObjectId(String sourceObjectId);
 
     Page<CourseSection> findBySemesterNameOrderByCourseCourseCodeAscSectionAsc(String semesterName, Pageable pageable);
+
+    long countByCourseIdAndSemesterId(UUID courseId, UUID semesterId);
+
+    @Query("""
+            SELECT DISTINCT section.instructor FROM CourseSection section
+            WHERE section.course.id = :courseId
+              AND section.semester.id = :semesterId
+              AND section.instructor IS NOT NULL
+              AND TRIM(section.instructor) <> ''
+            ORDER BY section.instructor
+            """)
+    List<String> findDistinctInstructors(
+            @Param("courseId") UUID courseId,
+            @Param("semesterId") UUID semesterId
+    );
 
     @EntityGraph(attributePaths = {"course", "semester"})
     @Query(

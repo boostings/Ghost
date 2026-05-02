@@ -179,15 +179,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="whiteboard/search"
-          options={{
-            headerShown: false,
-            animation: 'slide_from_bottom',
-            animationDuration: SHEET_MS,
-            gestureDirection: 'vertical',
-          }}
-        />
-        <Stack.Screen
           name="whiteboard/members"
           options={{
             headerShown: false,

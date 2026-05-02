@@ -29,7 +29,7 @@ interface GlassCardProps {
 const GlassCard: React.FC<GlassCardProps> = ({
   children,
   style,
-  blurIntensity = 60,
+  blurIntensity = 65,
   onPress,
   accessibilityLabel,
   accessibilityHint,

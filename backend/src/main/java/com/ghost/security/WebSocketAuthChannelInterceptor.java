@@ -1,5 +1,7 @@
 package com.ghost.security;
 
+import com.ghost.repository.QuestionRepository;
+import com.ghost.repository.WhiteboardMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -14,11 +16,25 @@ import org.springframework.stereotype.Component;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
+
+    private static final Pattern WHITEBOARD_QUESTIONS_TOPIC = Pattern.compile(
+            "^/topic/whiteboard/([0-9a-fA-F-]{36})/questions$"
+    );
+    private static final Pattern QUESTION_COMMENTS_TOPIC = Pattern.compile(
+            "^/topic/question/([0-9a-fA-F-]{36})/comments$"
+    );
+    private static final Pattern USER_NOTIFICATIONS_TOPIC = Pattern.compile(
+            "^/topic/user/([0-9a-fA-F-]{36})/notifications$"
+    );
 
     private static final EnumSet<StompCommand> AUTH_REQUIRED_COMMANDS = EnumSet.of(
             StompCommand.SEND,
@@ -32,6 +48,8 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     );
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final WhiteboardMembershipRepository whiteboardMembershipRepository;
+    private final QuestionRepository questionRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -69,8 +87,61 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         if (AUTH_REQUIRED_COMMANDS.contains(command) && accessor.getUser() == null) {
             throw new IllegalArgumentException("WebSocket command requires authentication");
         }
+        if (StompCommand.SUBSCRIBE.equals(command)) {
+            validateSubscription(accessor);
+        }
 
         return message;
+    }
+
+    private void validateSubscription(StompHeaderAccessor accessor) {
+        String destination = accessor.getDestination();
+        if (destination == null || destination.isBlank()) {
+            throw new IllegalArgumentException("WebSocket subscription requires a destination");
+        }
+
+        UUID userId = currentUserId(accessor);
+        if (destination.equals("/user/queue/notifications")) {
+            return;
+        }
+
+        Matcher whiteboardMatcher = WHITEBOARD_QUESTIONS_TOPIC.matcher(destination);
+        if (whiteboardMatcher.matches()) {
+            UUID whiteboardId = UUID.fromString(whiteboardMatcher.group(1));
+            requireWhiteboardMembership(userId, whiteboardId);
+            return;
+        }
+
+        Matcher questionMatcher = QUESTION_COMMENTS_TOPIC.matcher(destination);
+        if (questionMatcher.matches()) {
+            UUID questionId = UUID.fromString(questionMatcher.group(1));
+            Optional<UUID> whiteboardId = questionRepository.findVisibleWhiteboardIdByQuestionId(questionId);
+            if (whiteboardId.isEmpty()) {
+                throw new IllegalArgumentException("WebSocket subscription is not allowed");
+            }
+            requireWhiteboardMembership(userId, whiteboardId.get());
+            return;
+        }
+
+        Matcher userMatcher = USER_NOTIFICATIONS_TOPIC.matcher(destination);
+        if (userMatcher.matches() && userId.equals(UUID.fromString(userMatcher.group(1)))) {
+            return;
+        }
+
+        throw new IllegalArgumentException("WebSocket subscription is not allowed");
+    }
+
+    private UUID currentUserId(StompHeaderAccessor accessor) {
+        if (accessor.getUser() == null) {
+            throw new IllegalArgumentException("WebSocket command requires authentication");
+        }
+        return UUID.fromString(accessor.getUser().getName());
+    }
+
+    private void requireWhiteboardMembership(UUID userId, UUID whiteboardId) {
+        if (!whiteboardMembershipRepository.existsByWhiteboardIdAndUserId(whiteboardId, userId)) {
+            throw new IllegalArgumentException("WebSocket subscription is not allowed");
+        }
     }
 
     private String extractBearerToken(StompHeaderAccessor accessor) {

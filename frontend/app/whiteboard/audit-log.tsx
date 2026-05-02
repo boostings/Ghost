@@ -15,14 +15,14 @@ import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
-import SettingsHeader from '../../components/whiteboard/SettingsHeader';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors, useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { formatFullDate } from '../../utils/formatDate';
+import { formatTimestampLong } from '../../utils/formatTimestamp';
 import { extractErrorMessage } from '../../hooks/useApi';
 import { auditLogService } from '../../services/auditLogService';
 import type { AuditLogResponse, AuditAction } from '../../types';
@@ -91,15 +91,28 @@ function getDateRange(value: DateWindow): { from?: string; to?: string } {
     from.setDate(from.getDate() - 30);
   }
 
-  const formatDateParam = (date: Date) => date.toISOString().slice(0, 19);
+  const formatIsoSecondParam = (date: Date) => date.toISOString().slice(0, 19);
 
   return {
-    from: formatDateParam(from),
-    to: formatDateParam(to),
+    from: formatIsoSecondParam(from),
+    to: formatIsoSecondParam(to),
   };
 }
 
+function extractQuestionTitle(value: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/(?:^|;\s*)title=([^;]+)/);
+  return match?.[1] ?? value;
+}
+
+function formatAuditValue(value: string): string {
+  if (value === 'true') return 'Pinned';
+  if (value === 'false') return 'Unpinned';
+  return value;
+}
+
 export default function AuditLogScreen() {
+  const router = useRouter();
   const themeColors = useThemeColors();
   const { whiteboardId } = useLocalSearchParams<{ whiteboardId: string }>();
 
@@ -117,6 +130,15 @@ export default function AuditLogScreen() {
   const lastFilterRef = useRef(actionFilter);
   const lastDateFilterRef = useRef(dateFilter);
   const PAGE_SIZE = 20;
+  const questionTitleById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const log of logs) {
+      if (log.targetType !== 'Question' || !log.targetId) continue;
+      const title = extractQuestionTitle(log.newValue) ?? extractQuestionTitle(log.oldValue);
+      if (title) map.set(log.targetId, title);
+    }
+    return map;
+  }, [logs]);
 
   const fetchLogs = useCallback(
     async (options?: { page?: number; replace?: boolean }) => {
@@ -255,7 +277,11 @@ export default function AuditLogScreen() {
     }
   };
 
-  const renderLogItem = ({ item }: { item: AuditLogResponse }) => (
+  const renderLogItem = ({ item }: { item: AuditLogResponse }) => {
+    const questionTitle =
+      item.targetType === 'Question' && item.targetId ? questionTitleById.get(item.targetId) : null;
+
+    return (
     <GlassCard style={styles.logCard}>
       <View style={styles.logRow}>
         <View style={styles.logIconContainer}>
@@ -269,12 +295,25 @@ export default function AuditLogScreen() {
         <View style={styles.logContent}>
           <Text style={styles.logAction}>{formatAction(item.action)}</Text>
           <Text style={styles.logActor}>{item.actorName}</Text>
-          {item.targetType && (
+          {item.targetType && questionTitle && item.targetId ? (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: '/question/[id]',
+                  params: { id: item.targetId, whiteboardId },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Open question ${questionTitle}`}
+            >
+              <Text style={styles.logTarget}>Question: {questionTitle}</Text>
+            </TouchableOpacity>
+          ) : item.targetType ? (
             <Text style={styles.logTarget}>
               {item.targetType}: {item.targetId?.slice(0, 8) || 'N/A'}
             </Text>
-          )}
-          <Text style={styles.logDate}>{formatFullDate(item.createdAt)}</Text>
+          ) : null}
+          <Text style={styles.logDate}>{formatTimestampLong(item.createdAt)}</Text>
         </View>
       </View>
 
@@ -284,7 +323,7 @@ export default function AuditLogScreen() {
             <View style={styles.valueRow}>
               <Text style={styles.valueLabel}>Old:</Text>
               <Text style={styles.valueText} numberOfLines={2}>
-                {item.oldValue}
+                {formatAuditValue(item.oldValue)}
               </Text>
             </View>
           )}
@@ -292,7 +331,7 @@ export default function AuditLogScreen() {
             <View style={styles.valueRow}>
               <Text style={styles.valueLabelNew}>New:</Text>
               <Text style={styles.valueText} numberOfLines={2}>
-                {item.newValue}
+                {formatAuditValue(item.newValue)}
               </Text>
             </View>
           )}
@@ -300,11 +339,12 @@ export default function AuditLogScreen() {
       )}
     </GlassCard>
   );
+  };
 
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <SettingsHeader
+        <ScreenHeader
           title="Audit Log"
           subtitle="Activity history"
           rightElement={

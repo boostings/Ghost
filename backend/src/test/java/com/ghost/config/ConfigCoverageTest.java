@@ -23,6 +23,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.config.SimpleBrokerRegistration;
+import org.springframework.messaging.simp.config.TaskExecutorRegistration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -33,6 +34,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.AdditionalMatchers.aryEq;
 
 class ConfigCoverageTest {
 
@@ -191,25 +194,40 @@ class ConfigCoverageTest {
         WebSocketAuthChannelInterceptor interceptor = mock(WebSocketAuthChannelInterceptor.class);
         WebSocketConfig config = new WebSocketConfig(interceptor);
         MessageBrokerRegistry brokerRegistry = mock(MessageBrokerRegistry.class);
-        when(brokerRegistry.enableSimpleBroker("/topic")).thenReturn(mock(SimpleBrokerRegistration.class));
+        SimpleBrokerRegistration simpleBrokerRegistration = mock(SimpleBrokerRegistration.class);
+        when(brokerRegistry.enableSimpleBroker("/topic", "/queue")).thenReturn(simpleBrokerRegistration);
+        when(simpleBrokerRegistration.setHeartbeatValue(aryEq(new long[] {10000, 10000})))
+                .thenReturn(simpleBrokerRegistration);
         StompEndpointRegistry endpointRegistry = mock(StompEndpointRegistry.class);
         StompWebSocketEndpointRegistration endpointRegistration = mock(StompWebSocketEndpointRegistration.class);
         when(endpointRegistry.addEndpoint("/ws")).thenReturn(endpointRegistration);
         when(endpointRegistration.setAllowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*"))
                 .thenReturn(endpointRegistration);
         ChannelRegistration channelRegistration = mock(ChannelRegistration.class);
+        TaskExecutorRegistration taskExecutorRegistration = mock(TaskExecutorRegistration.class);
+        when(channelRegistration.taskExecutor()).thenReturn(taskExecutorRegistration);
+        when(taskExecutorRegistration.corePoolSize(8)).thenReturn(taskExecutorRegistration);
+        when(taskExecutorRegistration.maxPoolSize(32)).thenReturn(taskExecutorRegistration);
+        when(taskExecutorRegistration.queueCapacity(1000)).thenReturn(taskExecutorRegistration);
 
         config.configureMessageBroker(brokerRegistry);
         config.registerStompEndpoints(endpointRegistry);
         config.configureClientInboundChannel(channelRegistration);
+        config.configureClientOutboundChannel(channelRegistration);
 
-        verify(brokerRegistry).enableSimpleBroker("/topic");
+        verify(brokerRegistry).enableSimpleBroker("/topic", "/queue");
+        verify(simpleBrokerRegistration).setHeartbeatValue(aryEq(new long[] {10000, 10000}));
+        verify(simpleBrokerRegistration).setTaskScheduler(any());
         verify(brokerRegistry).setApplicationDestinationPrefixes("/app");
         verify(brokerRegistry).setUserDestinationPrefix("/user");
         verify(endpointRegistry, times(2)).addEndpoint("/ws");
         verify(endpointRegistration, times(2))
                 .setAllowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*");
         verify(endpointRegistration).withSockJS();
+        verify(channelRegistration, times(2)).taskExecutor();
+        verify(taskExecutorRegistration, times(2)).corePoolSize(8);
+        verify(taskExecutorRegistration, times(2)).maxPoolSize(32);
+        verify(taskExecutorRegistration, times(2)).queueCapacity(1000);
         verify(channelRegistration).interceptors(interceptor);
     }
 

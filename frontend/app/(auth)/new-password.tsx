@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassInput from '../../components/ui/GlassInput';
 import GlassButton from '../../components/ui/GlassButton';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Ease, Stagger } from '../../constants/motion';
@@ -83,6 +84,20 @@ export default function NewPasswordScreen() {
         pointerEvents="none"
       />
       <SafeAreaView style={styles.container}>
+        <ScreenHeader
+          title="New Password"
+          onBack={() => {
+            if (email) {
+              router.replace({
+                pathname: '/(auth)/verify-reset-code',
+                params: { email },
+              });
+            } else {
+              router.replace('/(auth)/forgot-password');
+            }
+          }}
+          border={false}
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -143,25 +158,6 @@ export default function NewPasswordScreen() {
               />
             </GlassCard>
 
-            <Animated.View entering={FadeIn.duration(Duration.slow).delay(Stagger.footer)}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => {
-                  if (email) {
-                    router.replace({
-                      pathname: '/(auth)/verify-reset-code',
-                      params: { email },
-                    });
-                  } else {
-                    router.replace('/(auth)/forgot-password');
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-              >
-                <Text style={[styles.backText, { color: colors.textMuted }]}>Back</Text>
-              </TouchableOpacity>
-            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

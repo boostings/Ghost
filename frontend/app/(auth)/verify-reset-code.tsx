@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { useThemeColors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Duration, Ease, Stagger } from '../../constants/motion';
@@ -94,7 +95,12 @@ export default function VerifyResetCodeScreen() {
     try {
       await authService.forgotPassword(email);
       setCode(Array(CODE_LENGTH).fill(''));
-      Alert.alert('Reset Code Ready', 'Use the new 6-digit code from the backend logs.');
+      Alert.alert(
+        'Reset Code Sent',
+        __DEV__
+          ? 'Use the new 6-digit code printed in the backend logs.'
+          : 'We sent a new 6-digit code to your email.'
+      );
     } catch (error: unknown) {
       Alert.alert('Unable to Resend', extractErrorMessage(error));
     } finally {
@@ -109,6 +115,11 @@ export default function VerifyResetCodeScreen() {
         pointerEvents="none"
       />
       <SafeAreaView style={styles.container}>
+        <ScreenHeader
+          title="Reset Code"
+          onBack={() => router.replace('/(auth)/forgot-password')}
+          border={false}
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -217,14 +228,6 @@ export default function VerifyResetCodeScreen() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.replace('/(auth)/forgot-password')}
-                accessibilityRole="button"
-                accessibilityLabel="Back to forgot password"
-              >
-                <Text style={[styles.backText, { color: colors.textMuted }]}>Back</Text>
-              </TouchableOpacity>
             </Animated.View>
           </View>
         </KeyboardAvoidingView>

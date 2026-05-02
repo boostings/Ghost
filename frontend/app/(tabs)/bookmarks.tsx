@@ -19,7 +19,9 @@ import { Colors, useThemeColors } from '../../constants/colors';
 import { haptic } from '../../utils/haptics';
 import { bookmarkService } from '../../services/bookmarkService';
 import { extractErrorMessage } from '../../hooks/useApi';
-import { formatDate } from '../../utils/formatDate';
+import { formatTimestamp } from '../../utils/formatTimestamp';
+import { getQuestionDisplayStatus } from '../../utils/questionStatus';
+import { smartTitleCase } from '../../utils/titleCase';
 import type { BookmarkResponse } from '../../types';
 
 const PAGE_SIZE = 20;
@@ -39,7 +41,7 @@ function groupByClass(items: BookmarkResponse[]): Group[] {
     const wbId = b.question.whiteboardId;
     const courseCode = b.question.whiteboardCourseCode?.trim();
     const courseName = b.question.whiteboardCourseName?.trim();
-    const label = courseCode || courseName || 'Class';
+    const label = courseCode || (courseName ? smartTitleCase(courseName) : 'Class');
     const existing = map.get(wbId);
     if (existing) {
       existing.items.push(b);
@@ -109,7 +111,8 @@ export default function SavedScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const isStale = Date.now() - lastFetchRef.current > 30000;
+      const now = Date.now();
+      const isStale = now - lastFetchRef.current > 30000;
       if (bookmarks.length === 0 || isStale) {
         void fetchBookmarks({ page: 0, replace: true });
       }
@@ -185,6 +188,7 @@ export default function SavedScreen() {
               params: {
                 id: item.item.question.id,
                 whiteboardId: item.item.question.whiteboardId,
+                fromCard: '1',
               },
             })
           }
@@ -224,13 +228,9 @@ export default function SavedScreen() {
                 </View>
               ) : null}
             </View>
-            {empty ? (
+            {!empty ? (
               <Text style={[styles.headerMeta, { color: colors.textMuted }]}>
-                Nothing saved yet
-              </Text>
-            ) : groups.length > 1 ? (
-              <Text style={[styles.headerMeta, { color: colors.textMuted }]}>
-                {groups.length} classes
+                {bookmarks.length} saved{groups.length > 1 ? ` · ${groups.length} classes` : ''}
               </Text>
             ) : null}
           </View>
@@ -371,7 +371,7 @@ function SavedRow({
                   </Text>
                 </View>
               ) : null}
-              <StatusBadge status={q.status} />
+              <StatusBadge status={getQuestionDisplayStatus(q)} />
             </View>
             <Pressable
               onPress={onRemove}
@@ -393,7 +393,7 @@ function SavedRow({
 
           <View style={styles.rowFooter}>
             <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
-              {q.authorName} · saved {formatDate(item.createdAt)}
+              {q.authorName} · saved {formatTimestamp(item.createdAt)}
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.stat}>

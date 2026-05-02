@@ -34,6 +34,34 @@ export interface AppColors {
   bgGradient: readonly [string, string, string];
 }
 
+export const ACCENT_PALETTE = [
+  { id: 'crimson', primary: '#E63946', soft: '#E6394620' },
+  { id: 'gold', primary: '#F4A261', soft: '#F4A26120' },
+  { id: 'forest', primary: '#2A9D8F', soft: '#2A9D8F20' },
+  { id: 'indigo', primary: '#6366F1', soft: '#6366F120' },
+  { id: 'rose', primary: '#EC4899', soft: '#EC489920' },
+  { id: 'sky', primary: '#3B82F6', soft: '#3B82F620' },
+  { id: 'lime', primary: '#84CC16', soft: '#84CC1620' },
+  { id: 'amber', primary: '#FBBF24', soft: '#FBBF2420' },
+] as const;
+
+export type WhiteboardAccent = (typeof ACCENT_PALETTE)[number];
+
+export function accentForWhiteboard(whiteboardId: string): WhiteboardAccent {
+  const index =
+    whiteboardId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+    ACCENT_PALETTE.length;
+  return ACCENT_PALETTE[index];
+}
+
+export const STATUS_COLORS = {
+  OPEN: { bg: '#04785720', fg: '#047857', fgDark: '#34D399', label: 'Open' },
+  ANSWERED: { bg: '#2563EB20', fg: '#2563EB', fgDark: '#60A5FA', label: 'Answered' },
+  CLOSED: { bg: '#4B556320', fg: '#4B5563', fgDark: '#D1D5DB', label: 'Closed' },
+} as const;
+
+export type DisplayQuestionStatus = keyof typeof STATUS_COLORS;
+
 const ACCENT = '#BB2744';
 const ACCENT_DARK = '#8E1D34';
 const ACCENT_LIGHT = '#D4556D';
@@ -52,7 +80,7 @@ export const LightColors: AppColors = {
   surfaceBorder: 'rgba(15, 23, 42, 0.10)',
   text: '#0B0F1A',
   textSecondary: 'rgba(11, 15, 26, 0.74)',
-  textMuted: 'rgba(11, 15, 26, 0.50)',
+  textMuted: 'rgba(11, 15, 26, 0.62)',
   success: '#16A34A',
   warning: '#D97706',
   error: '#DC2626',
@@ -85,7 +113,7 @@ export const DarkColors: AppColors = {
   surfaceBorder: 'rgba(255, 255, 255, 0.10)',
   text: '#F4F4F6',
   textSecondary: 'rgba(244, 244, 246, 0.74)',
-  textMuted: 'rgba(244, 244, 246, 0.52)',
+  textMuted: 'rgba(244, 244, 246, 0.70)',
   success: '#22C55E',
   warning: '#F59E0B',
   error: '#F87171',

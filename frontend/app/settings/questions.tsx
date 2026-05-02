@@ -20,10 +20,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { type AppColors, useThemeColors } from '../../constants/colors';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { STATUS_COLORS, type AppColors, useThemeColors } from '../../constants/colors';
 import { Duration, Ease, PRESSED_SCALE, Spring } from '../../constants/motion';
 import { haptic } from '../../utils/haptics';
-import { formatDate } from '../../utils/formatDate';
+import { formatTimestamp } from '../../utils/formatTimestamp';
+import { getQuestionDisplayStatus } from '../../utils/questionStatus';
 import { isQuestionEdited } from '../../utils/questionMeta';
 import { useAuthStore } from '../../stores/authStore';
 import { questionService } from '../../services/questionService';
@@ -135,7 +137,7 @@ export default function SettingsQuestionsScreen() {
         onPress={() =>
           router.push({
             pathname: '/question/[id]',
-            params: { id: item.id, whiteboardId: item.whiteboardId },
+            params: { id: item.id, whiteboardId: item.whiteboardId, fromCard: '1' },
           })
         }
       />
@@ -206,7 +208,7 @@ export default function SettingsQuestionsScreen() {
                 <View style={styles.heroTop}>
                   <View>
                     <Text style={[styles.heroNumber, { color: colors.text }]}>
-                      {loading ? '—' : total.toLocaleString()}
+                      {loading ? '—' : new Intl.NumberFormat('en-US').format(total)}
                     </Text>
                     <Text style={[styles.heroLabel, { color: colors.textMuted }]}>
                       {copy.metric} total
@@ -286,8 +288,8 @@ function ActivityQuestionRow({
   reduceMotion: boolean;
   onPress: () => void;
 }) {
-  const isClosed = question.status === 'CLOSED';
-  const statusColor = isClosed ? colors.primary : colors.openStatus;
+  const displayStatus = getQuestionDisplayStatus(question);
+  const statusColor = STATUS_COLORS[displayStatus].fg;
   const wasEdited = isQuestionEdited(question);
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -318,15 +320,7 @@ function ActivityQuestionRow({
       >
         <View style={styles.questionMain}>
           <View style={styles.questionMeta}>
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: `${statusColor}24`, borderColor: `${statusColor}59` },
-              ]}
-            >
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>{question.status}</Text>
-            </View>
+            <StatusBadge status={displayStatus} />
             <Text style={[styles.courseText, { color: colors.textMuted }]} numberOfLines={1}>
               {question.whiteboardCourseCode ?? question.topicName ?? 'Class question'}
             </Text>
@@ -341,7 +335,7 @@ function ActivityQuestionRow({
 
           <View style={styles.questionFooter}>
             <Text style={[styles.dateText, { color: colors.textMuted }]} numberOfLines={1}>
-              {formatDate(question.createdAt)}
+              {formatTimestamp(question.createdAt)}
               {wasEdited ? ' · Edited' : ''}
             </Text>
             <View style={styles.stats}>

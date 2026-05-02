@@ -28,9 +28,7 @@ import { useNotificationStore } from '../../stores/notificationStore';
 //
 // Keep this list as the source of truth for which routes appear in the bar
 // and what icons they use. The order here drives the visual order of the
-// pill slots (left → right). `search` is a hidden route — present in the
-// route tree but not in the bar (managed below via Tabs.Screen with
-// href: null).
+// pill slots (left → right).
 
 type TabDescriptor = {
   name: 'home' | 'notifications' | 'bookmarks' | 'profile';
@@ -83,9 +81,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const reduceMotion = useReducedMotion();
   const unreadCount = useNotificationStore((store) => store.unreadCount);
 
-  // Filter the routes to only the ones we want to render. Keeps "search"
-  // (registered with href:null) out of the bar even if React Navigation still
-  // surfaces it in `state.routes`.
+  // Filter the routes to only the ones we want to render.
   const visible = state.routes
     .map((route, index) => ({ route, index }))
     .filter(({ route }) => TABS.some((t) => t.name === (route.name as TabDescriptor['name'])));
@@ -164,7 +160,6 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         }
         onPress={onPress}
         onLongPress={onLongPress}
-        reduceMotion={reduceMotion}
       />
     );
   };
@@ -224,7 +219,6 @@ function TabSlot({
   accessibilityLabel,
   onPress,
   onLongPress,
-  reduceMotion,
 }: {
   focused: boolean;
   colors: AppColors;
@@ -235,32 +229,16 @@ function TabSlot({
   accessibilityLabel: string;
   onPress: () => void;
   onLongPress: () => void;
-  reduceMotion: boolean;
 }) {
-  // Two shared values:
-  //   - `pressed` — scales to 0.96 while finger is down (Emil: transform-scale-097)
-  //   - `focusScale` — small lift when this slot becomes active (1.0 → 1.05)
   const pressed = useSharedValue(0);
-  const focusScale = useSharedValue(focused ? 1 : 0.94);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      focusScale.value = withTiming(focused ? 1 : 0.96, {
-        duration: Duration.fast,
-        easing: Ease.out,
-      });
-    } else {
-      focusScale.value = withSpring(focused ? 1 : 0.94, Spring.gentle);
-    }
-  }, [focused, focusScale, reduceMotion]);
 
   const animatedIconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: focusScale.value * (1 - pressed.value * (1 - PRESSED_SCALE)) }],
+    transform: [{ scale: 1 - pressed.value * (1 - PRESSED_SCALE) }],
   }));
 
-  const labelColor = focused ? colors.primary : colors.textMuted;
+  const labelColor = focused ? colors.primary : colors.textSecondary;
   const iconName = focused ? iconActive : iconInactive;
-  const iconColor = focused ? colors.primary : colors.textMuted;
+  const iconColor = focused ? colors.primary : colors.textSecondary;
 
   return (
     <Pressable
@@ -291,7 +269,9 @@ function TabSlot({
       <Text
         style={[styles.label, { color: labelColor }]}
         numberOfLines={1}
-        allowFontScaling={false}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+        maxFontSizeMultiplier={2}
       >
         {label}
       </Text>
@@ -310,7 +290,7 @@ function NotificationBadge({ colors }: { colors: AppColors }) {
       accessible={false}
       importantForAccessibility="no"
     >
-      <Text style={styles.badgeText} allowFontScaling={false}>
+      <Text style={styles.badgeText} maxFontSizeMultiplier={1.6}>
         {unreadCount > 99 ? '99+' : unreadCount}
       </Text>
     </View>
@@ -324,14 +304,13 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
+        animation: 'shift',
       }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="notifications" />
       <Tabs.Screen name="bookmarks" />
-      <Tabs.Screen name="search" options={{ href: null }} />
       <Tabs.Screen name="profile" />
     </Tabs>
   );

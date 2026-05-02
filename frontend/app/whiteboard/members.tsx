@@ -18,13 +18,13 @@ import GlassCard from '../../components/ui/GlassCard';
 import GlassButton from '../../components/ui/GlassButton';
 import Avatar from '../../components/ui/Avatar';
 import EmptyState from '../../components/ui/EmptyState';
-import SettingsHeader from '../../components/whiteboard/SettingsHeader';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { useAuthStore } from '../../stores/authStore';
 import { whiteboardService } from '../../services/whiteboardService';
 import { extractErrorMessage } from '../../hooks/useApi';
-import { formatDate } from '../../utils/formatDate';
+import { formatTimestamp } from '../../utils/formatTimestamp';
 import type { MemberResponse, JoinRequestResponse, WhiteboardResponse } from '../../types';
 
 export default function MembersScreen() {
@@ -52,7 +52,7 @@ export default function MembersScreen() {
     try {
       const [membersData, nextWhiteboard] = await Promise.all([
         whiteboardService.getMembers(whiteboardId),
-        whiteboardService.getById(whiteboardId).catch(() => null),
+        whiteboardService.getWhiteboard(whiteboardId).catch(() => null),
       ]);
       setMembers(membersData);
       setWhiteboard(nextWhiteboard);
@@ -125,7 +125,7 @@ export default function MembersScreen() {
       return;
     }
     try {
-      await whiteboardService.reviewJoinRequest(whiteboardId, requestId, status);
+      await whiteboardService.handleJoinRequest(whiteboardId, requestId, { status });
       setJoinRequests((prev) => prev.filter((r) => r.id !== requestId));
       if (status === 'APPROVED') {
         await fetchData(); // Refresh members
@@ -213,7 +213,7 @@ export default function MembersScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <SettingsHeader
+        <ScreenHeader
           title="Members"
           subtitle="Roster and join requests"
           rightElement={<Text style={styles.memberCount}>{members.length}</Text>}
@@ -270,7 +270,7 @@ export default function MembersScreen() {
                           <Text style={styles.requestName}>{request.userName}</Text>
                           <Text style={styles.requestEmail}>{request.userEmail}</Text>
                           <Text style={styles.requestDate}>
-                            Requested {formatDate(request.createdAt)}
+                            Requested {formatTimestamp(request.createdAt)}
                           </Text>
                         </View>
                         <View style={styles.requestActions}>

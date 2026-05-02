@@ -1,16 +1,26 @@
 import React from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  LinearTransition,
+  useReducedMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { enterList } from '../constants/motion';
 import { Spacing } from '../constants/spacing';
 import { haptic } from '../utils/haptics';
+import { formatTimestamp } from '../utils/formatTimestamp';
 import { CommentResponse } from '../types';
 import GlassCard from './ui/GlassCard';
 import Avatar from './ui/Avatar';
 import KarmaDisplay from './ui/KarmaDisplay';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface CommentCardProps {
   comment: CommentResponse;
@@ -23,25 +33,6 @@ interface CommentCardProps {
   isCurrentUser?: boolean;
   canDelete?: boolean;
   index?: number;
-}
-
-function formatTimestamp(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffHour = Math.floor(diffMs / 3600000);
-  const diffDay = Math.floor(diffMs / 86400000);
-
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function parseAuthorName(authorName: string): { firstName: string; lastName: string } {
@@ -64,8 +55,34 @@ const CommentCard: React.FC<CommentCardProps> = ({
   index = 0,
 }) => {
   const colors = useThemeColors();
+  const reduceMotion = useReducedMotion();
+  const verifyScale = useSharedValue(1);
+  const verifiedBadgeScale = useSharedValue(1);
+  const verifiedPulseOpacity = useSharedValue(0);
   const { firstName, lastName } = parseAuthorName(comment.authorName);
   const verified = comment.isVerifiedAnswer;
+  const verifyStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: verifyScale.value }],
+  }));
+  const verifiedBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: verifiedBadgeScale.value }],
+  }));
+  const verifiedPulseStyle = useAnimatedStyle(() => ({
+    opacity: verifiedPulseOpacity.value,
+  }));
+
+  React.useEffect(() => {
+    if (!verified || reduceMotion) {
+      verifiedBadgeScale.value = 1;
+      verifiedPulseOpacity.value = 0;
+      return;
+    }
+
+    verifiedBadgeScale.value = 0.94;
+    verifiedBadgeScale.value = withSpring(1, { damping: 12, stiffness: 260 });
+    verifiedPulseOpacity.value = 0.42;
+    verifiedPulseOpacity.value = withTiming(0, { duration: 600 });
+  }, [reduceMotion, verified, verifiedBadgeScale, verifiedPulseOpacity]);
   // Hibernate sets created/updated to the same instant on insert (off by ms),
   // and verifying a comment bumps updatedAt without an actual body edit. So
   // require a non-trivial gap AND skip the badge when the comment is verified.
@@ -86,20 +103,31 @@ const CommentCard: React.FC<CommentCardProps> = ({
         ]}
       >
         {verified && (
-          <View
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.verifiedPulseOverlay,
+              { borderColor: colors.verifiedAnswer },
+              verifiedPulseStyle,
+            ]}
+          />
+        )}
+        {verified && (
+          <Animated.View
             style={[
               styles.verifiedBadge,
               {
                 backgroundColor: `${colors.verifiedAnswer}26`,
                 borderColor: `${colors.verifiedAnswer}44`,
               },
+              verifiedBadgeStyle,
             ]}
           >
             <Ionicons name="checkmark-circle" size={14} color={colors.verifiedAnswer} />
             <Text style={[styles.verifiedText, { color: colors.verifiedAnswer }]}>
               {comment.verifiedByName ? `Verified by ${comment.verifiedByName}` : 'Verified Answer'}
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         <View style={styles.header}>
@@ -133,26 +161,34 @@ const CommentCard: React.FC<CommentCardProps> = ({
 
           <View style={styles.actions}>
             {onVerify && !verified && (
-              <Pressable
+              <AnimatedPressable
                 onPress={() => {
                   haptic.success();
                   onVerify();
                 }}
+                onPressIn={() => {
+                  verifyScale.value = withSpring(0.96, { damping: 18, stiffness: 260 });
+                }}
+                onPressOut={() => {
+                  verifyScale.value = withSpring(1, { damping: 16, stiffness: 220 });
+                }}
                 style={[
                   styles.actionButton,
+                  styles.verifyActionButton,
                   {
-                    backgroundColor: `${colors.verifiedAnswer}1F`,
+                    backgroundColor: 'transparent',
                     borderColor: `${colors.verifiedAnswer}40`,
                   },
+                  verifyStyle,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Verify answer"
+                accessibilityLabel="Mark comment as answer"
               >
                 <Ionicons name="checkmark" size={14} color={colors.verifiedAnswer} />
                 <Text style={[styles.verifyActionText, { color: colors.verifiedAnswer }]}>
-                  Verify
+                  Mark as Answer
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             )}
 
             {isCurrentUser && comment.canEdit && onEdit && (
@@ -227,6 +263,11 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  verifiedPulseOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
   verifiedText: {
     fontSize: Fonts.sizes.xs,
     fontWeight: Fonts.semiBold.fontWeight,
@@ -285,6 +326,9 @@ const styles = StyleSheet.create({
     minHeight: 32,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  verifyActionButton: {
+    borderWidth: 1,
   },
   actionText: {
     fontSize: Fonts.sizes.sm,

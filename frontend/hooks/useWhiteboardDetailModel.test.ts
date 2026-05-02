@@ -166,6 +166,49 @@ describe('useWhiteboardDetailModel', () => {
     });
   });
 
+  it('keeps closed questions without verified answers out of the open section', async () => {
+    mockQuestionService.list.mockResolvedValue({
+      content: [
+        makeQuestion({
+          id: 'q-open',
+          title: 'Open question',
+          status: 'OPEN',
+          verifiedAnswerId: null,
+          verifiedAnswerPreview: null,
+          verifiedAnswerAuthorName: null,
+        }),
+        makeQuestion({
+          id: 'q-closed',
+          title: 'Closed question',
+          status: 'CLOSED',
+          verifiedAnswerId: null,
+          verifiedAnswerPreview: null,
+          verifiedAnswerAuthorName: null,
+        }),
+      ],
+      page: 0,
+      size: 20,
+      totalElements: 2,
+      totalPages: 1,
+    });
+
+    const { result } = renderHook(() => useWhiteboardDetailModel('wb-1'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const openSection = result.current.sections.find((section) => section.key === 'open');
+    const closedSection = result.current.sections.find((section) => section.key === 'closed');
+
+    expect(result.current.stats).toEqual({
+      pinned: 0,
+      open: 1,
+      answered: 0,
+      total: 2,
+    });
+    expect(openSection?.data.map((question) => question.id)).toEqual(['q-open']);
+    expect(closedSection?.data.map((question) => question.id)).toEqual(['q-closed']);
+  });
+
   it('removes locally deleted questions from the mounted whiteboard feed', async () => {
     mockQuestionService.list.mockResolvedValue({
       content: [makeQuestion({ id: 'q-1' }), makeQuestion({ id: 'q-2' })],

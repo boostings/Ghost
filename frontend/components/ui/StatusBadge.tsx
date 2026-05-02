@@ -1,30 +1,35 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, useColorScheme } from 'react-native';
 import { Fonts } from '../../constants/fonts';
-import { useThemeColors } from '../../constants/colors';
-import { QuestionStatus } from '../../types';
+import { type DisplayQuestionStatus, STATUS_COLORS } from '../../constants/colors';
+import type { QuestionStatus } from '../../types';
 
 interface StatusBadgeProps {
-  status: QuestionStatus;
+  status: QuestionStatus | DisplayQuestionStatus;
+  label?: string;
+  accentColor?: string;
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-  const colors = useThemeColors();
-  const isOpen = status === 'OPEN';
-  const accent = isOpen ? colors.openStatus : colors.closedStatus;
+const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, accentColor }) => {
+  const colorScheme = useColorScheme();
+  const config = STATUS_COLORS[status as DisplayQuestionStatus] ?? STATUS_COLORS.CLOSED;
+  const accent = accentColor ?? (colorScheme === 'dark' ? config.fgDark : config.fg);
 
   return (
     <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={`${label ?? config.label} status`}
       style={[
         styles.badge,
         {
-          backgroundColor: `${accent}1F`,
+          backgroundColor: accentColor ? `${accent}1F` : config.bg,
           borderColor: `${accent}33`,
         },
       ]}
     >
       <View style={[styles.dot, { backgroundColor: accent }]} />
-      <Text style={[styles.text, { color: accent }]}>{status}</Text>
+      <Text style={[styles.text, { color: accent }]}>{label ?? config.label}</Text>
     </View>
   );
 };

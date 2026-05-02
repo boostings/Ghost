@@ -68,6 +68,39 @@ public class EmailService {
         send(toEmail, subject, html, code);
     }
 
+    public void sendNotificationDigest(NotificationDigestJob.NotificationDigest digest) {
+        if (digest.notifications().isEmpty()) {
+            return;
+        }
+
+        String subject = digest.digestType().equals("WEEKLY_MON_7AM")
+                ? "Your weekly Ghost digest"
+                : "Your Ghost digest";
+        String items = digest.notifications().stream()
+                .limit(8)
+                .map(notification -> """
+                        <li style="margin-bottom: 12px;">
+                          <strong>%s</strong><br />
+                          <span style="color: #4b5563;">%s</span>
+                        </li>
+                        """.formatted(escapeHtml(notification.getTitle()), escapeHtml(notification.getBody())))
+                .reduce("", String::concat);
+        String html = """
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
+                  <h2 style="color: #4c1d95;">%s</h2>
+                  <p>You have %d unread %s from your Ghost classes.</p>
+                  <ul style="padding-left: 20px;">%s</ul>
+                  <p style="color: #6b7280; font-size: 12px;">Open Ghost to read the full threads and update notification preferences.</p>
+                </div>
+                """.formatted(
+                escapeHtml(subject),
+                digest.notifications().size(),
+                digest.notifications().size() == 1 ? "notification" : "notifications",
+                items
+        );
+        send(digest.recipientEmail(), subject, html, "digest:" + digest.digestType());
+    }
+
     private void send(String toEmail, String subject, String html, String code) {
         if (!enabled) {
             String reason = deliveryRequested ? "missing-api-key" : "disabled-by-config";
@@ -100,6 +133,18 @@ public class EmailService {
             log.error("Resend email failed to={} error={}", toEmail, e.getMessage());
             throw new EmailDeliveryException("Failed to send email via Resend", e);
         }
+    }
+
+    private String escapeHtml(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     public static class EmailDeliveryException extends RuntimeException {

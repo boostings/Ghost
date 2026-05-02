@@ -14,6 +14,8 @@ public class WhiteboardMapper {
     public WhiteboardResponse toResponse(
             Whiteboard whiteboard,
             long memberCount,
+            long sectionCount,
+            String instructorSummary,
             boolean includeInviteCode,
             Role myRole
     ) {
@@ -31,6 +33,8 @@ public class WhiteboardMapper {
                 .inviteCode(includeInviteCode ? whiteboard.getInviteCode() : null)
                 .isDemo(whiteboard.isDemo())
                 .memberCount((int) memberCount)
+                .sectionCount(sectionCount)
+                .instructorSummary(instructorSummary)
                 .createdAt(whiteboard.getCreatedAt())
                 .myRole(myRole)
                 .build();

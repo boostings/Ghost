@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import GlassCard from '../../components/ui/GlassCard';
 import EmptyState from '../../components/ui/EmptyState';
-import SettingsHeader from '../../components/whiteboard/SettingsHeader';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import {
@@ -23,7 +23,7 @@ import {
   useModerationReportsModel,
 } from '../../hooks/useModerationReportsModel';
 import { extractErrorMessage } from '../../hooks/useApi';
-import { formatDate } from '../../utils/formatDate';
+import { formatTimestamp } from '../../utils/formatTimestamp';
 import type { ReportResponse } from '../../types';
 
 const REASON_LABELS: Record<string, string> = {
@@ -139,7 +139,7 @@ export default function ReportsScreen() {
               {item.questionId ? 'Question' : 'Comment'} Report
             </Text>
             <Text style={styles.reporterText}>Reported by {item.reporterName}</Text>
-            <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+            <Text style={styles.dateText}>{formatTimestamp(item.createdAt)}</Text>
           </View>
         </View>
 
@@ -204,7 +204,7 @@ export default function ReportsScreen() {
             if (threadQuestionId) {
               router.push({
                 pathname: '/question/[id]',
-                params: { id: threadQuestionId, whiteboardId },
+                params: { id: threadQuestionId, whiteboardId, fromCard: '1' },
               });
             }
           }}
@@ -224,10 +224,14 @@ export default function ReportsScreen() {
   return (
     <LinearGradient colors={[Colors.background, Colors.background]} style={styles.gradient}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <SettingsHeader
+        <ScreenHeader
           title="Moderation"
           subtitle="Reported content review"
-          rightElement={<Text style={styles.pendingCount}>{pendingCount}</Text>}
+          rightElement={
+            <Text style={[styles.pendingCount, pendingCount === 0 && styles.pendingCountEmpty]}>
+              {pendingCount}
+            </Text>
+          }
         />
 
         {/* Filter Chips */}
@@ -314,6 +318,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  pendingCountEmpty: {
+    color: Colors.textMuted,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   filterContainer: {
     flexDirection: 'row',

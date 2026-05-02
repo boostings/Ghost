@@ -14,6 +14,9 @@ const TopicBadge: React.FC<TopicBadgeProps> = ({ name, isDefault = false, style 
 
   return (
     <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={isDefault ? `Default topic ${name}` : `Topic ${name}`}
       style={[
         styles.badge,
         {
