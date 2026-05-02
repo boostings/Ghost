@@ -14,6 +14,7 @@ import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Set;
 import java.util.UUID;
@@ -54,6 +55,18 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getStatus()).isEqualTo(404);
         assertThat(response.getBody().getMessage()).contains("Whiteboard");
+    }
+
+    @Test
+    void handleNoResourceFoundExceptionShouldReturnNotFoundWithoutInternalError() {
+        ResponseEntity<ApiError> response = handler.handleNoResourceFoundException(
+                new NoResourceFoundException(org.springframework.http.HttpMethod.GET, "/missing")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(404);
+        assertThat(response.getBody().getMessage()).isEqualTo("Resource not found");
     }
 
     @Test

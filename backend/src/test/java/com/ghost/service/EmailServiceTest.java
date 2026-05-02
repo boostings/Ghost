@@ -35,6 +35,7 @@ class EmailServiceTest {
                 "Ghost <noreply@example.com>",
                 "https://api.resend.test/emails",
                 true,
+                false,
                 restClientBuilder
         );
 
@@ -55,12 +56,13 @@ class EmailServiceTest {
     }
 
     @Test
-    void sendVerificationCodeShouldLogCodeWhenEmailDeliveryIsDisabled(CapturedOutput output) {
+    void sendVerificationCodeShouldRedactCodeWhenEmailDeliveryIsDisabled(CapturedOutput output) {
         EmailService emailService = new EmailService(
                 "",
                 "Ghost <noreply@example.com>",
                 "https://api.resend.test/emails",
                 true,
+                false,
                 RestClient.builder()
         );
 
@@ -69,16 +71,18 @@ class EmailServiceTest {
         assertThat(output).contains("[email-disabled]");
         assertThat(output).contains("student@ilstu.edu");
         assertThat(output).contains("Your Ghost verification code");
-        assertThat(output).contains("123456");
+        assertThat(output).contains("code=[REDACTED]");
+        assertThat(output).doesNotContain("123456");
     }
 
     @Test
-    void sendPasswordResetCodeShouldLogCodeWhenEmailDeliveryIsDisabledByConfig(CapturedOutput output) {
+    void sendPasswordResetCodeShouldLogCodeOnlyWhenExplicitlyAllowed(CapturedOutput output) {
         EmailService emailService = new EmailService(
                 "resend-key",
                 "Ghost <noreply@example.com>",
                 "https://api.resend.test/emails",
                 false,
+                true,
                 RestClient.builder()
         );
 
@@ -100,6 +104,7 @@ class EmailServiceTest {
                 "Ghost <noreply@example.com>",
                 "https://api.resend.test/emails",
                 true,
+                false,
                 restClientBuilder
         );
         User recipient = User.builder()

@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   Text,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { isAxiosError } from 'axios';
@@ -115,7 +114,11 @@ export default function ForgotPasswordScreen() {
         pointerEvents="none"
       />
       <SafeAreaView style={styles.container}>
-        <ScreenHeader title="Forgot Password" onBack={() => router.replace('/(auth)/login')} border={false} />
+        <ScreenHeader
+          title="Forgot Password"
+          onBack={() => router.replace('/(auth)/login')}
+          border={false}
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -173,7 +176,6 @@ export default function ForgotPasswordScreen() {
                 solid
               />
             </GlassCard>
-
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

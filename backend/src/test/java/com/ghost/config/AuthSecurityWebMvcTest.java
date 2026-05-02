@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.io.IOException;
 
 import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -73,6 +74,12 @@ class AuthSecurityWebMvcTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void webSocketHandshakePathShouldNotRequireUrlToken() throws Exception {
+        mockMvc.perform(get("/ws/info"))
+                .andExpect(status().isNotFound());
     }
 
     @TestConfiguration

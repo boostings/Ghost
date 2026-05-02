@@ -19,3 +19,4 @@ jwt:
 
 resend:
   enabled: ${RESEND_ENABLED:false}
+  log-codes-when-disabled: ${RESEND_LOG_CODES_WHEN_DISABLED:true}

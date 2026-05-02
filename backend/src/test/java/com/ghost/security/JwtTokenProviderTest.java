@@ -29,12 +29,13 @@ class JwtTokenProviderTest {
         JwtTokenProvider provider = createProvider(60_000, 120_000);
         UUID userId = UUID.randomUUID();
 
-        String token = provider.generateRefreshToken(userId);
+        String token = provider.generateRefreshToken(userId, 3);
 
         assertThat(provider.validateToken(token)).isTrue();
         assertThat(provider.validateTokenType(token, provider.getRefreshTokenType())).isTrue();
         assertThat(provider.getUserIdFromToken(token)).isEqualTo(userId);
         assertThat(provider.getTokenType(token)).isEqualTo(provider.getRefreshTokenType());
+        assertThat(provider.getRefreshTokenVersionFromToken(token)).isEqualTo(3);
     }
 
     @Test

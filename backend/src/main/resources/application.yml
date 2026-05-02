@@ -38,6 +38,7 @@ resend:
   api-key: ${RESEND_API_KEY:}
   api-url: ${RESEND_API_URL:https://api.resend.com/emails}
   from: ${RESEND_FROM:${RESEND_FROM_EMAIL:Ghost <noreply@resonating.app>}}
+  log-codes-when-disabled: ${RESEND_LOG_CODES_WHEN_DISABLED:false}
 
 rate-limit:
   trust-proxy-headers: false

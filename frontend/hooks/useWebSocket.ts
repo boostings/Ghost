@@ -227,9 +227,7 @@ export function useWebSocket() {
     hasLoggedExpiredWarningRef.current = false;
 
     try {
-      const separator = Config.WS_URL.includes('?') ? '&' : '?';
-      const wsUrl = `${Config.WS_URL}${separator}access_token=${encodeURIComponent(accessToken)}`;
-      const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(Config.WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {

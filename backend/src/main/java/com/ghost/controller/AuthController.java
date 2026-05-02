@@ -56,27 +56,27 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<PasswordResetStartResponse> forgotPassword(
             @Valid @RequestBody ResendVerificationRequest request) {
-        log.info("Forgot-password request received for email={}", request.getEmail());
+        log.info("Forgot-password request received");
         PasswordResetStartResponse response = authService.startPasswordReset(request.getEmail());
-        log.info("Forgot-password request completed for email={}", request.getEmail());
+        log.info("Forgot-password request completed");
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/verify-password-reset")
     public ResponseEntity<Void> verifyPasswordResetCode(
             @Valid @RequestBody VerifyPasswordResetCodeRequest request) {
-        log.info("Verify-password-reset request received for email={}", request.getEmail());
+        log.info("Verify-password-reset request received");
         authService.verifyPasswordResetCode(request);
-        log.info("Verify-password-reset request completed for email={}", request.getEmail());
+        log.info("Verify-password-reset request completed");
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<AuthResponse> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
-        log.info("Reset-password request received for email={}", request.getEmail());
+        log.info("Reset-password request received");
         AuthResponse response = authService.resetPassword(request);
-        log.info("Reset-password request completed for email={}", request.getEmail());
+        log.info("Reset-password request completed");
         return ResponseEntity.ok(response);
     }
 

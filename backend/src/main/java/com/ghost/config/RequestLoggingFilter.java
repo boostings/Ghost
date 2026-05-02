@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -32,7 +34,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String queryString = request.getQueryString();
         String path = queryString == null
                 ? request.getRequestURI()
-                : request.getRequestURI() + "?" + queryString;
+                : request.getRequestURI() + "?" + redactSensitiveQueryParams(queryString);
         response.setHeader(REQUEST_ID_HEADER, requestId);
 
         try (MDC.MDCCloseable ignored = MDC.putCloseable(REQUEST_ID_KEY, requestId)) {
@@ -97,5 +99,29 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             return "anonymous";
         }
         return authentication.getName();
+    }
+
+    private String redactSensitiveQueryParams(String queryString) {
+        return Arrays.stream(queryString.split("&", -1))
+                .map(this::redactQueryParam)
+                .collect(Collectors.joining("&"));
+    }
+
+    private String redactQueryParam(String queryParam) {
+        int separatorIndex = queryParam.indexOf('=');
+        String key = separatorIndex >= 0 ? queryParam.substring(0, separatorIndex) : queryParam;
+        if (!isSensitiveQueryKey(key)) {
+            return queryParam;
+        }
+        return separatorIndex >= 0 ? key + "=[REDACTED]" : key;
+    }
+
+    private boolean isSensitiveQueryKey(String key) {
+        String normalizedKey = key.toLowerCase();
+        return normalizedKey.contains("token")
+                || normalizedKey.contains("password")
+                || normalizedKey.contains("code")
+                || normalizedKey.contains("secret")
+                || normalizedKey.contains("authorization");
     }
 }

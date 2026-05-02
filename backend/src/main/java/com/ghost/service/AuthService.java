@@ -71,7 +71,7 @@ public class AuthService {
                 .firstName(req.getFirstName().trim())
                 .lastName(req.getLastName().trim())
                 .emailVerified(false)
-                .verificationCode(verificationCode)
+                .verificationCode(encodeOneTimeCode(verificationCode))
                 .verificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15))
                 .build();
 
@@ -107,7 +107,13 @@ public class AuthService {
         log.debug("Processing forgot-password for normalizedEmail={}", normalizedEmail);
 
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+                .orElse(null);
+        if (user == null) {
+            log.info("Forgot-password accepted for non-existent email");
+            return PasswordResetStartResponse.builder()
+                    .nextStep(PasswordResetStartResponse.NextStep.RESET_PASSWORD)
+                    .build();
+        }
 
         if (!user.isEmailVerified()) {
             String verificationCode = rotateVerificationCode(user);
@@ -118,7 +124,7 @@ public class AuthService {
         }
 
         String passwordResetCode = generateVerificationCode();
-        user.setPasswordResetCode(passwordResetCode);
+        user.setPasswordResetCode(encodeOneTimeCode(passwordResetCode));
         user.setPasswordResetCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
         emailService.sendPasswordResetCode(user.getEmail(), passwordResetCode);
@@ -143,6 +149,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
         user.setPasswordResetCode(null);
         user.setPasswordResetCodeExpiresAt(null);
+        user.setRefreshTokenVersion(user.getRefreshTokenVersion() + 1);
         userRepository.save(user);
         logUserAction(
                 user.getId(),
@@ -175,7 +182,7 @@ public class AuthService {
             throw new BadRequestException("Email is already verified");
         }
 
-        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(submittedCode)) {
+        if (!oneTimeCodeMatches(user.getVerificationCode(), submittedCode)) {
             log.warn("Verify email rejected userId={} email={} reason=INVALID_CODE",
                     user.getId(), user.getEmail());
             throw new BadRequestException("Invalid verification code");
@@ -244,6 +251,11 @@ public class AuthService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        Integer tokenVersion = jwtTokenProvider.getRefreshTokenVersionFromToken(req.getRefreshToken());
+        if (tokenVersion == null || tokenVersion != user.getRefreshTokenVersion()) {
+            log.warn("Refresh token rejected userId={} reason=STALE_TOKEN_VERSION", userId);
+            throw new UnauthorizedException("Invalid or expired refresh token");
+        }
 
         log.info("Refresh token successful for userId={}", userId);
         return createAuthResponse(user);
@@ -269,13 +281,17 @@ public class AuthService {
         return String.valueOf(code);
     }
 
+    private String encodeOneTimeCode(String code) {
+        return passwordEncoder.encode(code);
+    }
+
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private String rotateVerificationCode(User user) {
         String verificationCode = generateVerificationCode();
-        user.setVerificationCode(verificationCode);
+        user.setVerificationCode(encodeOneTimeCode(verificationCode));
         user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
         logUserAction(
@@ -299,7 +315,7 @@ public class AuthService {
             throw new BadRequestException("Email is not verified. Please verify your email first.");
         }
 
-        if (user.getPasswordResetCode() == null || !user.getPasswordResetCode().equals(submittedCode)) {
+        if (!oneTimeCodeMatches(user.getPasswordResetCode(), submittedCode)) {
             throw new BadRequestException("Invalid password reset code");
         }
 
@@ -311,10 +327,20 @@ public class AuthService {
         return user;
     }
 
+    private boolean oneTimeCodeMatches(String storedCode, String submittedCode) {
+        if (storedCode == null) {
+            return false;
+        }
+        if (storedCode.matches("^\\d{6}$")) {
+            return storedCode.equals(submittedCode);
+        }
+        return passwordEncoder.matches(submittedCode, storedCode);
+    }
+
     private AuthResponse createAuthResponse(User user) {
         String accessToken = jwtTokenProvider.generateAccessToken(
                 user.getId(), user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getRefreshTokenVersion());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

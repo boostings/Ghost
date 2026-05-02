@@ -22,6 +22,7 @@ import java.util.UUID;
 public class JwtTokenProvider {
 
     private static final String CLAIM_TOKEN_TYPE = "type";
+    private static final String CLAIM_REFRESH_TOKEN_VERSION = "rtv";
     private static final String TOKEN_TYPE_ACCESS = "ACCESS";
     private static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
@@ -65,13 +66,14 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String generateRefreshToken(UUID userId) {
+    public String generateRefreshToken(UUID userId, int refreshTokenVersion) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshExpirationMs);
 
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
+                .claim(CLAIM_REFRESH_TOKEN_VERSION, refreshTokenVersion)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(signingKey)
@@ -126,6 +128,11 @@ public class JwtTokenProvider {
     public String getTokenType(String token) {
         Claims claims = parseClaims(token);
         return claims.get(CLAIM_TOKEN_TYPE, String.class);
+    }
+
+    public Integer getRefreshTokenVersionFromToken(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get(CLAIM_REFRESH_TOKEN_VERSION, Integer.class);
     }
 
     public String getAccessTokenType() {

@@ -12,17 +12,19 @@ const api = axios.create({
 });
 
 const REDACTED = '[REDACTED]';
-const SENSITIVE_KEYS = new Set([
-  'password',
-  'token',
-  'accessToken',
-  'refreshToken',
-  'authorization',
-  'verificationCode',
-  'verification_code',
-]);
 
-function sanitizeForLog(value: unknown): unknown {
+function isSensitiveLogKey(key: string): boolean {
+  const normalizedKey = key.toLowerCase();
+  return (
+    normalizedKey.includes('token') ||
+    normalizedKey.includes('password') ||
+    normalizedKey.includes('code') ||
+    normalizedKey.includes('secret') ||
+    normalizedKey.includes('authorization')
+  );
+}
+
+export function sanitizeForLog(value: unknown): unknown {
   if (value === null || value === undefined) {
     return value;
   }
@@ -36,7 +38,7 @@ function sanitizeForLog(value: unknown): unknown {
     const sanitized: Record<string, unknown> = {};
 
     Object.entries(record).forEach(([key, nestedValue]) => {
-      if (SENSITIVE_KEYS.has(key)) {
+      if (isSensitiveLogKey(key)) {
         sanitized[key] = REDACTED;
       } else {
         sanitized[key] = sanitizeForLog(nestedValue);

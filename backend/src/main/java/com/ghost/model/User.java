@@ -66,6 +66,10 @@ public class User {
     @Builder.Default
     private boolean anonymousMode = false;
 
+    @Column(name = "refresh_token_version", nullable = false)
+    @Builder.Default
+    private int refreshTokenVersion = 0;
+
     @Column(name = "settings_json", columnDefinition = "jsonb", nullable = false)
     @ColumnTransformer(write = "?::jsonb")
     @Builder.Default

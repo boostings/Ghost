@@ -21,17 +21,20 @@ public class EmailService {
     private final String fromAddress;
     private final boolean enabled;
     private final boolean deliveryRequested;
+    private final boolean logCodesWhenDisabled;
 
     public EmailService(
             @Value("${resend.api-key:}") String apiKey,
             @Value("${resend.from:Ghost <noreply@resonating.app>}") String fromAddress,
             @Value("${resend.api-url:" + RESEND_URL + "}") String apiUrl,
             @Value("${resend.enabled:true}") boolean deliveryRequested,
+            @Value("${resend.log-codes-when-disabled:false}") boolean logCodesWhenDisabled,
             RestClient.Builder restClientBuilder
     ) {
         this.apiKey = apiKey;
         this.fromAddress = fromAddress;
         this.deliveryRequested = deliveryRequested;
+        this.logCodesWhenDisabled = logCodesWhenDisabled;
         this.enabled = deliveryRequested && apiKey != null && !apiKey.isBlank();
         this.restClient = restClientBuilder.baseUrl(apiUrl).build();
 
@@ -104,8 +107,13 @@ public class EmailService {
     private void send(String toEmail, String subject, String html, String code) {
         if (!enabled) {
             String reason = deliveryRequested ? "missing-api-key" : "disabled-by-config";
-            log.info("[email-disabled] reason={} to={} subject=\"{}\" code={}",
-                    reason, toEmail, subject, code);
+            if (logCodesWhenDisabled) {
+                log.info("[email-disabled] reason={} to={} subject=\"{}\" code={}",
+                        reason, toEmail, subject, code);
+                return;
+            }
+            log.info("[email-disabled] reason={} to={} subject=\"{}\" code=[REDACTED]",
+                    reason, toEmail, subject);
             return;
         }
 

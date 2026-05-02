@@ -124,6 +124,24 @@ class ConfigCoverageTest {
     }
 
     @Test
+    void requestLoggingFilterShouldRedactSensitiveQueryParameters() throws Exception {
+        RequestLoggingFilter filter = new RequestLoggingFilter();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/ws");
+        request.setQueryString("access_token=jwt-secret&code=123456&page=1");
+        request.setRemoteAddr("127.0.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        ListAppender<ILoggingEvent> logAppender = attachLogAppender(Level.INFO);
+
+        filter.doFilterInternal(request, response, (servletRequest, servletResponse) -> response.setStatus(200));
+
+        assertThat(logAppender.list).hasSize(1);
+        assertThat(logAppender.list.get(0).getFormattedMessage())
+                .contains("path=/ws?access_token=[REDACTED]&code=[REDACTED]&page=1")
+                .doesNotContain("jwt-secret")
+                .doesNotContain("123456");
+    }
+
+    @Test
     void requestLoggingFilterShouldLogWarningsForClientErrors() throws Exception {
         RequestLoggingFilter filter = new RequestLoggingFilter();
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
