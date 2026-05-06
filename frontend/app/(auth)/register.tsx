@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isAxiosError } from 'axios';
 import {
   StyleSheet,
   View,
@@ -105,11 +106,30 @@ export default function RegisterScreen() {
       });
       router.push({
         pathname: '/(auth)/verify-email',
-        params: { email: emailField.normalized },
+        params: { email: emailField.normalized, source: 'register' },
       });
     } catch (error: unknown) {
       const errorMessage = extractErrorMessage(error);
       const normalizedMessage = errorMessage.toLowerCase();
+
+      if (isAxiosError(error) && error.code === 'ECONNABORTED') {
+        try {
+          await authService.resendVerificationCode(emailField.normalized);
+          if (Platform.OS !== 'web') {
+            Alert.alert(
+              'Verify Email',
+              'Your account was created. Enter the verification code we sent to finish signing in.'
+            );
+          }
+          router.push({
+            pathname: '/(auth)/verify-email',
+            params: { email: emailField.normalized, source: 'register' },
+          });
+          return;
+        } catch {
+          setAuthError(errorMessage);
+        }
+      }
 
       if (normalizedMessage.includes('email is already registered')) {
         setErrors((prev) => ({ ...prev, email: errorMessage }));

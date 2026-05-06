@@ -3,6 +3,7 @@ package com.ghost.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -36,6 +37,7 @@ public class EmailService {
         this.deliveryRequested = deliveryRequested;
         this.logCodesWhenDisabled = logCodesWhenDisabled;
         this.enabled = deliveryRequested && apiKey != null && !apiKey.isBlank();
+
         this.restClient = restClientBuilder.baseUrl(apiUrl).build();
 
         if (!deliveryRequested) {
@@ -45,6 +47,7 @@ public class EmailService {
         }
     }
 
+    @Async("emailTaskExecutor")
     public void sendVerificationCode(String toEmail, String code) {
         String subject = "Your Ghost verification code";
         String html = """
@@ -58,6 +61,7 @@ public class EmailService {
         send(toEmail, subject, html, code);
     }
 
+    @Async("emailTaskExecutor")
     public void sendPasswordResetCode(String toEmail, String code) {
         String subject = "Your Ghost password reset code";
         String html = """
